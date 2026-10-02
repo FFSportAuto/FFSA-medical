@@ -142,7 +142,7 @@ textarea { resize: vertical; }
 .check.consent { display: flex; border-radius: 10px; }
 
 .section { padding-top: 8px; }
-.section legend { float: left; width: 100%; padding: 0; display: grid; gap: 2px; }
+.section legend { float: left; width: 100%; padding: 0 0 6px; display: grid; gap: 2px; }
 .section legend + * { clear: both; }
 .section legend .legend-title, details.section.optional > summary .legend-title { font-size: 19px; font-weight: 700; color: var(--navy); line-height: 1.3; }
 .grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0 18px; margin-top: 12px; }
@@ -198,7 +198,7 @@ td.mono a { font-weight: 600; text-decoration: none; }
 .pager { display: flex; gap: 18px; justify-content: center; align-items: center; color: var(--muted); font-size: 13px; }
 .meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .meta > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.meta .muted { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+.meta > div > .muted:first-child { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
 .two-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
 .kv { display: grid; grid-template-columns: minmax(130px, 40%) minmax(0, 1fr); gap: 7px 14px; margin: 0; }
 .kv dt { color: var(--muted); font-size: 13px; }
