@@ -13,8 +13,11 @@ function csrfToken(req, res, next) {
 // Routes acceptant un envoi multipart : le CSRF y est vérifié après l'analyse du corps
 const MULTIPART_ROUTES = [/^\/organisateur\/rapports$/, /^\/medecin\/[A-Za-z0-9_-]+\/patient$/];
 
+// Appels de serveur à serveur (jeton OpenID du portail licencié simulé, démo uniquement)
+const EXEMPT = ['/demo/sso/token'];
+
 function verifyCsrf(req, res, next) {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || EXEMPT.includes(req.path)) return next();
   if (req.is('multipart/form-data') && !req.uploadParsed) {
     if (MULTIPART_ROUTES.some((re) => re.test(req.path))) return next();
     return res.status(415).send('Type de contenu non accepté');

@@ -1,0 +1,8 @@
+<%- include('../partials/header') %>
+<div class="auth card">
+  <h1>Vérifiez votre boîte mail</h1>
+  <p>Un e-mail de confirmation vient d'être envoyé<% if (typeof email !== 'undefined' && email) { %> à <strong><%= email %></strong><% } %>. Cliquez sur le lien qu'il contient pour confirmer votre adresse.</p>
+  <p class="muted">Votre demande sera ensuite examinée par la FFSA. Vous recevrez un e-mail dès que votre compte sera activé.</p>
+  <% if (demoMode) { %><p><a class="btn" href="/demo/emails">Ouvrir la boîte mail de démonstration</a></p><% } %>
+</div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,54 @@
+<%- include('../partials/header') %>
+<% const fmt = (d) => d ? new Date(d).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }) : '—'; %>
+<div class="page-head"><h1>Demandes d'accès</h1></div>
+<p class="lead">Organisateurs sans compte licencié FFSA ayant demandé un accès. Les licenciés qui se connectent avec leur compte FFSA n'ont pas besoin de validation.</p>
+<% if (flash) { %><div class="alert success"><%= flash %></div><% } %>
+
+<h2>À valider (<%= pending.length %>)</h2>
+<% if (!pending.length) { %><div class="card empty">Aucune demande en attente.</div><% } %>
+<% pending.forEach(function (r) { %>
+  <article class="card request-card">
+    <div class="request-head">
+      <span><b><%= r.full_name %></b> · <%= r.job_title %><br><span class="muted"><%= r.organization %></span></span>
+      <span class="muted small">Demande du <%= fmt(r.created_at) %> · e-mail confirmé</span>
+    </div>
+    <dl class="kv">
+      <dt>E-mail</dt><dd><%= r.email %></dd>
+      <dt>Téléphone</dt><dd><%= r.phone %></dd>
+      <dt>N° de licence</dt><dd><%= r.license_number || 'Non renseigné' %></dd>
+      <% if (r.signup_message) { %><dt>Message</dt><dd><%= r.signup_message %></dd><% } %>
+    </dl>
+    <div class="request-actions">
+      <form method="post" action="/back-office/demandes/<%= r.id %>/valider" class="inline">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn primary small" type="submit">Valider</button>
+      </form>
+      <form method="post" action="/back-office/demandes/<%= r.id %>/refuser" class="request-actions" data-confirm="Refuser cette demande ? Le demandeur sera prévenu par e-mail.">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input name="note" placeholder="Motif du refus (envoyé au demandeur)" aria-label="Motif du refus" maxlength="500">
+        <button class="btn small" type="submit">Refuser</button>
+      </form>
+    </div>
+  </article>
+<% }) %>
+
+<% if (unverified.length) { %>
+  <h2>En attente de confirmation de l'adresse e-mail (<%= unverified.length %>)</h2>
+  <div class="card table-wrap"><table class="compact">
+    <thead><tr><th>Nom</th><th>Structure</th><th>E-mail</th><th>Demande</th></tr></thead>
+    <tbody><% unverified.forEach(function (r) { %><tr><td><%= r.full_name %></td><td><%= r.organization %></td><td><%= r.email %></td><td><%= fmt(r.created_at) %></td></tr><% }) %></tbody>
+  </table></div>
+<% } %>
+
+<% if (reviewed.length) { %>
+  <h2>Historique</h2>
+  <div class="card table-wrap"><table class="compact">
+    <thead><tr><th>Nom</th><th>Structure</th><th>Décision</th><th>Par</th><th>Le</th></tr></thead>
+    <tbody><% reviewed.forEach(function (r) { %>
+      <tr><td><%= r.full_name %></td><td><%= r.organization %></td>
+        <td><% if (r.approval_status === 'approved') { %><span class="badge ok">Validée</span><% } else { %><span class="badge late">Refusée</span><%= r.review_note ? ' · ' + r.review_note : '' %><% } %></td>
+        <td><%= r.reviewer || '—' %></td><td><%= fmt(r.reviewed_at) %></td></tr>
+    <% }) %></tbody>
+  </table></div>
+<% } %>
+<%- include('../partials/footer') %>

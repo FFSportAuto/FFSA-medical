@@ -18,6 +18,13 @@
   var mailTemplates = req('mail-templates');
   var smsTemplates = req('sms-templates');
   var declaredPersons = req('patients').declaredPersons;
+  var signupRules = req('signup-rules');
+  var SSO_LABEL = 'Se connecter avec mon compte licencié FFSA (simulation)';
+  // Licenciés fictifs du portail simulé (identiques à src/sso-demo-idp.js)
+  var LICENSEES = [
+    { sub: 'lic-201501', given_name: 'Camille', family_name: 'Laurent', email: 'camille.laurent@asa-demo.fr', licence: '201501', asa: 'ASA Démo Ouest' },
+    { sub: 'lic-178842', given_name: 'Karim', family_name: 'Benali', email: 'karim.benali@asa-demo.fr', licence: '178842', asa: 'ASA Démo Sud' },
+  ];
   var PROCESSING = { a_analyser: 'À analyser', en_cours: 'En cours', clos: 'Clos' };
 
   // ---------- Stockage local ----------
@@ -88,7 +95,11 @@
   function seed() {
     state = { seq: 0, users: [], accidents: [], requests: [], medical: [], attachments: [], mails: [], audit: [], notes: [], drafts: {}, session: {} };
     [['organisateur@demo.ffsa.fr', 'Organisateur Démo', 'organizer', false], ['medical@demo.ffsa.fr', 'Service médical Démo', 'medical', true], ['admin@demo.ffsa.fr', 'Administrateur Démo', 'admin', true]]
-      .forEach(function (u) { state.users.push({ id: uuid(), email: u[0], full_name: u[1], role: u[2], password: PASSWORD, totp_enabled: u[3], active: true, activated: true, last_login_at: null, created_at: now() }); });
+      .forEach(function (u) { state.users.push({ id: uuid(), email: u[0], full_name: u[1], role: u[2], password: PASSWORD, totp_enabled: u[3], active: true, activated: true, auth_source: 'local', approval_status: 'approved', email_verified_at: now(), last_login_at: null, created_at: now() }); });
+    // Une demande d'accès en attente, pour montrer la validation
+    state.users.push({ id: uuid(), email: 'julie.moreau@club-demo.fr', full_name: 'Julie Moreau', role: 'organizer', password: PASSWORD, totp_enabled: false, active: true, activated: true,
+      auth_source: 'local', approval_status: 'pending', email_verified_at: now(), phone: '06 98 76 54 32', organization: 'Écurie du Val (exemple)', job_title: 'Organisateur / ASA',
+      license_number: null, signup_message: 'Organisation du slalom du Val en juin.', created_at: now() });
     var orga = state.users[0];
     var base = { doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78', author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course' };
     var a1 = createAccident(orga, Object.assign({}, base, {
@@ -180,14 +191,20 @@
     // Authentification
     if (path === '/connexion' && method === 'GET') {
       if (u) return redirect(homeFor(u));
-      return view('auth/login', { title: 'Connexion', error: null, email: '', demoAccounts: demoAccounts() });
+      return view('auth/login', { title: 'Connexion', error: null, email: '', demoAccounts: demoAccounts(), ssoLabel: SSO_LABEL });
     }
     if (path === '/connexion' && method === 'POST') {
       var email = String(body.email || '').trim().toLowerCase();
       var found = state.users.find(function (x) { return x.email === email && x.active; });
-      if (!found || found.password !== body.password) {
-        return view('auth/login', { title: 'Connexion', error: 'Identifiants incorrects.', email: email, demoAccounts: demoAccounts() }, 401);
+      var loginErr = function (msg) { return view('auth/login', { title: 'Connexion', error: msg, email: email, demoAccounts: demoAccounts(), ssoLabel: SSO_LABEL }, 401); };
+      if (!found || !found.password || found.password !== body.password) return loginErr('Identifiants incorrects.');
+      if (found.approval_status === 'rejected') return loginErr("Votre demande de compte n'a pas été acceptée. Contactez le service médical de la FFSA.");
+      if (found.approval_status === 'pending' && !found.email_verified_at) {
+        found.verifyToken = rnd(24);
+        mail('signupVerify', found.email, { name: found.full_name, link: '/inscription/confirmer/' + found.verifyToken });
+        return loginErr('Confirmez d’abord votre adresse e-mail : un nouveau lien de confirmation vient de vous être envoyé.');
       }
+      if (found.approval_status === 'pending') return loginErr('Votre demande de compte est en cours de validation par la FFSA. Vous serez prévenu(e) par e-mail.');
       if (found.totp_enabled) { state.session.mfaUserId = found.id; return redirect('/connexion/2fa'); }
       return login(found);
     }
@@ -201,6 +218,51 @@
         return login(mu);
       }
       return view('auth/totp', { title: 'Double authentification', error: null, demoCode: demoCode() });
+    }
+    // Connexion par compte licencié (portail simulé)
+    if (path === '/connexion/sso') return view('demo/sso', { title: 'Portail licenciés FFSA (simulation)', licensees: LICENSEES, q: { client_id: 'demo', redirect_uri: '', state: '', nonce: '', code_challenge: '' } });
+    if (path === '/demo/sso/authorize' && method === 'POST') {
+      var lic = LICENSEES.find(function (l) { return l.sub === body.sub; });
+      if (!lic) return notFound();
+      var su = state.users.find(function (x) { return x.sso_subject === lic.sub; }) || state.users.find(function (x) { return x.email === lic.email; });
+      if (su && su.role !== 'organizer') return view('errors/error', { title: 'Connexion impossible', message: 'Cette adresse correspond à un compte du service médical : connectez-vous avec votre mot de passe et votre code de double authentification.' }, 409);
+      if (su) { su.sso_subject = lic.sub; su.license_number = lic.licence; if (su.approval_status === 'pending') su.approval_status = 'approved'; }
+      else {
+        su = { id: uuid(), email: lic.email, full_name: lic.given_name + ' ' + lic.family_name, role: 'organizer', password: null, totp_enabled: false, active: true, activated: true,
+          auth_source: 'sso', sso_subject: lic.sub, license_number: lic.licence, organization: lic.asa, approval_status: 'approved', email_verified_at: now(), created_at: now() };
+        state.users.push(su);
+        audit('sso_account_created', 'user', su.id);
+      }
+      return login(su);
+    }
+    // Inscription libre
+    if (path === '/inscription') {
+      var signupLocals = function (extra) { return Object.assign({ title: 'Créer un compte organisateur', values: {}, errors: {}, formError: null, jobTitles: signupRules.JOB_TITLES, ssoLabel: SSO_LABEL }, extra); };
+      if (method === 'GET') return u ? redirect(homeFor(u)) : view('auth/signup', signupLocals());
+      if (body.website) return view('auth/signup-done', { title: 'Vérifiez votre boîte mail' });
+      var sv = signupRules.validateSignup(body);
+      var pw = body.password || '';
+      var pclasses = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(function (re) { return re.test(pw); }).length;
+      var perr = pw !== body.confirm ? 'Les mots de passe ne correspondent pas.' : pw.length < 12 ? 'Le mot de passe doit contenir au moins 12 caractères.' : pclasses < 3 ? 'Le mot de passe doit mélanger au moins 3 types : minuscules, majuscules, chiffres, caractères spéciaux.' : null;
+      if (perr) sv.errors.password = perr;
+      if (Object.keys(sv.errors).length) return view('auth/signup', signupLocals({ values: sv.v, errors: sv.errors, formError: 'Le formulaire contient des erreurs, vérifiez les champs signalés.' }), 400);
+      if (state.users.some(function (x) { return x.email === sv.v.email; })) {
+        mail('signupExisting', sv.v.email, { link: '/mot-de-passe-oublie' });
+      } else {
+        var nu2 = { id: uuid(), email: sv.v.email, full_name: sv.v.first_name + ' ' + sv.v.last_name, role: 'organizer', password: pw, totp_enabled: false, active: true, activated: true,
+          auth_source: 'local', approval_status: 'pending', email_verified_at: null, phone: sv.v.phone, organization: sv.v.organization, job_title: sv.v.job_title,
+          license_number: sv.v.license_number || null, signup_message: sv.v.message || null, created_at: now(), verifyToken: rnd(24) };
+        state.users.push(nu2);
+        mail('signupVerify', nu2.email, { name: nu2.full_name, link: '/inscription/confirmer/' + nu2.verifyToken });
+      }
+      return view('auth/signup-done', { title: 'Vérifiez votre boîte mail', email: sv.v.email });
+    }
+    if ((m = path.match(/^\/inscription\/confirmer\/(\w+)$/))) {
+      var vu = state.users.find(function (x) { return x.verifyToken && x.verifyToken === m[1]; });
+      if (!vu) return view('errors/error', { title: 'Lien invalide', message: 'Ce lien de confirmation est invalide ou a expiré. Connectez-vous pour en recevoir un nouveau.' }, 410);
+      vu.email_verified_at = now(); delete vu.verifyToken;
+      mail('signupToReview', 'service.medical@ffsa.fr', { name: vu.full_name, organization: vu.organization || '—', link: '/back-office/demandes' });
+      return info('Adresse confirmée', 'Merci. Votre demande de compte organisateur est maintenant transmise à la FFSA pour validation. Vous recevrez un e-mail dès qu’elle sera acceptée.');
     }
     if (path === '/deconnexion' && method === 'POST') { audit('logout'); state.session = {}; return redirect('/connexion'); }
     if (path === '/mot-de-passe-oublie') return view('auth/forgot', { title: 'Mot de passe oublié', sent: method === 'POST' });
@@ -384,6 +446,24 @@
           flash: query.relance ? 'Nouvelle invitation envoyée au médecin.' : query.suivi ? 'Suivi mis à jour.' : query.note ? 'Note ajoutée.' : null,
         });
       }
+      if (path === '/back-office/demandes') {
+        var reqs = state.users.filter(function (x) { return x.role === 'organizer' && x.auth_source === 'local' && (x.approval_status !== 'approved' || x.reviewed_at); });
+        return view('backoffice/requests', { title: "Demandes d'accès",
+          pending: reqs.filter(function (x) { return x.approval_status === 'pending' && x.email_verified_at; }),
+          unverified: reqs.filter(function (x) { return x.approval_status === 'pending' && !x.email_verified_at; }),
+          reviewed: reqs.filter(function (x) { return x.approval_status !== 'pending'; }).map(function (x) {
+            var rv = state.users.find(function (y) { return y.id === x.reviewed_by; }); return Object.assign({}, x, { reviewer: rv ? rv.full_name : null }); }),
+          flash: query.ok || null });
+      }
+      if ((m = path.match(/^\/back-office\/demandes\/([\w-]+)\/(valider|refuser)$/)) && method === 'POST') {
+        var ru = state.users.find(function (x) { return x.id === m[1] && x.approval_status === 'pending'; });
+        if (!ru) return redirect('/back-office/demandes');
+        ru.approval_status = m[2] === 'valider' ? 'approved' : 'rejected'; ru.reviewed_by = u.id; ru.reviewed_at = now(); ru.review_note = String(body.note || '').trim() || null;
+        if (m[2] === 'valider') mail('signupApproved', ru.email, { name: ru.full_name, link: '/connexion' });
+        else mail('signupRejected', ru.email, { name: ru.full_name, reason: ru.review_note });
+        audit(m[2] === 'valider' ? 'signup_approved' : 'signup_rejected', 'user', ru.id);
+        return redirect('/back-office/demandes?ok=' + encodeURIComponent(m[2] === 'valider' ? 'Compte de ' + ru.full_name + ' activé ; un e-mail lui a été envoyé.' : 'Demande de ' + ru.full_name + ' refusée.'));
+      }
       var ad = requireRole(['admin']); if (ad) return ad;
       if (path === '/back-office/utilisateurs' && method === 'GET') return usersView(query.ok || null, null);
       if (path === '/back-office/utilisateurs' && method === 'POST') {
@@ -452,6 +532,7 @@
     var u = currentUser();
     var data = Object.assign({
       user: u, csrfToken: 'demo', path: currentPath, demoMode: true, appName: 'FFSA',
+      pendingRequests: u && u.role !== 'organizer' ? state.users.filter(function (x) { return x.approval_status === 'pending' && x.email_verified_at; }).length : 0,
       sectionHasValues: engine.sectionHasValues, disciplineClass: disciplineClass,
     }, locals);
     var html = ejs.render(TEMPLATES[name], data, { includer: includer });
@@ -564,6 +645,6 @@
   });
 
   state = load();
-  if (!state || !state.users || !state.drafts) seed(); // données d'une ancienne version : on repart à zéro
+  if (!state || !state.users || !state.drafts || !state.users.some(function (x) { return x.approval_status; })) seed(); // données d'une ancienne version : on repart à zéro
   go('GET', state.lastUrl || '/connexion');
 })();

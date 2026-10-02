@@ -10,6 +10,7 @@ const accidentForm = require('../forms/accident');
 const medicalForm = require('../forms/medical');
 const reports = require('../services/reports');
 const { buildDossierPdf } = require('../lib/pdf');
+const accounts = require('../services/accounts');
 const { decryptJson, randomToken, hashToken } = require('../lib/crypto');
 const { requireRole } = require('../middleware/auth');
 
@@ -223,11 +224,37 @@ router.get('/back-office/export.csv', async (req, res) => {
   res.send('﻿' + lines.join('\r\n'));
 });
 
+// ---- Demandes d'accès des organisateurs (inscription libre) ----
+
+router.get('/back-office/demandes', async (req, res) => {
+  const rows = await accounts.listRequests();
+  res.render('backoffice/requests', {
+    title: "Demandes d'accès",
+    pending: rows.filter((r) => r.approval_status === 'pending' && r.email_verified_at),
+    unverified: rows.filter((r) => r.approval_status === 'pending' && !r.email_verified_at),
+    reviewed: rows.filter((r) => r.approval_status !== 'pending'),
+    flash: req.query.ok || null,
+  });
+});
+
+router.post('/back-office/demandes/:id/:decision', async (req, res, next) => {
+  const { id, decision } = req.params;
+  if (!UUID_RE.test(id) || !['valider', 'refuser'].includes(decision)) return next();
+  const note = String(req.body.note || '').trim().slice(0, 500);
+  const done = await accounts.review(id, req.user, decision, note);
+  if (!done) return res.redirect('/back-office/demandes');
+  await audit(req, decision === 'valider' ? 'signup_approved' : 'signup_rejected', { targetType: 'user', targetId: id });
+  const msg = decision === 'valider' ? `Compte de ${done.full_name} activé ; un e-mail lui a été envoyé.` : `Demande de ${done.full_name} refusée.`;
+  res.redirect('/back-office/demandes?ok=' + encodeURIComponent(msg));
+});
+
 // ---- Gestion des utilisateurs (administrateurs) ----
 
 router.get('/back-office/utilisateurs', adminOnly, async (req, res) => {
   const { rows } = await db.query(
-    'SELECT id, email, full_name, role, active, totp_enabled, password_hash IS NOT NULL AS activated, last_login_at, created_at FROM users ORDER BY role, full_name',
+    `SELECT id, email, full_name, role, active, totp_enabled, auth_source, organization, license_number, approval_status,
+            (password_hash IS NOT NULL OR auth_source = 'sso') AS activated, last_login_at, created_at
+       FROM users ORDER BY role, full_name`,
   );
   res.render('backoffice/users', { title: 'Utilisateurs', users: rows, roleLabels: ROLE_LABELS, error: null, flash: req.query.ok || null });
 });
@@ -256,7 +283,9 @@ router.post('/back-office/utilisateurs', adminOnly, async (req, res) => {
   else if (await db.one('SELECT 1 FROM users WHERE email = $1', [email])) error = 'Un compte existe déjà avec cette adresse.';
   if (error) {
     const { rows } = await db.query(
-      'SELECT id, email, full_name, role, active, totp_enabled, password_hash IS NOT NULL AS activated, last_login_at, created_at FROM users ORDER BY role, full_name',
+      `SELECT id, email, full_name, role, active, totp_enabled, auth_source, organization, license_number, approval_status,
+            (password_hash IS NOT NULL OR auth_source = 'sso') AS activated, last_login_at, created_at
+       FROM users ORDER BY role, full_name`,
     );
     return res.status(400).render('backoffice/users', { title: 'Utilisateurs', users: rows, roleLabels: ROLE_LABELS, error, flash: null });
   }

@@ -282,3 +282,20 @@ a.stat:hover { border-color: var(--slate); }
 .note-list p { margin: 4px 0 0; white-space: pre-wrap; font-size: 14px; }
 .note-form { display: grid; gap: 6px; }
 @media (max-width: 860px) { .stats.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } .case-grid, .case-fields { grid-template-columns: minmax(0, 1fr); } }
+.btn.sso { background: var(--navy); border-color: var(--navy); color: #fff; padding: 13px 20px; gap: 10px; text-transform: none; letter-spacing: 0; font-size: 13.5px; }
+.btn.sso:hover { background: var(--navy-2); border-color: var(--navy-2); color: #fff; }
+.btn.sso img { border-radius: 4px; }
+.or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; margin: 18px 0 6px; }
+.or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.signup-cta { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 4px; padding: 12px; background: var(--bg); border-radius: 10px; font-size: 13.5px; }
+.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.signup-form .grid { margin-top: 4px; }
+button.demo-account.licensee { width: 100%; border: 0; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+button.demo-account.licensee:hover { background: var(--blue-tint); }
+.sso-pick { display: grid; gap: 8px; margin-top: 12px; }
+.nav .count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: var(--red); color: #fff; font-size: 11px; font-weight: 700; }
+.nav a.active .count { background: #fff; color: var(--red); }
+.request-card { display: grid; gap: 10px; }
+.request-head { display: flex; justify-content: space-between; align-items: start; gap: 10px; flex-wrap: wrap; }
+.request-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.request-actions input { flex: 1 1 240px; width: auto; }

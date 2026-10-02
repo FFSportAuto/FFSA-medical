@@ -1,0 +1,51 @@
+<%- include('../partials/header') %>
+<div class="auth card wide">
+  <span class="eyebrow">Organisateurs</span>
+  <h1>Créer un compte</h1>
+  <% if (ssoLabel) { %>
+    <div class="alert info">Vous êtes licencié(e) FFSA ? Pas besoin de formulaire : <a href="/connexion/sso"><%= ssoLabel.charAt(0).toLowerCase() + ssoLabel.slice(1) %></a>, votre compte est créé immédiatement.</div>
+  <% } %>
+  <p class="muted">Sans compte licencié, remplissez ce formulaire. Après confirmation de votre adresse e-mail, la FFSA valide votre demande (vous êtes prévenu(e) par e-mail).</p>
+  <% if (formError) { %><div class="alert error" role="alert"><%= formError %></div><% } %>
+  <form method="post" action="/inscription" class="signup-form" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="hp" aria-hidden="true"><label for="website">Ne pas remplir</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+    <div class="grid">
+      <% const f = function (name, label, type, extra) { extra = extra || {}; %>
+        <div class="field <%= extra.width || '' %> <%= errors[name] ? 'has-error' : '' %>">
+          <label class="label" for="s_<%= name %>"><%= label %><% if (!extra.optional) { %> <abbr title="obligatoire">*</abbr><% } %></label>
+          <input id="s_<%= name %>" name="<%= name %>" type="<%= type %>" value="<%= type === 'password' ? '' : (values[name] || '') %>" <% if (extra.autocomplete) { %>autocomplete="<%= extra.autocomplete %>"<% } %>>
+          <% if (extra.help) { %><p class="help"><%= extra.help %></p><% } %>
+          <% if (errors[name]) { %><p class="error-msg"><%= errors[name] %></p><% } %>
+        </div>
+      <% }; %>
+      <% f('last_name', 'Nom', 'text', { width: 'half', autocomplete: 'family-name' }) %>
+      <% f('first_name', 'Prénom', 'text', { width: 'half', autocomplete: 'given-name' }) %>
+      <% f('email', 'E-mail', 'email', { width: 'half', autocomplete: 'email' }) %>
+      <% f('phone', 'Téléphone', 'tel', { width: 'half', autocomplete: 'tel' }) %>
+      <% f('organization', 'ASA / structure organisatrice', 'text', { width: 'half', help: 'Ex. : ASA du Var, club organisateur…' }) %>
+      <div class="field half <%= errors.job_title ? 'has-error' : '' %>">
+        <label class="label" for="s_job_title">Fonction <abbr title="obligatoire">*</abbr></label>
+        <select id="s_job_title" name="job_title">
+          <option value="">— Choisir —</option>
+          <% jobTitles.forEach(function (j) { %><option <%= values.job_title === j ? 'selected' : '' %>><%= j %></option><% }) %>
+        </select>
+        <% if (errors.job_title) { %><p class="error-msg"><%= errors.job_title %></p><% } %>
+      </div>
+      <% f('license_number', 'N° de licence FFSA (si vous en avez un)', 'text', { width: 'half', optional: true, help: 'Facilite la validation de votre demande.' }) %>
+      <div class="field">
+        <label class="label" for="s_message">Message pour la FFSA (facultatif)</label>
+        <textarea id="s_message" name="message" rows="2" placeholder="Épreuves organisées, contexte de la demande…"><%= values.message || '' %></textarea>
+      </div>
+      <% f('password', 'Mot de passe', 'password', { width: 'half', autocomplete: 'new-password', help: '12 caractères minimum, avec au moins 3 types : minuscules, majuscules, chiffres, caractères spéciaux.' }) %>
+      <% f('confirm', 'Confirmation du mot de passe', 'password', { width: 'half', autocomplete: 'new-password', optional: true }) %>
+      <div class="field <%= errors.terms ? 'has-error' : '' %>">
+        <label class="check consent"><input type="checkbox" name="terms" value="1"> <span>J'atteste exercer une fonction d'organisation ou de direction de course et je m'engage à n'utiliser cette application que pour déclarer des accidents survenus lors d'épreuves FFSA. <abbr title="obligatoire">*</abbr></span></label>
+        <% if (errors.terms) { %><p class="error-msg"><%= errors.terms %></p><% } %>
+      </div>
+    </div>
+    <button class="btn primary full" type="submit">Envoyer ma demande</button>
+  </form>
+  <p class="center small"><a href="/connexion">J'ai déjà un compte</a></p>
+</div>
+<%- include('../partials/footer') %>

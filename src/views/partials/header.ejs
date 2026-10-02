@@ -21,6 +21,7 @@
         <a href="/organisateur/rapports/nouveau" class="<%= path.endsWith('/nouveau') ? 'active' : '' %>">Déclarer un accident</a>
       <% } else { %>
         <a href="/back-office" class="<%= path === '/back-office' || path.startsWith('/back-office/dossiers') ? 'active' : '' %>">Dossiers</a>
+        <a href="/back-office/demandes" class="<%= path.startsWith('/back-office/demandes') ? 'active' : '' %>">Demandes<% if (typeof pendingRequests !== 'undefined' && pendingRequests) { %><span class="count"><%= pendingRequests %></span><% } %></a>
         <% if (user.role === 'admin') { %>
           <a href="/back-office/utilisateurs" class="<%= path.startsWith('/back-office/utilisateurs') ? 'active' : '' %>">Utilisateurs</a>
           <a href="/back-office/audit" class="<%= path.startsWith('/back-office/audit') ? 'active' : '' %>">Audit</a>

@@ -55,6 +55,25 @@ const config = {
     apiKey: process.env.SMS_API_KEY || '',
     sender: process.env.SMS_SENDER || 'FFSA',
   },
+  // Connexion avec le compte licencié FFSA (OpenID Connect). Vide = bouton masqué
+  // (en mode démo, un portail licencié simulé est utilisé).
+  oidc: {
+    issuer: process.env.OIDC_ISSUER || '',
+    clientId: process.env.OIDC_CLIENT_ID || '',
+    clientSecret: process.env.OIDC_CLIENT_SECRET || '',
+    scopes: process.env.OIDC_SCOPES || 'openid email profile',
+    label: process.env.OIDC_LABEL || 'Se connecter avec mon compte licencié FFSA',
+    // Revendication contenant le n° de licence
+    licenseClaim: process.env.OIDC_LICENSE_CLAIM || 'licence',
+    // Restriction facultative : revendication et valeurs autorisées (ex. roles = officiel,organisateur)
+    requiredClaim: process.env.OIDC_REQUIRED_CLAIM || '',
+    requiredValues: (process.env.OIDC_REQUIRED_VALUES || '').split(',').map((s) => s.trim()).filter(Boolean),
+  },
+  // Personnes prévenues des demandes d'accès à valider (par défaut : le service médical)
+  approverEmails: (process.env.APPROVER_EMAILS || process.env.MEDICAL_SERVICE_EMAILS || 'service.medical@example.org')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
   appName: 'FFSA – Rapports accident & médical',
 };
 

@@ -148,3 +148,28 @@ CREATE TABLE IF NOT EXISTS case_notes (
   created_at   timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS case_notes_accident_idx ON case_notes (accident_id, created_at);
+
+-- ---------- Comptes organisateurs autonomes ----------
+-- auth_source : 'local' (inscription / invitation) ou 'sso' (compte licencié FFSA)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_source text NOT NULL DEFAULT 'local';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS sso_subject text UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS organization text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS license_number text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS signup_message text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at timestamptz;
+-- approval_status : 'approved' (comptes existants, SSO, invitations), 'pending' (inscription libre), 'rejected'
+ALTER TABLE users ADD COLUMN IF NOT EXISTS approval_status text NOT NULL DEFAULT 'approved';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reviewed_by uuid REFERENCES users(id);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reviewed_at timestamptz;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS review_note text;
+DO $$ BEGIN
+  ALTER TABLE users ADD CONSTRAINT users_approval_chk CHECK (approval_status IN ('approved', 'pending', 'rejected'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Jeton de confirmation d'adresse e-mail
+ALTER TABLE user_tokens DROP CONSTRAINT IF EXISTS user_tokens_purpose_check;
+DO $$ BEGIN
+  ALTER TABLE user_tokens ADD CONSTRAINT user_tokens_purpose_chk CHECK (purpose IN ('invite', 'reset', 'verify'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

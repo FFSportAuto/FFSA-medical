@@ -28,6 +28,7 @@ const modules = {
   'mail-templates': read('src/lib/mail-templates.js'),
   'sms-templates': read('src/lib/sms-templates.js'),
   patients: read('src/forms/patients.js'),
+  'signup-rules': read('src/services/signup-rules.js'),
 };
 const moduleJs = Object.entries(modules)
   .map(([name, src]) => `${JSON.stringify(name)}: function (module, exports, require) {\n${src}\n}`)

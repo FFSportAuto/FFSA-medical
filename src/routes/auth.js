@@ -11,6 +11,9 @@ const config = require('../config');
 const { verifyPassword, hashPassword, passwordPolicyError } = require('../lib/password');
 const { encrypt, decryptText, hashToken, randomToken } = require('../lib/crypto');
 const { requireLogin, homeFor } = require('../middleware/auth');
+const sso = require('../lib/sso');
+const accounts = require('../services/accounts');
+const signupLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false });
 
 const router = express.Router();
 const MAX_FAILED = 5;
@@ -38,7 +41,7 @@ const demoCode = async (userId) => (config.demoMode ? require('../demo').current
 
 router.get('/connexion', async (req, res) => {
   if (req.user) return res.redirect(homeFor(req.user));
-  res.render('auth/login', { title: 'Connexion', error: null, email: '', demoAccounts: await demoAccounts() });
+  res.render('auth/login', { title: 'Connexion', error: null, email: '', demoAccounts: await demoAccounts(), ssoLabel: sso.isEnabled() ? config.oidc.label : null });
 });
 
 router.post('/connexion', loginLimiter, async (req, res) => {
@@ -47,7 +50,7 @@ router.post('/connexion', loginLimiter, async (req, res) => {
   const user = await db.one('SELECT * FROM users WHERE email = $1', [email]);
   const fail = async (message = 'Identifiants incorrects.') => {
     await audit(req, 'login_failed', { targetType: 'user', targetId: user && user.id, actor: email || 'anonyme' });
-    res.status(401).render('auth/login', { title: 'Connexion', error: message, email, demoAccounts: await demoAccounts() });
+    res.status(401).render('auth/login', { title: 'Connexion', error: message, email, demoAccounts: await demoAccounts(), ssoLabel: sso.isEnabled() ? config.oidc.label : null });
   };
 
   if (!user || !user.active) return fail();
@@ -65,6 +68,17 @@ router.post('/connexion', loginLimiter, async (req, res) => {
     return fail();
   }
   await db.query('UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = $1', [user.id]);
+
+  // Inscription libre : l'adresse doit être confirmée puis la demande validée par la FFSA
+  if (user.approval_status !== 'approved') {
+    if (user.approval_status === 'rejected') return fail("Votre demande de compte n'a pas été acceptée. Contactez le service médical de la FFSA.");
+    if (!user.email_verified_at) {
+      const token = await accounts.createToken(user.id, 'verify', 48);
+      await mailer.send('signupVerify', user.email, { name: user.full_name, link: `${config.baseUrl}/inscription/confirmer/${token}` });
+      return fail('Confirmez d’abord votre adresse e-mail : un nouveau lien de confirmation vient de vous être envoyé.');
+    }
+    return fail('Votre demande de compte est en cours de validation par la FFSA. Vous serez prévenu(e) par e-mail.');
+  }
 
   if (user.totp_enabled) {
     req.session.mfaUserId = user.id;
@@ -96,6 +110,91 @@ router.post('/connexion/2fa', loginLimiter, async (req, res) => {
   req.user = user;
   await audit(req, 'login');
   res.redirect(target);
+});
+
+// ---- Connexion avec le compte licencié FFSA (OpenID Connect) ----
+
+router.get('/connexion/sso', loginLimiter, async (req, res, next) => {
+  if (!sso.isEnabled()) return next();
+  try {
+    res.redirect(await sso.authorizationUrl(req.session));
+  } catch (err) {
+    console.error('SSO indisponible :', err.message);
+    res.status(503).render('errors/error', { title: 'Connexion indisponible', message: 'Le service de connexion des licenciés ne répond pas. Réessayez plus tard ou utilisez votre mot de passe.' });
+  }
+});
+
+router.get('/connexion/sso/retour', loginLimiter, async (req, res, next) => {
+  if (!sso.isEnabled()) return next();
+  let identity;
+  try {
+    identity = await sso.handleCallback(req);
+  } catch (err) {
+    await audit(req, 'sso_failed', { details: { reason: err.code || err.message } });
+    const message = err.code === 'NOT_ALLOWED'
+      ? "Votre profil licencié ne permet pas d'accéder à l'application. Créez un compte organisateur avec le formulaire d'inscription."
+      : 'La connexion avec votre compte licencié a échoué. Réessayez.';
+    return res.status(401).render('errors/error', { title: 'Connexion impossible', message });
+  }
+  let result;
+  try {
+    result = await accounts.findOrCreateSsoUser(identity);
+  } catch (err) {
+    const message = err.code === 'STAFF_ACCOUNT'
+      ? 'Cette adresse correspond à un compte du service médical : connectez-vous avec votre mot de passe et votre code de double authentification.'
+      : err.message;
+    return res.status(409).render('errors/error', { title: 'Connexion impossible', message });
+  }
+  const { user } = result;
+  if (!user.active) return res.status(403).render('errors/error', { title: 'Compte désactivé', message: 'Votre compte a été désactivé. Contactez la FFSA.' });
+  if (user.totp_enabled) {
+    req.session.mfaUserId = user.id;
+    req.session.mfaAt = Date.now();
+    return res.redirect('/connexion/2fa');
+  }
+  await db.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
+  const target = await startSession(req, user);
+  req.user = user;
+  await audit(req, result.created ? 'sso_account_created' : 'login_sso', { targetType: 'user', targetId: user.id });
+  res.redirect(target);
+});
+
+// ---- Inscription libre (organisateurs sans compte licencié) ----
+
+const signupView = (res, locals = {}, status = 200) =>
+  res.status(status).render('auth/signup', {
+    title: 'Créer un compte organisateur', values: {}, errors: {}, formError: null, jobTitles: accounts.JOB_TITLES,
+    ssoLabel: sso.isEnabled() ? config.oidc.label : null, ...locals,
+  });
+
+router.get('/inscription', (req, res) => {
+  if (req.user) return res.redirect(homeFor(req.user));
+  signupView(res);
+});
+
+router.post('/inscription', signupLimiter, async (req, res) => {
+  // Champ piège invisible : rempli uniquement par les robots
+  if (req.body.website) return res.render('auth/signup-done', { title: 'Vérifiez votre boîte mail' });
+  const { v, errors } = accounts.validateSignup(req.body);
+  const { password, confirm } = req.body;
+  const pwdError = password !== confirm ? 'Les mots de passe ne correspondent pas.' : passwordPolicyError(password);
+  if (pwdError) errors.password = pwdError;
+  if (Object.keys(errors).length) {
+    return signupView(res, { values: v, errors, formError: 'Le formulaire contient des erreurs, vérifiez les champs signalés.' }, 400);
+  }
+  const user = await accounts.signup(v, password);
+  await audit(req, 'signup_requested', { targetType: 'user', targetId: user && user.id, actor: v.email });
+  res.render('auth/signup-done', { title: 'Vérifiez votre boîte mail', email: v.email });
+});
+
+router.get('/inscription/confirmer/:token', async (req, res) => {
+  const t = await accounts.verifyEmail(req.params.token);
+  if (!t) return res.status(410).render('errors/error', { title: 'Lien invalide', message: 'Ce lien de confirmation est invalide ou a expiré. Connectez-vous pour en recevoir un nouveau.' });
+  await audit(req, 'signup_email_verified', { targetType: 'user', targetId: t.user_id, actor: t.full_name });
+  res.render('errors/info', {
+    title: 'Adresse confirmée',
+    message: 'Merci. Votre demande de compte organisateur est maintenant transmise à la FFSA pour validation. Vous recevrez un e-mail dès qu’elle sera acceptée.',
+  });
 });
 
 router.post('/deconnexion', async (req, res) => {

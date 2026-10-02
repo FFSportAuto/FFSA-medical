@@ -39,13 +39,22 @@ référence de dossier et un lien.
   référent, notes internes chiffrées, alerte « en retard » quand le rapport médical n'est pas arrivé sous 48 h,
   filtres correspondants et tableau de bord.
 
+## Accès des organisateurs (autonomes)
+
+Les organisateurs créent leur accès eux-mêmes :
+- **compte licencié FFSA** (SSO OpenID Connect) : compte créé automatiquement à la première connexion ;
+- **inscription** pour ceux qui n'ont pas de compte licencié : confirmation de l'e-mail puis validation
+  par la FFSA dans le back office (menu « Demandes »).
+
+Configuration et informations à demander à la DSI : [`docs/SSO.md`](docs/SSO.md).
+
 ## Rôles
 
 | Rôle | Accès |
 |---|---|
-| Organisateur | Déclarer un accident, suivre ses déclarations (sans accès au rapport médical) |
+| Organisateur | Compte licencié (SSO) ou inscription validée par la FFSA ; déclarer un accident, suivre ses déclarations (sans accès au rapport médical) |
 | Médecin | Lien sécurisé + code e-mail, uniquement pour le dossier concerné, une seule soumission |
-| Service médical | Back office : liste/filtres, dossier complet, pièces jointes, export CSV, relance du médecin |
+| Service médical | Back office : dossiers, suivi, PDF, export CSV, relance du médecin, validation des demandes d'accès |
 | Administrateur | Idem + gestion des comptes et journal d'audit |
 
 La double authentification (TOTP : Google/Microsoft Authenticator, FreeOTP…) est **obligatoire**

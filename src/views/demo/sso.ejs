@@ -1,0 +1,17 @@
+<%- include('../partials/header') %>
+<div class="auth card wide">
+  <span class="eyebrow">Simulation du portail des licenciés</span>
+  <h1>Compte licencié FFSA</h1>
+  <p class="muted">En production, le licencié saisit ici ses identifiants habituels sur le portail de la FFSA. Pour la démonstration, choisissez un licencié fictif.</p>
+  <form method="post" action="/demo/sso/authorize" class="sso-pick">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <% ['client_id', 'redirect_uri', 'state', 'nonce', 'code_challenge'].forEach(function (k) { %><input type="hidden" name="<%= k %>" value="<%= q[k] %>"><% }) %>
+    <% licensees.forEach(function (l) { %>
+      <button type="submit" name="sub" value="<%= l.sub %>" class="demo-account licensee">
+        <span><b><%= l.given_name %> <%= l.family_name %></b><span class="muted small">Licence n° <%= l.licence %> · <%= l.asa %></span></span>
+        <span class="btn small ghost">Se connecter</span>
+      </button>
+    <% }) %>
+  </form>
+</div>
+<%- include('../partials/footer') %>

@@ -13,14 +13,15 @@
 </form>
 <div class="card table-wrap">
   <table>
-    <thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>État</th><th>2FA</th><th>Dernière connexion</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Accès</th><th>État</th><th>2FA</th><th>Dernière connexion</th><th>Actions</th></tr></thead>
     <tbody>
     <% users.forEach(function (u) { %>
       <tr class="<%= u.active ? '' : 'inactive' %>">
         <td><%= u.full_name %></td>
         <td><%= u.email %></td>
-        <td><%= roleLabels[u.role] %></td>
-        <td><%= !u.active ? 'Désactivé' : (u.activated ? 'Actif' : 'Invitation envoyée') %></td>
+        <td><%= roleLabels[u.role] %><% if (u.organization) { %><span class="muted small block"><%= u.organization %></span><% } %></td>
+        <td><%= u.auth_source === 'sso' ? 'Compte licencié' : 'Mot de passe' %><% if (u.license_number) { %><span class="muted small block">Lic. <%= u.license_number %></span><% } %></td>
+        <td><%= !u.active ? 'Désactivé' : u.approval_status === 'pending' ? 'Demande en attente' : u.approval_status === 'rejected' ? 'Demande refusée' : (u.activated ? 'Actif' : 'Invitation envoyée') %></td>
         <td><%= u.totp_enabled ? 'Oui' : 'Non' %></td>
         <td><%= u.last_login_at ? new Date(u.last_login_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }) : '—' %></td>
         <td class="actions-cell">
