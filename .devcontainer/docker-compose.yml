@@ -1,0 +1,20 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/javascript-node:22
+    volumes:
+      - ../..:/workspaces:cached
+    command: sleep infinity
+    network_mode: service:db
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/ffsa
+      DEMO_MODE: "true"
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ffsa
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:

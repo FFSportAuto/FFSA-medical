@@ -1,0 +1,15 @@
+{
+  "name": "FFSA Médical – démonstration",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": { "label": "Application FFSA", "onAutoForward": "openBrowser" }
+  },
+  "postCreateCommand": "npm ci",
+  "postAttachCommand": "npm run demo",
+  "customizations": {
+    "codespaces": { "openFiles": ["docs/TESTER.md"] }
+  }
+}

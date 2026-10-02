@@ -11,5 +11,17 @@
   </form>
   <p class="center"><a href="/mot-de-passe-oublie">Mot de passe oublié ?</a></p>
   <p class="muted small center">Médecins : utilisez le lien sécurisé reçu par e-mail, aucun compte n'est nécessaire.</p>
+  <% if (demoAccounts.length) { %>
+    <div class="demo-accounts">
+      <span class="eyebrow">Comptes de démonstration</span>
+      <% demoAccounts.forEach(function (a) { %>
+        <div class="demo-account">
+          <span><b><%= a.label %></b><span class="mono"><%= a.email %></span></span>
+          <button type="button" class="btn small ghost" data-fill-login="<%= a.email %>" data-fill-password="<%= a.password %>">Utiliser</button>
+        </div>
+      <% }) %>
+      <p class="help">Mot de passe commun : <span class="mono"><%= demoAccounts[0].password %></span>. Le code de double authentification est affiché à l'étape suivante.</p>
+    </div>
+  <% } %>
 </div>
 <%- include('../partials/footer') %>

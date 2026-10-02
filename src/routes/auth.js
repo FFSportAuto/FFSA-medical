@@ -33,9 +33,12 @@ function startSession(req, user) {
 
 router.get('/', (req, res) => res.redirect(homeFor(req.user)));
 
-router.get('/connexion', (req, res) => {
+const demoAccounts = async () => (config.demoMode ? require('../demo').accountsForDisplay() : []);
+const demoCode = async (userId) => (config.demoMode ? require('../demo').currentCode(userId) : null);
+
+router.get('/connexion', async (req, res) => {
   if (req.user) return res.redirect(homeFor(req.user));
-  res.render('auth/login', { title: 'Connexion', error: null, email: '' });
+  res.render('auth/login', { title: 'Connexion', error: null, email: '', demoAccounts: await demoAccounts() });
 });
 
 router.post('/connexion', loginLimiter, async (req, res) => {
@@ -44,7 +47,7 @@ router.post('/connexion', loginLimiter, async (req, res) => {
   const user = await db.one('SELECT * FROM users WHERE email = $1', [email]);
   const fail = async (message = 'Identifiants incorrects.') => {
     await audit(req, 'login_failed', { targetType: 'user', targetId: user && user.id, actor: email || 'anonyme' });
-    res.status(401).render('auth/login', { title: 'Connexion', error: message, email });
+    res.status(401).render('auth/login', { title: 'Connexion', error: message, email, demoAccounts: await demoAccounts() });
   };
 
   if (!user || !user.active) return fail();
@@ -75,9 +78,9 @@ router.post('/connexion', loginLimiter, async (req, res) => {
   res.redirect(target);
 });
 
-router.get('/connexion/2fa', (req, res) => {
+router.get('/connexion/2fa', async (req, res) => {
   if (!req.session.mfaUserId) return res.redirect('/connexion');
-  res.render('auth/totp', { title: 'Double authentification', error: null });
+  res.render('auth/totp', { title: 'Double authentification', error: null, demoCode: await demoCode(req.session.mfaUserId) });
 });
 
 router.post('/connexion/2fa', loginLimiter, async (req, res) => {
@@ -86,7 +89,7 @@ router.post('/connexion/2fa', loginLimiter, async (req, res) => {
   const user = await db.one('SELECT * FROM users WHERE id = $1 AND active', [mfaUserId]);
   if (!user || !totp.verify(decryptText(user.totp_secret_enc), req.body.code)) {
     await audit(req, 'login_2fa_failed', { targetType: 'user', targetId: mfaUserId, actor: user ? user.email : 'anonyme' });
-    return res.status(401).render('auth/totp', { title: 'Double authentification', error: 'Code incorrect.' });
+    return res.status(401).render('auth/totp', { title: 'Double authentification', error: 'Code incorrect.', demoCode: await demoCode(mfaUserId) });
   }
   await db.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
   const target = await startSession(req, user);

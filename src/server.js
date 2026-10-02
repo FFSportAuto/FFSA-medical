@@ -7,6 +7,10 @@ const reports = require('./services/reports');
 
 async function main() {
   await migrate();
+  if (config.demoMode) {
+    await require('./demo').seed();
+    console.log('Mode démonstration actif : comptes de test créés (voir la page de connexion).');
+  }
   const app = createApp();
   app.listen(config.port, () => console.log(`${config.appName} – http://localhost:${config.port}`));
 

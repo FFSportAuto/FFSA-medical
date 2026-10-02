@@ -50,6 +50,21 @@ Une section peut être `optional` (repliée par défaut) ou `shareWithDoctor` (m
 `showIf: { field, equals }`, `{ field, in: [...] }`, `{ field, includes }` (cases à cocher),
 au niveau d'un champ ou d'une section.
 
+## Tester l'application (démonstration)
+
+Le plus simple, sans rien installer : sur GitHub, bouton **Code → Codespaces → Create codespace on
+`<branche>`**. L'application démarre seule en **mode démonstration** (voir [`docs/TESTER.md`](docs/TESTER.md)) :
+comptes de test affichés sur la page de connexion, code de double authentification affiché à l'écran,
+e-mails visibles dans l'application (« Voir les e-mails envoyés ») et deux dossiers d'exemple.
+
+En local : `npm run demo`. Le mode démo (`DEMO_MODE=true`) ne doit **jamais** être activé sur le serveur HDS.
+
+## Charte graphique
+
+Charte FFSA « maquette bleue » : police Poppins (hébergée localement, aucun appel à Google Fonts),
+navy `#070E47`, rouge `#EF1D34`, boutons pilule bleus `#3685D9`, titres `[ EN CROCHETS ]`,
+pastilles de couleur par discipline. Logo et favicon dans `public/img/`.
+
 ## Lancer en local
 
 Prérequis : Node.js ≥ 20 et PostgreSQL ≥ 14.

@@ -244,6 +244,11 @@ test('workflow complet accident -> médical -> back office', async () => {
   }
 });
 
+test('la boîte mail de démonstration est désactivée hors mode démo', async () => {
+  const r = await fetch(`${base}/demo/emails`);
+  assert.strictEqual(r.status, 404);
+});
+
 test('protection CSRF et 2FA imposée au back office', async () => {
   await createUser('admin@ffsa.test', 'admin');
   const c = client();

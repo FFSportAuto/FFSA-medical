@@ -105,6 +105,14 @@
     });
   });
 
+  document.querySelectorAll('[data-fill-login]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.getElementById('email').value = b.getAttribute('data-fill-login');
+      document.getElementById('password').value = b.getAttribute('data-fill-password');
+      document.getElementById('password').form.requestSubmit();
+    });
+  });
+
   document.querySelectorAll('[data-print]').forEach(function (b) {
     b.addEventListener('click', function () { window.print(); });
   });

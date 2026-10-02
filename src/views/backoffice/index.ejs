@@ -33,7 +33,7 @@
       <tr class="clickable">
         <td class="mono"><a href="/back-office/dossiers/<%= r.id %>"><%= r.reference %></a></td>
         <td><%= r.event_name %></td>
-        <td><%= r.discipline %></td>
+        <td><% if (r.discipline) { %><span class="disc <%= disciplineClass(r.discipline) %>"><%= r.discipline %></span><% } %></td>
         <td><%= r.event_date ? new Date(r.event_date).toLocaleDateString('fr-FR') : '' %></td>
         <td><%= r.organizer_name %></td>
         <td><% if (r.status === 'complete') { %><span class="badge ok">Complet</span><% } else { %><span class="badge wait">Attente médical</span><% } %></td>

@@ -1,0 +1,16 @@
+<%- include('../partials/header') %>
+<div class="page-head"><h1>E-mails envoyés</h1></div>
+<p class="lead">En démonstration, aucun e-mail ne part réellement : ils s'affichent ici. Ouvrez le lien reçu par le médecin pour tester le rapport médical.</p>
+<% if (!mails.length) { %>
+  <div class="card empty">Aucun e-mail pour le moment. Déclarez un accident pour déclencher l'envoi au médecin.</div>
+<% } %>
+<div class="mail-list">
+<% mails.forEach(function (m) { %>
+  <article class="card mail">
+    <div class="subject"><%= m.subject %></div>
+    <div class="meta-line"><span>À : <%= m.to %></span><span><%= new Date(m.date).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'medium' }) %></span></div>
+    <pre><%- m.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/(\/[a-z-]+\/[A-Za-z0-9_\/-]{10,})/g, '<a href="$1">$1</a>') %></pre>
+  </article>
+<% }) %>
+</div>
+<%- include('../partials/footer') %>

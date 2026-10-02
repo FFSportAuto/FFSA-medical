@@ -32,7 +32,8 @@ async function sendMail({ to, subject, text }) {
   const info = await getTransport().sendMail(message);
   if (!config.mail.host) {
     // Mode développement : conserve les messages en mémoire et dans ./outbox
-    outbox.push(message);
+    outbox.push({ ...message, date: new Date() });
+    if (outbox.length > 200) outbox.shift();
     if (config.env !== 'test') {
       const dir = path.join(process.cwd(), 'outbox');
       fs.mkdirSync(dir, { recursive: true });

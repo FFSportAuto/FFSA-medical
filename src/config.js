@@ -11,12 +11,19 @@ const required = (name, fallback) => {
 const env = process.env.NODE_ENV || 'development';
 const isProd = env === 'production';
 
+// GitHub Codespaces : URL publique du port 3000 déduite automatiquement
+const codespaceUrl = process.env.CODESPACE_NAME && process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN
+  ? `https://${process.env.CODESPACE_NAME}-3000.${process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}`
+  : null;
+
 const config = {
   env,
   isProd,
   port: Number(process.env.PORT || 3000),
   // URL publique utilisée dans les liens envoyés par e-mail
-  baseUrl: (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, ''),
+  baseUrl: (process.env.BASE_URL || codespaceUrl || 'http://localhost:3000').replace(/\/$/, ''),
+  // Mode démonstration : comptes de test, codes 2FA affichés, boîte mail intégrée. JAMAIS en production réelle.
+  demoMode: process.env.DEMO_MODE === 'true',
   databaseUrl: required('DATABASE_URL', isProd ? undefined : 'postgres://postgres@localhost:5432/ffsa'),
   sessionSecret: required('SESSION_SECRET', isProd ? undefined : 'dev-session-secret-a-changer'),
   // Clé AES-256 (32 octets encodés en base64) pour le chiffrement applicatif des données de santé

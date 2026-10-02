@@ -2,6 +2,7 @@
 <div class="auth card">
   <h1>Double authentification</h1>
   <p class="muted">Saisissez le code à 6 chiffres affiché dans votre application d'authentification.</p>
+  <% if (demoCode) { %><div class="alert info">Démonstration : le code actuel est <strong class="mono"><%= demoCode %></strong> (normalement lu sur votre téléphone).</div><% } %>
   <% if (error) { %><div class="alert error" role="alert"><%= error %></div><% } %>
   <form method="post" action="/connexion/2fa">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">

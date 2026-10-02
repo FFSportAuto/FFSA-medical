@@ -5,10 +5,10 @@
     <% const showIf = section.showIf ? JSON.stringify(section.showIf) : ''; %>
     <% if (section.optional) { %>
       <details class="card section optional" <%= sectionHasValues(section, values) ? 'open' : '' %> <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
-        <summary><span class="step"><%= i + 1 %></span><%= section.title %> <span class="muted small">(facultatif)</span></summary>
+        <summary><span><span class="eyebrow">Section <%= i + 1 %> · facultatif</span><span class="legend-title"><%= section.title %></span></span></summary>
     <% } else { %>
       <fieldset class="card section" <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
-        <legend><span class="step"><%= i + 1 %></span><%= section.title %></legend>
+        <legend><span class="eyebrow">Section <%= i + 1 %></span><span class="legend-title"><%= section.title %></span></legend>
     <% } %>
       <% if (section.intro) { %><p class="muted section-intro"><%= section.intro %></p><% } %>
       <div class="grid">

@@ -10,6 +10,19 @@ const db = require('./db');
 const { loadUser } = require('./middleware/auth');
 const { csrfToken, verifyCsrf } = require('./middleware/csrf');
 
+// Couleur de discipline (charte FFSA) pour les pastilles du back office
+function disciplineClass(discipline) {
+  const d = String(discipline || '').toLowerCase();
+  if (d.includes('karting')) return 'disc-karting';
+  if (d.includes('drift')) return 'disc-drift';
+  if (d.includes('tout-terrain') || d.includes('tout terrain') || /cross|trial|fol/.test(d)) return 'disc-tt';
+  if (d.includes('côte') || d.includes('slalom')) return 'disc-montagne';
+  if (d.includes('vhc')) return 'disc-vhc';
+  if (d.includes('rallye')) return 'disc-rallye';
+  if (d.includes('circuit') || d.includes('dragster')) return 'disc-circuit';
+  return '';
+}
+
 function createApp() {
   const app = express();
   app.set('view engine', 'ejs');
@@ -17,6 +30,8 @@ function createApp() {
   app.set('trust proxy', /^\d+$/.test(config.trustProxy) ? Number(config.trustProxy) : config.trustProxy);
   app.disable('x-powered-by');
   app.locals.sectionHasValues = require('./forms/engine').sectionHasValues;
+  app.locals.disciplineClass = disciplineClass;
+  app.locals.demoMode = config.demoMode;
 
   app.use(
     helmet({
@@ -68,6 +83,7 @@ function createApp() {
   app.use(require('./routes/organizer'));
   app.use(require('./routes/doctor'));
   app.use(require('./routes/backoffice'));
+  if (config.demoMode) app.use(require('./demo').router);
 
   app.use((req, res) => res.status(404).render('errors/error', { title: 'Page introuvable', message: "Cette page n'existe pas." }));
   // eslint-disable-next-line no-unused-vars

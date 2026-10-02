@@ -5,7 +5,7 @@
   <p class="muted">Pour protéger les données de santé, nous devons vérifier votre identité. Un code à usage unique va être envoyé à <strong><%= maskedEmail %></strong>.</p>
   <% if (error) { %><div class="alert error" role="alert"><%= error %></div><% } %>
   <% if (codeSent) { %>
-    <div class="alert info">Code envoyé. Il est valable 10 minutes.</div>
+    <div class="alert info">Code envoyé. Il est valable 10 minutes.<% if (demoMode) { %> Démonstration : <a href="/demo/emails" target="_blank">ouvrir la boîte mail</a>.<% } %></div>
     <form method="post" action="/medecin/<%= token %>/verifier">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <div class="field"><label class="label" for="code">Code reçu par e-mail</label><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required autofocus class="code-input"></div>
