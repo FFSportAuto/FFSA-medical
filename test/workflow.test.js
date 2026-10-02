@@ -15,7 +15,7 @@ const createApp = require('../src/app');
 const mailer = require('../src/lib/mailer');
 const totp = require('../src/lib/totp');
 const { hashPassword } = require('../src/lib/password');
-const { encrypt } = require('../src/lib/crypto');
+const { encrypt, decryptText } = require('../src/lib/crypto');
 
 const PASSWORD = 'Motdepasse-Solide-2026';
 const PNG = Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex');
@@ -31,7 +31,11 @@ function client() {
   async function request(path, { method = 'GET', body } = {}) {
     const headers = { cookie: [...jar].map(([k, v]) => `${k}=${v}`).join('; ') };
     let payload;
-    if (body instanceof FormData) {
+    if (body && body.__json) {
+      headers['content-type'] = 'application/json';
+      headers['x-csrf-token'] = csrf;
+      payload = JSON.stringify(body.__json);
+    } else if (body instanceof FormData) {
       body.set('_csrf', csrf);
       payload = body;
     } else if (body) {
@@ -54,6 +58,7 @@ function client() {
     get: (p) => request(p),
     post: (p, body) => request(p, { method: 'POST', body }),
     cookie: () => [...jar].map(([k, v]) => `${k}=${v}`).join('; '),
+    json: (p, obj) => request(p, { method: 'POST', body: { __json: obj } }),
   };
 }
 
@@ -93,7 +98,9 @@ function accidentFormData() {
     doctor_first_name: 'Marie',
     doctor_last_name: 'Docteur',
     doctor_email: 'dr.marie@hopital.test',
-    summary_victim_name: 'Paul Pilote',
+    doctor_phone: '06 01 02 03 04',
+    summary_victim_last_name: 'Pilote',
+    summary_victim_first_name: 'Paul',
     accident_date: '2026-09-20',
     accident_time: '14:35',
     circumstances: 'Sortie de route dans un virage à droite.',
@@ -102,9 +109,11 @@ function accidentFormData() {
     event_location: 'Gérardmer',
     discipline: 'Rallye',
     event_date: '2026-09-20',
-    vehicle1_driver_name: 'Paul Pilote',
+    vehicle1_driver_last_name: 'Pilote',
+    vehicle1_driver_first_name: 'Paul',
     vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
-    person1_name: 'Jean Spectateur',
+    person1_last_name: 'Spectateur',
+    person1_first_name: 'Jean',
     author_first_name: 'Jean',
     author_last_name: 'Directeur',
     author_signature: SIGNATURE,
@@ -162,6 +171,14 @@ test('workflow complet accident -> médical -> back office', async () => {
   const form = await orga.get('/organisateur/rapports/nouveau');
   assert.match(form.text, /Rapport d&#39;accident|Rapport d'accident/);
 
+  // Brouillon enregistré automatiquement puis repris
+  const saved = await orga.json('/organisateur/brouillon', { event_name: 'Brouillon en cours', weather: ['Nuageux'] });
+  assert.strictEqual(saved.status, 200, saved.text.slice(0, 200));
+  assert.ok(JSON.parse(saved.text).savedAt);
+  const resumed = await orga.get('/organisateur/rapports/nouveau');
+  assert.match(resumed.text, /value="Brouillon en cours"/);
+  assert.match(resumed.text, /Brouillon repris/);
+
   const bad = await orga.request('/organisateur/rapports', { method: 'POST', body: new FormData() });
   assert.strictEqual(bad.status, 400);
   assert.match(bad.text, /Champ obligatoire/);
@@ -173,6 +190,7 @@ test('workflow complet accident -> médical -> back office', async () => {
   assert.strictEqual(accident.status, 'awaiting_medical');
   // Les données sensibles ne sont pas stockées en clair
   assert.ok(!accident.data_enc.toString('latin1').includes('Pilote'));
+  assert.strictEqual((await db.one('SELECT count(*)::int AS n FROM drafts')).n, 0, 'brouillon supprimé après envoi');
 
   // 2. Notifications : médecin, organisateur, service médical — sans donnée de santé
   const invite = lastMail(/Rapport médical à compléter/);
@@ -180,6 +198,10 @@ test('workflow complet accident -> médical -> back office', async () => {
   assert.ok(lastMail(/Nouveau rapport d'accident/));
   for (const m of mailer.outbox) assert.ok(!/Paul|CHU|Sortie de route/.test(m.text), 'pas de donnée sensible par e-mail');
   const token = invite.text.match(/https?:\/\/\S+\/medecin\/(\S+)/)[1];
+  // Le lien est aussi envoyé par SMS au portable du médecin
+  const smsInvite = mailer.outbox.filter((m) => m.sms).pop();
+  assert.strictEqual(smsInvite.to, '+33601020304');
+  assert.ok(smsInvite.text.includes(`/medecin/${token}`));
 
   // Un autre organisateur ne peut pas voir le dossier ; l'organisateur n'a pas accès au back office
   const orga2 = client();
@@ -191,32 +213,46 @@ test('workflow complet accident -> médical -> back office', async () => {
   const doc = client();
   const landing = await doc.get(`/medecin/${token}`);
   assert.match(landing.text, /d•+@hopital\.test/);
+  assert.match(landing.text, /03 04/, 'portable masqué');
   assert.ok(!landing.text.includes('Paul'), 'aucune donnée avant vérification');
   assert.strictEqual((await doc.get(`/medecin/${token}/patient`)).status, 302, 'formulaire inaccessible sans code');
   assert.strictEqual((await doc.post(`/medecin/${token}/verifier`, { code: '000000' })).status, 401);
   await doc.post(`/medecin/${token}/code`, {});
   const code = lastMail(/Code de vérification/).text.match(/(\d{6})/)[1];
+  assert.ok(mailer.outbox.filter((m) => m.sms).pop().text.includes(code), 'code aussi envoyé par SMS');
   assert.strictEqual((await doc.post(`/medecin/${token}/verifier`, { code })).status, 302);
   const dossier = await doc.get(`/medecin/${token}`);
   assert.match(dossier.text, /Rappel de la déclaration/);
-  assert.match(dossier.text, /Paul Pilote/);
-  const medPage = await doc.get(`/medecin/${token}/patient`);
-  assert.match(medPage.text, /value="Marie Docteur"/, 'pré-remplissage');
-  assert.match(medPage.text, /value="Rallye Test des Vosges"/);
+  // Personnes déclarées par l'organisateur (la synthèse et le pilote n°1 sont la même personne)
+  assert.match(dossier.text, /Pilote Paul/);
+  assert.match(dossier.text, /Spectateur Jean/);
+  assert.strictEqual((dossier.text.match(/patient\?p=/g) || []).length, 3, '2 personnes + « autre patient »');
+  const medPage = await doc.get(`/medecin/${token}/patient?p=vehicle1`);
+  assert.match(medPage.text, /value="Marie Docteur"/, 'pré-remplissage médecin');
+  assert.match(medPage.text, /value="Rallye Test des Vosges"/, 'pré-remplissage épreuve');
+  assert.match(medPage.text, /id="f_patient_last_name" name="patient_last_name" type="text" value="Pilote"/, 'pré-remplissage patient');
+  assert.match(medPage.text, /Patient déclaré par l'organisateur|Patient déclaré par l&#39;organisateur/);
+
+  // Brouillon du médecin, propre à chaque patient
+  assert.strictEqual((await doc.json(`/medecin/${token}/brouillon?p=vehicle1`, { patient_last_name: 'Pilote', diagnosis: 'Brouillon diagnostic' })).status, 200);
+  assert.match((await doc.get(`/medecin/${token}/patient?p=vehicle1`)).text, /Brouillon diagnostic/);
+  assert.doesNotMatch((await doc.get(`/medecin/${token}/patient?p=person1`)).text, /Brouillon diagnostic/);
 
   // Clôture impossible sans rapport
   assert.match((await doc.post(`/medecin/${token}/cloturer`, {})).location, /vide=1/);
 
   // 4. Le médecin transmet un rapport par patient, puis clôture
-  for (const [last, first, cls] of [['Pilote', 'Paul', "2 : transfert à l'hôpital"], ['Spectateur', 'Jean', '1 : traitement sur place']]) {
-    await doc.get(`/medecin/${token}/patient`);
-    const r = await doc.request(`/medecin/${token}/patient`, { method: 'POST', body: medicalFormData(last, first, cls) });
+  for (const [last, first, cls, ref] of [['Pilote', 'Paul', "2 : transfert à l'hôpital", 'vehicle1'], ['Spectateur', 'Jean', '1 : traitement sur place', 'person1']]) {
+    await doc.get(`/medecin/${token}/patient?p=${ref}`);
+    const r = await doc.request(`/medecin/${token}/patient?p=${ref}`, { method: 'POST', body: medicalFormData(last, first, cls) });
     assert.strictEqual(r.status, 302, r.text.slice(0, 400));
   }
   assert.strictEqual((await db.one('SELECT count(*)::int AS n FROM medical_reports')).n, 2);
+  assert.deepStrictEqual((await db.query('SELECT patient_ref FROM medical_reports ORDER BY created_at')).rows.map((r) => r.patient_ref), ['vehicle1', 'person1']);
+  assert.strictEqual((await db.one('SELECT count(*)::int AS n FROM drafts')).n, 0, 'brouillon médecin supprimé après envoi');
   assert.strictEqual((await db.one('SELECT status FROM accident_reports')).status, 'awaiting_medical');
   const list = await doc.get(`/medecin/${token}`);
-  assert.match(list.text, /Spectateur Jean/);
+  assert.strictEqual((list.text.match(/Rapport saisi/g) || []).length, 2);
   const closed = await doc.post(`/medecin/${token}/cloturer`, {});
   assert.match(closed.text, /Rapport médical transmis/);
   assert.strictEqual((await db.one('SELECT status FROM accident_reports')).status, 'complete');
@@ -250,13 +286,57 @@ test('workflow complet accident -> médical -> back office', async () => {
   }
   assert.strictEqual((await orga.get(`/back-office/dossiers/${accident.id}/pdf/complet`)).status, 403);
 
+  // Suivi : statut, attribution, notes internes
+  const medUser = await db.one("SELECT id FROM users WHERE email = 'medical@ffsa.test'");
+  await med.get(`/back-office/dossiers/${accident.id}`);
+  assert.strictEqual((await med.post(`/back-office/dossiers/${accident.id}/suivi`, { processing_status: 'en_cours', assigned_to: medUser.id })).status, 302);
+  assert.strictEqual((await med.post(`/back-office/dossiers/${accident.id}/notes`, { note: 'Appeler le pilote à J+7' })).status, 302);
+  const followed = await med.get(`/back-office/dossiers/${accident.id}`);
+  assert.match(followed.text, /Appeler le pilote à J\+7/);
+  assert.match(followed.text, /value="en_cours" selected/);
+  assert.match((await med.get('/back-office?attribue=moi')).text, new RegExp(accident.reference));
+  assert.doesNotMatch((await med.get('/back-office?suivi=clos')).text, new RegExp(accident.reference));
+  assert.ok(!(await db.one('SELECT body_enc FROM case_notes')).body_enc.toString('latin1').includes('Appeler'), 'note chiffrée');
+
   // Le service médical n'administre pas les comptes
   assert.strictEqual((await med.get('/back-office/utilisateurs')).status, 403);
 
   const actions = (await db.query('SELECT action FROM audit_log')).rows.map((r) => r.action);
-  for (const a of ['accident_created', 'medical_submitted', 'dossier_viewed', 'export_csv', 'attachment_downloaded', 'pdf_downloaded']) {
+  for (const a of ['accident_created', 'medical_submitted', 'dossier_viewed', 'export_csv', 'attachment_downloaded', 'pdf_downloaded', 'case_updated', 'note_added']) {
     assert.ok(actions.includes(a), a);
   }
+});
+
+test('dossier en retard et transfert à un confrère', async () => {
+  const orga = client();
+  await login(orga, 'orga@asa.test');
+  await orga.get('/organisateur/rapports/nouveau');
+  assert.strictEqual((await orga.request('/organisateur/rapports', { method: 'POST', body: accidentFormData() })).status, 302);
+  const late = await db.one('SELECT * FROM accident_reports ORDER BY created_at DESC LIMIT 1');
+  await db.query("UPDATE accident_reports SET created_at = now() - interval '3 days' WHERE id = $1", [late.id]);
+
+  const med = client();
+  const secret = decryptText((await db.one("SELECT totp_secret_enc FROM users WHERE email = 'medical@ffsa.test'")).totp_secret_enc);
+  await login(med, 'medical@ffsa.test', secret);
+  const overdue = await med.get('/back-office?retard=1');
+  assert.match(overdue.text, new RegExp(late.reference));
+  assert.match(overdue.text, /En retard/);
+  assert.match((await med.get(`/back-office/dossiers/${late.id}`)).text, /Rapport médical en retard/);
+
+  // Le médecin transmet à un confrère : ancien lien désactivé, nouveau lien envoyé
+  const token = lastMail(/Rapport médical à compléter – dossier/).text.match(/\/medecin\/(\S+)/)[1];
+  const doc = client();
+  await doc.get(`/medecin/${token}`);
+  await doc.post(`/medecin/${token}/code`, {});
+  await doc.post(`/medecin/${token}/verifier`, { code: lastMail(/Code de vérification/).text.match(/(\d{6})/)[1] });
+  await doc.get(`/medecin/${token}`);
+  const tr = await doc.post(`/medecin/${token}/transferer`, { email: 'confrere@hopital.test', phone: '0611223344' });
+  assert.match(tr.text, /Demande transmise/);
+  assert.strictEqual((await doc.get(`/medecin/${token}`)).status, 410);
+  const fwd = lastMail(/transmis par un confrère/);
+  assert.deepStrictEqual([].concat(fwd.to), ['confrere@hopital.test']);
+  const newToken = fwd.text.match(/\/medecin\/(\S+)/)[1];
+  assert.strictEqual((await fetch(`${base}/medecin/${newToken}`)).status, 200);
 });
 
 test('la boîte mail de démonstration est désactivée hors mode démo', async () => {

@@ -25,7 +25,9 @@ function vehicleSection(n) {
     optional: n > 1,
     shareWithDoctor: true,
     fields: [
-      { name: `${p}driver_name`, label: 'Nom et prénom du pilote / copilote', type: 'text', width: 'half' },
+      { name: `${p}driver_role`, label: 'Qualité', type: 'radio', options: ['Pilote', 'Copilote'] },
+      { name: `${p}driver_last_name`, label: 'Nom du pilote / copilote', type: 'text', width: 'half' },
+      { name: `${p}driver_first_name`, label: 'Prénom du pilote / copilote', type: 'text', width: 'half' },
       { name: `${p}license`, label: 'Licence n°', type: 'text', width: 'half' },
       { name: `${p}number`, label: 'Concurrent n°', type: 'text', width: 'half' },
       { name: `${p}group`, label: 'Groupe', type: 'text', width: 'half' },
@@ -46,7 +48,8 @@ function otherPersonSection(n) {
     optional: true,
     shareWithDoctor: true,
     fields: [
-      { name: `${p}name`, label: 'Nom et prénom', type: 'text', width: 'half' },
+      { name: `${p}last_name`, label: 'Nom', type: 'text', width: 'half' },
+      { name: `${p}first_name`, label: 'Prénom', type: 'text', width: 'half' },
       { name: `${p}license`, label: 'Licence n°', type: 'text', width: 'half' },
       { name: `${p}role`, label: 'Qualité', type: 'text', width: 'half' },
       { name: `${p}address`, label: 'Adresse (si non licencié)', type: 'text', width: 'half' },
@@ -80,7 +83,7 @@ const withOther = (name, label, options) => [
 
 module.exports = {
   id: 'accident',
-  version: 2,
+  version: 3,
   title: "Rapport d'accident",
   intro:
     "À remplir dans les 48 heures après l'accident par le directeur de course, " +
@@ -95,7 +98,8 @@ module.exports = {
       fields: [
         { name: 'doctor_first_name', label: 'Prénom du médecin', type: 'text', required: true, width: 'half' },
         { name: 'doctor_last_name', label: 'Nom du médecin', type: 'text', required: true, width: 'half' },
-        { name: 'doctor_email', label: 'Adresse e-mail du médecin', type: 'email', required: true },
+        { name: 'doctor_email', label: 'Adresse e-mail du médecin', type: 'email', required: true, width: 'half' },
+        { name: 'doctor_phone', label: 'Téléphone portable du médecin', type: 'tel', required: true, width: 'half', help: 'Le lien lui est aussi envoyé par SMS.' },
       ],
     },
     {
@@ -103,7 +107,8 @@ module.exports = {
       intro: 'À remplir impérativement en cas d’accident avec blessé évacué par ambulance, ou plus grave.',
       shareWithDoctor: true,
       fields: [
-        { name: 'summary_victim_name', label: 'Nom et prénom de la personne accidentée', type: 'text', width: 'half' },
+        { name: 'summary_victim_last_name', label: 'Nom de la personne accidentée', type: 'text', width: 'half' },
+        { name: 'summary_victim_first_name', label: 'Prénom de la personne accidentée', type: 'text', width: 'half' },
         { name: 'summary_victim_license', label: 'N° de licence', type: 'text', width: 'half' },
         { name: 'accident_date', label: "Date de l'accident", type: 'date', required: true, width: 'half' },
         { name: 'accident_time', label: "Heure de l'accident", type: 'time', width: 'half' },

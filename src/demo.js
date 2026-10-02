@@ -33,23 +33,23 @@ async function seed() {
   // Deux dossiers d'exemple : un complet, un en attente du médecin
   const orga = await db.one('SELECT * FROM users WHERE email = $1', [ACCOUNTS[0].email]);
   const base = {
-    doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr',
+    doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78',
     author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course',
   };
   const done = await reports.createAccidentReport(orga, {
     ...base,
     event_name: 'Rallye des Vosges (exemple)', event_location: 'Gérardmer', discipline: 'Rallye', event_level: 'Épreuve nationale',
     event_date: '2026-09-20', accident_date: '2026-09-20', accident_time: '14:35',
-    summary_victim_name: 'Paul Exemple', circumstances: 'Sortie de route en ES3, tonneau. Pilote extrait par l’équipe d’intervention.',
+    summary_victim_last_name: 'Exemple', summary_victim_first_name: 'Paul', circumstances: 'Sortie de route en ES3, tonneau. Pilote extrait par l’équipe d’intervention.',
     hospitalised_count: 1, deaths_count: 0, casualties: { Pilotes: { 'Nombre de blessés': 1 } },
-    vehicle1_driver_name: 'Paul Exemple', vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
+    vehicle1_driver_role: 'Pilote', vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Paul', vehicle1_number: '27', vehicle1_license: '254781', vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
     weather: ['Nuageux'], surface: ['Asphalte'], track_condition: ['Mouillé'],
   }, {});
   await reports.createAccidentReport(orga, {
     ...base,
     event_name: 'Course de côte du Mont-Dore (exemple)', event_location: 'Le Mont-Dore', discipline: 'Course de côte',
     event_date: '2026-09-27', accident_date: '2026-09-27', accident_time: '10:05',
-    summary_victim_name: 'Léa Exemple', circumstances: 'Choc latéral contre le rail au virage 7.',
+    summary_victim_last_name: 'Exemple', summary_victim_first_name: 'Léa', vehicle1_driver_role: 'Pilote', vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Léa', vehicle1_number: '112', vehicle1_license: '287654', circumstances: 'Choc latéral contre le rail au virage 7.',
   }, {});
   const request = await db.one(
     `SELECT mr.*, ar.reference, ar.event_name FROM medical_requests mr JOIN accident_reports ar ON ar.id = mr.accident_id

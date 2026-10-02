@@ -1,5 +1,19 @@
+<% const hasDraft = typeof draftUrl !== 'undefined' && draftUrl; %>
 <% if (formError) { %><div class="alert error" role="alert"><%= formError %></div><% } %>
-<form method="post" action="<%= action %>" enctype="multipart/form-data" class="dyn-form" novalidate>
+<% if (hasDraft) { %>
+  <div class="draft-bar card">
+    <span class="draft-status" data-draft-status aria-live="polite">
+      <% if (draftSavedAt) { %>Brouillon repris (enregistré le <%= new Date(draftSavedAt).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }) %>).<% } else { %>Votre saisie est enregistrée automatiquement : vous pouvez fermer la page et reprendre plus tard.<% } %>
+    </span>
+    <% if (draftSavedAt) { %>
+      <form method="post" action="<%= discardUrl %>" class="inline" data-confirm="Effacer le brouillon et recommencer un formulaire vide ?">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="btn small ghost">Recommencer à zéro</button>
+      </form>
+    <% } %>
+  </div>
+<% } %>
+<form method="post" action="<%= action %>" enctype="multipart/form-data" class="dyn-form" novalidate<% if (hasDraft) { %> data-draft-url="<%= draftUrl %>"<% } %>>
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <% form.sections.forEach(function (section, i) { %>
     <% const showIf = section.showIf ? JSON.stringify(section.showIf) : ''; %>
@@ -20,5 +34,6 @@
   <% }) %>
   <div class="actions">
     <button type="submit" class="btn primary large"><%= submitLabel %></button>
+    <% if (hasDraft) { %><p class="help">Les fichiers joints ne sont pas conservés dans le brouillon : ajoutez-les juste avant l'envoi.</p><% } %>
   </div>
 </form>

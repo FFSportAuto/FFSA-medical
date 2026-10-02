@@ -17,6 +17,15 @@ const templates = {
       `Ce lien est personnel et valable jusqu'au ${expiresAt}.` +
       signature,
   }),
+  doctorTransfer: ({ reference, eventName, link, expiresAt }) => ({
+    subject: `[FFSA] Rapport médical à compléter – dossier ${reference} (transmis par un confrère)`,
+    text:
+      `Bonjour Docteur,\n\n` +
+      `Un confrère vous a transmis la rédaction du rapport médical relatif à l'épreuve « ${eventName} » ` +
+      `(dossier ${reference}). Merci de remplir un formulaire par patient consulté via le lien sécurisé ci-dessous :\n${link}\n\n` +
+      `Un code de vérification vous sera envoyé à l'ouverture du lien. Ce lien est personnel et valable jusqu'au ${expiresAt}.` +
+      signature,
+  }),
   doctorReminder: ({ reference, eventName, link }) => ({
     subject: `[FFSA] Rappel – rapport médical en attente – dossier ${reference}`,
     text:

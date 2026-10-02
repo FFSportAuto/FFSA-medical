@@ -3,6 +3,7 @@
 const db = require('../db');
 const config = require('../config');
 const mailer = require('../lib/mailer');
+const sms = require('../lib/sms');
 const { encrypt, decrypt, encryptJson, decryptJson, decryptText, randomToken, hashToken, randomDigits } = require('../lib/crypto');
 const accidentForm = require('../forms/accident');
 const medicalForm = require('../forms/medical');
@@ -31,8 +32,8 @@ async function insertAttachments(client, accidentId, source, files) {
   }
 }
 
-// Crée la demande de rapport médical et renvoie le jeton en clair (à envoyer par e-mail)
-async function createMedicalRequest(client, accidentId, doctorEmail) {
+// Crée la demande de rapport médical et renvoie le jeton en clair (à envoyer par e-mail et SMS)
+async function createMedicalRequest(client, accidentId, doctorEmail, doctorPhone, transferredFrom = null) {
   const token = randomToken();
   const expiresAt = new Date(Date.now() + config.doctorLinkValidityDays * DAY);
   await client.query(
@@ -40,20 +41,17 @@ async function createMedicalRequest(client, accidentId, doctorEmail) {
     [accidentId],
   );
   const { rows } = await client.query(
-    `INSERT INTO medical_requests (accident_id, doctor_email_enc, token_hash, expires_at)
-     VALUES ($1, $2, $3, $4) RETURNING id`,
-    [accidentId, encrypt(doctorEmail), hashToken(token), expiresAt],
+    `INSERT INTO medical_requests (accident_id, doctor_email_enc, doctor_phone_enc, token_hash, expires_at, transferred_from)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+    [accidentId, encrypt(doctorEmail), doctorPhone ? encrypt(doctorPhone) : null, hashToken(token), expiresAt, transferredFrom],
   );
-  return { id: rows[0].id, token, expiresAt };
+  return { id: rows[0].id, token, expiresAt, doctorPhone };
 }
 
-async function sendDoctorInvitation(request, { reference, eventName, doctorEmail }) {
-  await mailer.send('doctorInvitation', doctorEmail, {
-    reference,
-    eventName,
-    link: `${config.baseUrl}/medecin/${request.token}`,
-    expiresAt: frDate(request.expiresAt),
-  });
+async function sendDoctorInvitation(request, { reference, eventName, doctorEmail }, template = 'doctorInvitation') {
+  const link = `${config.baseUrl}/medecin/${request.token}`;
+  await mailer.send(template, doctorEmail, { reference, eventName, link, expiresAt: frDate(request.expiresAt) });
+  await sms.send(template, request.doctorPhone, { reference, link });
   await db.query('UPDATE medical_requests SET sent_at = now() WHERE id = $1', [request.id]);
 }
 
@@ -67,7 +65,7 @@ async function createAccidentReport(organizer, values, files) {
     );
     const report = rows[0];
     await insertAttachments(client, report.id, 'accident', files);
-    const request = await createMedicalRequest(client, report.id, values.doctor_email);
+    const request = await createMedicalRequest(client, report.id, values.doctor_email, values.doctor_phone);
     return { report, request };
   });
 
@@ -83,6 +81,8 @@ async function getAccident(id) {
   if (!row) return null;
   return { ...row, data: decryptJson(row.data_enc) };
 }
+
+const dec = (b) => (b ? decryptText(b) : null);
 
 // Rapports médicaux du dossier (un par patient consulté)
 async function listMedical(accidentId) {
@@ -106,10 +106,11 @@ async function getAttachment(accidentId, attachmentId) {
 
 async function listRequests(accidentId) {
   const { rows } = await db.query(
-    'SELECT id, doctor_email_enc, expires_at, sent_at, reminder_sent_at, revoked_at, used_at, created_at FROM medical_requests WHERE accident_id = $1 ORDER BY created_at DESC',
+    `SELECT id, doctor_email_enc, doctor_phone_enc, expires_at, sent_at, reminder_sent_at, revoked_at, used_at, transferred_from, created_at
+       FROM medical_requests WHERE accident_id = $1 ORDER BY created_at DESC`,
     [accidentId],
   );
-  return rows.map((r) => ({ ...r, doctorEmail: decryptText(r.doctor_email_enc) }));
+  return rows.map((r) => ({ ...r, doctorEmail: decryptText(r.doctor_email_enc), doctorPhone: dec(r.doctor_phone_enc) }));
 }
 
 // ---- Accès médecin par lien sécurisé ----
@@ -127,7 +128,7 @@ async function findRequestByToken(token) {
   if (req.used_at || req.status === 'complete') state = 'used';
   else if (req.revoked_at) state = 'revoked';
   else if (new Date(req.expires_at) < new Date()) state = 'expired';
-  return { ...req, state, doctorEmail: decryptText(req.doctor_email_enc) };
+  return { ...req, state, doctorEmail: decryptText(req.doctor_email_enc), doctorPhone: dec(req.doctor_phone_enc) };
 }
 
 async function sendDoctorOtp(request) {
@@ -137,6 +138,7 @@ async function sendDoctorOtp(request) {
     [request.id, hashToken(`${request.id}:${code}`)],
   );
   await mailer.send('doctorOtp', request.doctorEmail, { reference: request.reference, code });
+  await sms.send('doctorOtp', request.doctorPhone, { reference: request.reference, code });
 }
 
 async function verifyDoctorOtp(request, code) {
@@ -152,13 +154,13 @@ async function verifyDoctorOtp(request, code) {
 }
 
 // Ajoute le rapport d'un patient ; le dossier reste ouvert jusqu'à sa clôture par le médecin
-async function addMedicalReport(request, values, files) {
+async function addMedicalReport(request, values, files, patientRef = null) {
   return db.tx(async (client) => {
     const { rows } = await client.query('SELECT used_at, revoked_at FROM medical_requests WHERE id = $1 FOR UPDATE', [request.id]);
     if (!rows[0] || rows[0].used_at || rows[0].revoked_at) return null;
     const { rows: created } = await client.query(
-      `INSERT INTO medical_reports (accident_id, request_id, data_enc, form_version) VALUES ($1, $2, $3, $4) RETURNING id`,
-      [request.accident_id, request.id, encryptJson(values), medicalForm.version],
+      `INSERT INTO medical_reports (accident_id, request_id, data_enc, form_version, patient_ref) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [request.accident_id, request.id, encryptJson(values), medicalForm.version, patientRef],
     );
     await insertAttachments(client, request.accident_id, 'medical', files);
     return created[0].id;
@@ -186,19 +188,36 @@ async function finishMedical(request) {
   return done;
 }
 
-// Renvoi (éventuellement à une nouvelle adresse) depuis le back office
-async function resendInvitation(accidentId, doctorEmail) {
+// Renvoi (éventuellement à d'autres coordonnées) depuis le back office ; sans portable fourni,
+// on reprend le dernier connu
+async function resendInvitation(accidentId, doctorEmail, doctorPhone) {
   const accident = await db.one('SELECT id, reference, event_name, status FROM accident_reports WHERE id = $1', [accidentId]);
   if (!accident || accident.status === 'complete') return false;
-  const request = await db.tx((client) => createMedicalRequest(client, accidentId, doctorEmail));
+  if (!doctorPhone) {
+    const last = await db.one('SELECT doctor_phone_enc FROM medical_requests WHERE accident_id = $1 ORDER BY created_at DESC LIMIT 1', [accidentId]);
+    doctorPhone = last ? dec(last.doctor_phone_enc) : null;
+  }
+  const request = await db.tx((client) => createMedicalRequest(client, accidentId, doctorEmail, doctorPhone));
   await sendDoctorInvitation(request, { reference: accident.reference, eventName: accident.event_name, doctorEmail });
+  return true;
+}
+
+// Le médecin transmet la demande à un confrère : son lien est désactivé, les rapports déjà saisis restent
+async function transferRequest(request, doctorEmail, doctorPhone) {
+  const created = await db.tx(async (client) => {
+    const { rows } = await client.query('SELECT used_at, revoked_at FROM medical_requests WHERE id = $1 FOR UPDATE', [request.id]);
+    if (!rows[0] || rows[0].used_at || rows[0].revoked_at) return null;
+    return createMedicalRequest(client, request.accident_id, doctorEmail, doctorPhone, request.id);
+  });
+  if (!created) return false;
+  await sendDoctorInvitation(created, { reference: request.reference, eventName: request.event_name, doctorEmail }, 'doctorTransfer');
   return true;
 }
 
 // Relance automatique des médecins n'ayant pas répondu
 async function sendReminders() {
   const { rows } = await db.query(
-    `SELECT mr.id, mr.accident_id, mr.doctor_email_enc, ar.reference, ar.event_name
+    `SELECT mr.id, mr.accident_id, mr.doctor_email_enc, mr.doctor_phone_enc, ar.reference, ar.event_name
        FROM medical_requests mr JOIN accident_reports ar ON ar.id = mr.accident_id
       WHERE mr.used_at IS NULL AND mr.revoked_at IS NULL AND mr.reminder_sent_at IS NULL
         AND mr.expires_at > now() AND mr.sent_at < now() - make_interval(hours => $1)
@@ -208,17 +227,64 @@ async function sendReminders() {
   for (const r of rows) {
     // Le jeton d'origine n'étant pas conservé, un nouveau lien est émis
     const request = await db.tx(async (client) => {
-      const created = await createMedicalRequest(client, r.accident_id, decryptText(r.doctor_email_enc));
+      const created = await createMedicalRequest(client, r.accident_id, decryptText(r.doctor_email_enc), dec(r.doctor_phone_enc));
       await client.query('UPDATE medical_requests SET reminder_sent_at = now(), sent_at = now() WHERE id = $1', [created.id]);
       return created;
     });
-    await mailer.send('doctorReminder', decryptText(r.doctor_email_enc), {
-      reference: r.reference,
-      eventName: r.event_name,
-      link: `${config.baseUrl}/medecin/${request.token}`,
-    });
+    await sendDoctorInvitation(request, { reference: r.reference, eventName: r.event_name, doctorEmail: decryptText(r.doctor_email_enc) }, 'doctorReminder');
   }
   return rows.length;
+}
+
+// ---- Brouillons (enregistrement automatique) ----
+
+const DRAFT_DAYS = 30;
+async function saveDraft(key, values) {
+  await db.query(
+    `INSERT INTO drafts (owner_key, data_enc, updated_at) VALUES ($1, $2, now())
+     ON CONFLICT (owner_key) DO UPDATE SET data_enc = EXCLUDED.data_enc, updated_at = now()`,
+    [key, encryptJson(values)],
+  );
+}
+async function getDraft(key) {
+  const row = await db.one(`SELECT data_enc, updated_at FROM drafts WHERE owner_key = $1 AND updated_at > now() - interval '${DRAFT_DAYS} days'`, [key]);
+  return row ? { values: decryptJson(row.data_enc), updatedAt: row.updated_at } : null;
+}
+const deleteDraft = (key) => db.query('DELETE FROM drafts WHERE owner_key = $1', [key]);
+const purgeDrafts = () => db.query(`DELETE FROM drafts WHERE updated_at < now() - interval '${DRAFT_DAYS} days'`);
+
+// ---- Suivi des dossiers (service médical) ----
+
+const PROCESSING = { a_analyser: 'À analyser', en_cours: 'En cours', clos: 'Clos' };
+const OVERDUE_HOURS = 48;
+
+async function updateCase(accidentId, { status, assignedTo }) {
+  const sets = [];
+  const params = [accidentId];
+  if (status !== undefined) {
+    if (!PROCESSING[status]) throw new Error('Statut inconnu');
+    params.push(status);
+    sets.push(`processing_status = $${params.length}`);
+  }
+  if (assignedTo !== undefined) {
+    params.push(assignedTo || null);
+    sets.push(`assigned_to = $${params.length}`);
+  }
+  if (!sets.length) return;
+  await db.query(`UPDATE accident_reports SET ${sets.join(', ')} WHERE id = $1`, params);
+}
+
+async function addNote(accidentId, userId, body) {
+  await db.query('INSERT INTO case_notes (accident_id, user_id, body_enc) VALUES ($1, $2, $3)', [accidentId, userId, encrypt(body)]);
+}
+
+async function listNotes(accidentId) {
+  const { rows } = await db.query(
+    `SELECT n.id, n.body_enc, n.created_at, u.full_name AS author
+       FROM case_notes n LEFT JOIN users u ON u.id = n.user_id WHERE n.accident_id = $1 ORDER BY n.created_at`,
+    [accidentId],
+  );
+  return rows.map((r) => ({ id: r.id, author: r.author, created_at: r.created_at, body: decryptText(r.body_enc) }));
 }
 
 module.exports = {
@@ -234,5 +300,15 @@ module.exports = {
   addMedicalReport,
   finishMedical,
   resendInvitation,
+  transferRequest,
   sendReminders,
+  saveDraft,
+  getDraft,
+  deleteDraft,
+  purgeDrafts,
+  updateCase,
+  addNote,
+  listNotes,
+  PROCESSING,
+  OVERDUE_HOURS,
 };

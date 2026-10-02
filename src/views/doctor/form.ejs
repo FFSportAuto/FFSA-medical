@@ -2,5 +2,8 @@
 <div class="page-head"><h1><%= form.title %> <span class="mono muted"><%= accident.reference %></span></h1></div>
 <p class="lead"><%= form.intro %></p>
 <p><a href="/medecin/<%= token %>">← Retour au dossier</a></p>
-<%- include('../partials/form', { action: '/medecin/' + token + '/patient', submitLabel: 'Enregistrer ce rapport patient' }) %>
+<% if (person) { %>
+  <div class="alert info">Patient déclaré par l'organisateur : <strong><%= person.name %></strong> (<%= person.detail %>). Les informations connues ont été reprises ; vérifiez-les et complétez le rapport.</div>
+<% } %>
+<%- include('../partials/form', { submitLabel: 'Enregistrer ce rapport patient' }) %>
 <%- include('../partials/footer') %>

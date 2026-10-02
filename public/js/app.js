@@ -89,6 +89,7 @@
       if (!drawing) return;
       drawing = false;
       if (dirty) input.value = canvas.toDataURL('image/png');
+      input.dispatchEvent(new Event('change', { bubbles: true }));
     }
     canvas.addEventListener('pointerup', end);
     canvas.addEventListener('pointercancel', end);
@@ -96,6 +97,7 @@
       reset();
       dirty = false;
       input.value = '';
+      input.dispatchEvent(new Event('change', { bubbles: true }));
     });
   });
 
@@ -103,6 +105,43 @@
     f.addEventListener('submit', function (e) {
       if (!window.confirm(f.getAttribute('data-confirm'))) e.preventDefault();
     });
+  });
+
+  // ---- Brouillon enregistré automatiquement ----
+  document.querySelectorAll('form[data-draft-url]').forEach(function (form) {
+    var url = form.getAttribute('data-draft-url');
+    var status = document.querySelector('[data-draft-status]');
+    var csrf = form.querySelector('input[name=_csrf]').value;
+    var timer = null;
+    var submitting = false;
+    function show(text, cls) {
+      if (!status) return;
+      status.textContent = text;
+      status.className = 'draft-status' + (cls ? ' ' + cls : '');
+    }
+    function snapshot() {
+      var data = {};
+      new FormData(form).forEach(function (v, k) {
+        if (k === '_csrf' || (typeof File !== 'undefined' && v instanceof File)) return;
+        if (k in data) data[k] = [].concat(data[k], v); else data[k] = v;
+      });
+      return data;
+    }
+    function save() {
+      if (submitting) return;
+      show('Enregistrement du brouillon…', 'pending');
+      fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-csrf-token': csrf }, body: JSON.stringify(snapshot()) })
+        .then(function (r) { if (!r.ok || (r.headers.get('content-type') || '').indexOf('json') === -1) throw new Error(); return r.json(); })
+        .then(function (j) {
+          var t = new Date(j.savedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          show('Brouillon enregistré à ' + t + '. Vous pouvez fermer la page et reprendre plus tard.');
+        })
+        .catch(function () { show('Brouillon non enregistré (connexion ou session expirée). Nouvel essai à la prochaine saisie.', 'failed'); });
+    }
+    function schedule() { clearTimeout(timer); timer = setTimeout(save, 1500); }
+    form.addEventListener('input', schedule);
+    form.addEventListener('change', schedule);
+    form.addEventListener('submit', function () { submitting = true; clearTimeout(timer); });
   });
 
   document.querySelectorAll('[data-fill-login]').forEach(function (b) {

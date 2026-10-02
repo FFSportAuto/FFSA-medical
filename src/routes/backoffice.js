@@ -22,7 +22,9 @@ const PAGE_SIZE = 50;
 const ROLE_LABELS = { organizer: 'Organisateur', medical: 'Service médical', admin: 'Administrateur' };
 
 // Filtres communs à la liste et à l'export
-function buildFilters(q) {
+const OVERDUE_SQL = `(ar.status = 'awaiting_medical' AND ar.created_at < now() - interval '${reports.OVERDUE_HOURS} hours')`;
+
+function buildFilters(q, user) {
   const where = [];
   const params = [];
   const add = (sql, value) => {
@@ -34,22 +36,31 @@ function buildFilters(q) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(q.du || '')) add('ar.event_date >= ?', q.du);
   if (/^\d{4}-\d{2}-\d{2}$/.test(q.au || '')) add('ar.event_date <= ?', q.au);
   if (q.q) add('(ar.reference ILIKE ? OR ar.event_name ILIKE ?)', `%${String(q.q).slice(0, 100)}%`);
+  if (reports.PROCESSING[q.suivi]) add('ar.processing_status = ?', q.suivi);
+  if (q.attribue === 'moi' && user) add('ar.assigned_to = ?', user.id);
+  if (q.attribue === 'personne') where.push('ar.assigned_to IS NULL');
+  if (q.retard === '1') where.push(OVERDUE_SQL);
   return { where: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
 }
 
 router.get('/back-office', async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
-  const { where, params } = buildFilters(req.query);
+  const { where, params } = buildFilters(req.query, req.user);
   const { rows } = await db.query(
     `SELECT ar.id, ar.reference, ar.event_name, ar.event_date, ar.discipline, ar.status, ar.created_at, ar.completed_at,
+            ar.processing_status, ${OVERDUE_SQL} AS overdue, a.full_name AS assignee_name,
             u.full_name AS organizer_name, count(*) OVER () AS total
-       FROM accident_reports ar JOIN users u ON u.id = ar.organizer_id
-       ${where} ORDER BY ar.created_at DESC LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`,
+       FROM accident_reports ar JOIN users u ON u.id = ar.organizer_id LEFT JOIN users a ON a.id = ar.assigned_to
+       ${where} ORDER BY ${OVERDUE_SQL} DESC, ar.created_at DESC LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`,
     params,
   );
   const stats = await db.one(
-    `SELECT count(*) FILTER (WHERE status = 'awaiting_medical') AS pending,
-            count(*) FILTER (WHERE status = 'complete') AS complete, count(*) AS total FROM accident_reports`,
+    `SELECT count(*) FILTER (WHERE ${OVERDUE_SQL}) AS overdue,
+            count(*) FILTER (WHERE ar.status = 'awaiting_medical') AS pending,
+            count(*) FILTER (WHERE ar.processing_status = 'a_analyser' AND ar.status = 'complete') AS to_review,
+            count(*) FILTER (WHERE ar.assigned_to = $1 AND ar.processing_status <> 'clos') AS mine,
+            count(*) AS total FROM accident_reports ar`,
+    [req.user.id],
   );
   const total = rows.length ? Number(rows[0].total) : 0;
   res.render('backoffice/index', {
@@ -61,6 +72,7 @@ router.get('/back-office', async (req, res) => {
     pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
     total,
     disciplines: engine.allFields(accidentForm).find((f) => f.name === 'discipline').options,
+    processing: reports.PROCESSING,
     exportQuery: new URLSearchParams(Object.entries(req.query).filter(([k, v]) => k !== 'page' && v)).toString(),
   });
 });
@@ -69,11 +81,13 @@ router.get('/back-office/dossiers/:id', async (req, res, next) => {
   if (!UUID_RE.test(req.params.id)) return next();
   const accident = await reports.getAccident(req.params.id);
   if (!accident) return next();
-  const [medical, attachments, requests, organizer] = await Promise.all([
+  const [medical, attachments, requests, organizer, notes, staff] = await Promise.all([
     reports.listMedical(accident.id),
     reports.listAttachments(accident.id),
     reports.listRequests(accident.id),
     db.one('SELECT full_name, email FROM users WHERE id = $1', [accident.organizer_id]),
+    reports.listNotes(accident.id),
+    db.query("SELECT id, full_name FROM users WHERE role IN ('medical', 'admin') AND active ORDER BY full_name").then((r) => r.rows),
   ]);
   await audit(req, 'dossier_viewed', { targetType: 'accident', targetId: accident.id });
   res.render('backoffice/show', {
@@ -84,7 +98,11 @@ router.get('/back-office/dossiers/:id', async (req, res, next) => {
     medicalReports: medical.map((m) => ({ ...m, sections: engine.toDisplay(medicalForm, m.data) })),
     attachments,
     requests,
-    flash: req.query.relance ? 'Nouvelle invitation envoyée au médecin.' : null,
+    notes,
+    staff,
+    processing: reports.PROCESSING,
+    overdue: accident.status === 'awaiting_medical' && Date.now() - new Date(accident.created_at) > reports.OVERDUE_HOURS * 3600e3,
+    flash: req.query.relance ? 'Nouvelle invitation envoyée au médecin.' : req.query.suivi ? 'Suivi mis à jour.' : req.query.note ? 'Note ajoutée.' : null,
   });
 });
 
@@ -99,6 +117,33 @@ router.get('/back-office/dossiers/:id/pieces/:attachmentId', async (req, res, ne
     'Cache-Control': 'no-store',
   });
   res.send(file.content);
+});
+
+// Suivi : statut de traitement et attribution
+router.post('/back-office/dossiers/:id/suivi', async (req, res, next) => {
+  if (!UUID_RE.test(req.params.id)) return next();
+  const status = req.body.processing_status;
+  const assignedTo = req.body.assigned_to;
+  if (!reports.PROCESSING[status] || (assignedTo && !UUID_RE.test(assignedTo))) {
+    return res.status(400).render('errors/error', { title: 'Requête invalide', message: 'Statut ou attribution invalide.' });
+  }
+  if (assignedTo && !(await db.one("SELECT 1 FROM users WHERE id = $1 AND role IN ('medical', 'admin') AND active", [assignedTo]))) {
+    return res.status(400).render('errors/error', { title: 'Requête invalide', message: 'Cette personne ne fait pas partie du service médical.' });
+  }
+  await reports.updateCase(req.params.id, { status, assignedTo: assignedTo || null });
+  await audit(req, 'case_updated', { targetType: 'accident', targetId: req.params.id, details: { status, assigned: Boolean(assignedTo) } });
+  res.redirect(`/back-office/dossiers/${req.params.id}?suivi=1`);
+});
+
+// Notes internes (visibles uniquement par le service médical)
+router.post('/back-office/dossiers/:id/notes', async (req, res, next) => {
+  if (!UUID_RE.test(req.params.id)) return next();
+  const body = String(req.body.note || '').trim().slice(0, 5000);
+  if (body) {
+    await reports.addNote(req.params.id, req.user.id, body);
+    await audit(req, 'note_added', { targetType: 'accident', targetId: req.params.id });
+  }
+  res.redirect(`/back-office/dossiers/${req.params.id}?note=1#notes`);
 });
 
 // Téléchargement PDF (modèle FFSA) : rapport d'accident, rapport(s) médical(aux) ou dossier complet
@@ -125,7 +170,8 @@ router.post('/back-office/dossiers/:id/relance', async (req, res, next) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).render('errors/error', { title: 'Adresse invalide', message: "L'adresse e-mail du médecin est invalide." });
   }
-  const ok = await reports.resendInvitation(req.params.id, email);
+  const phone = String(req.body.doctor_phone || '').trim() || null;
+  const ok = await reports.resendInvitation(req.params.id, email, phone);
   if (!ok) return next();
   await audit(req, 'doctor_invitation_resent', { targetType: 'accident', targetId: req.params.id });
   res.redirect(`/back-office/dossiers/${req.params.id}?relance=1`);
@@ -141,16 +187,17 @@ const csvCell = (v) => {
 };
 
 router.get('/back-office/export.csv', async (req, res) => {
-  const { where, params } = buildFilters(req.query);
+  const { where, params } = buildFilters(req.query, req.user);
   const { rows } = await db.query(
-    `SELECT ar.id, ar.reference, ar.status, ar.created_at, ar.completed_at, ar.data_enc AS accident_enc, mr.data_enc AS medical_enc
-       FROM accident_reports ar LEFT JOIN medical_reports mr ON mr.accident_id = ar.id
+    `SELECT ar.id, ar.reference, ar.status, ar.created_at, ar.completed_at, ar.processing_status, a.full_name AS assignee_name,
+            ar.data_enc AS accident_enc, mr.data_enc AS medical_enc
+       FROM accident_reports ar LEFT JOIN medical_reports mr ON mr.accident_id = ar.id LEFT JOIN users a ON a.id = ar.assigned_to
        ${where} ORDER BY ar.created_at DESC, mr.created_at`,
     params,
   );
   const aCols = engine.exportColumns(accidentForm);
   const mCols = engine.exportColumns(medicalForm);
-  const header = ['Référence', 'Statut', 'Déclaré le', 'Complété le',
+  const header = ['Référence', 'Statut', 'Suivi', 'Attribué à', 'Déclaré le', 'Complété le',
     ...aCols.map((c) => `Accident – ${c.label}`), ...mCols.map((c) => `Médical – ${c.label}`)];
   const lines = [header.map(csvCell).join(';')];
   for (const r of rows) {
@@ -159,6 +206,8 @@ router.get('/back-office/export.csv', async (req, res) => {
     lines.push([
       r.reference,
       r.status === 'complete' ? 'Complet' : 'En attente du rapport médical',
+      reports.PROCESSING[r.processing_status] || '',
+      r.assignee_name || '',
       new Date(r.created_at).toISOString(),
       r.completed_at ? new Date(r.completed_at).toISOString() : '',
       ...aCols.map((c) => c.value(a)),

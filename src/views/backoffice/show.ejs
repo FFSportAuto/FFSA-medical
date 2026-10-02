@@ -9,6 +9,44 @@
 </div>
 <% if (flash) { %><div class="alert success"><%= flash %></div><% } %>
 
+<% if (overdue) { %><div class="alert error">Rapport médical en retard : demandé il y a plus de 48 heures. Relancez le médecin ci-dessous ou transmettez le lien à un autre médecin.</div><% } %>
+
+<section class="card case no-print" id="suivi">
+  <div class="case-grid">
+    <form method="post" action="/back-office/dossiers/<%= accident.id %>/suivi" class="case-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <span class="eyebrow">Suivi du dossier</span>
+      <div class="case-fields">
+        <div class="field"><label class="label" for="processing_status">Statut de traitement</label>
+          <select id="processing_status" name="processing_status">
+            <% Object.entries(processing).forEach(function ([k, l]) { %><option value="<%= k %>" <%= accident.processing_status === k ? 'selected' : '' %>><%= l %></option><% }) %>
+          </select></div>
+        <div class="field"><label class="label" for="assigned_to">Médecin fédéral référent</label>
+          <select id="assigned_to" name="assigned_to">
+            <option value="">— Non attribué —</option>
+            <% staff.forEach(function (u) { %><option value="<%= u.id %>" <%= accident.assigned_to === u.id ? 'selected' : '' %>><%= u.full_name %></option><% }) %>
+          </select></div>
+      </div>
+      <button class="btn small" type="submit">Enregistrer</button>
+    </form>
+    <div class="notes" id="notes">
+      <span class="eyebrow">Notes internes</span>
+      <% if (!notes.length) { %><p class="muted small">Aucune note. Les notes ne sont visibles que par le service médical.</p><% } %>
+      <ol class="note-list">
+        <% notes.forEach(function (n) { %>
+          <li><span class="muted small"><%= n.author || 'Utilisateur supprimé' %> · <%= fmt(n.created_at) %></span><p><%= n.body %></p></li>
+        <% }) %>
+      </ol>
+      <form method="post" action="/back-office/dossiers/<%= accident.id %>/notes" class="note-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label class="label" for="note">Ajouter une note</label>
+        <textarea id="note" name="note" rows="2" maxlength="5000" required></textarea>
+        <button class="btn small" type="submit">Ajouter</button>
+      </form>
+    </div>
+  </div>
+</section>
+
 <div class="card downloads no-print">
   <span class="eyebrow">Télécharger en PDF</span>
   <div class="row-actions">
@@ -43,7 +81,7 @@
       <h3>Invitations envoyées</h3>
       <ul class="plain">
         <% requests.forEach(function (r) { %>
-          <li><%= r.doctorEmail %> — envoyée <%= fmt(r.sent_at) %><%= r.reminder_sent_at ? ' (relance)' : '' %>
+          <li><%= r.doctorEmail %><%= r.doctorPhone ? ' · ' + r.doctorPhone : '' %><%= r.transferred_from ? ' (transmis par un confrère)' : '' %> — envoyée <%= fmt(r.sent_at) %><%= r.reminder_sent_at ? ' (relance)' : '' %>
             <% if (r.revoked_at) { %><span class="badge">remplacée</span><% } else if (new Date(r.expires_at) < new Date()) { %><span class="badge">expirée</span><% } else { %><span class="badge wait">valable jusqu'au <%= new Date(r.expires_at).toLocaleDateString('fr-FR') %></span><% } %>
           </li>
         <% }) %>
@@ -52,7 +90,8 @@
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <label class="label" for="doctor_email">Renvoyer un lien au médecin</label>
         <div class="row">
-          <input id="doctor_email" name="doctor_email" type="email" value="<%= requests[0] ? requests[0].doctorEmail : '' %>" required>
+          <input id="doctor_email" name="doctor_email" type="email" value="<%= requests[0] ? requests[0].doctorEmail : '' %>" required aria-label="E-mail du médecin">
+          <input id="doctor_phone" name="doctor_phone" type="tel" value="<%= requests[0] && requests[0].doctorPhone ? requests[0].doctorPhone : '' %>" placeholder="Portable (SMS)" aria-label="Portable du médecin">
           <button class="btn primary" type="submit">Envoyer</button>
         </div>
         <p class="help">Les liens précédents seront désactivés.</p>

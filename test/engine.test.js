@@ -98,3 +98,17 @@ test('mots de passe', async () => {
   assert.ok(await verifyPassword('Correct-Horse-42', h));
   assert.ok(!(await verifyPassword('mauvais', h)));
 });
+
+test('personnes déclarées reprises dans le rapport médical (sans doublon)', () => {
+  const { declaredPersons } = require('../src/forms/patients');
+  const list = declaredPersons({
+    summary_victim_last_name: 'Girard', summary_victim_first_name: 'Thomas', summary_victim_license: '254781',
+    vehicle1_driver_role: 'Pilote', vehicle1_driver_last_name: 'Girard', vehicle1_driver_first_name: 'Thomas', vehicle1_number: '27', vehicle1_group: 'GT4',
+    person1_last_name: 'Bernard', person1_first_name: 'Julien', person1_role: 'Commissaire de piste',
+  });
+  assert.strictEqual(list.length, 2);
+  assert.deepStrictEqual(list[0].prefill, {
+    patient_last_name: 'Girard', patient_first_name: 'Thomas', patient_type: ['Pilote'], crew_number: '27', category: 'GT4', license: '254781',
+  });
+  assert.deepStrictEqual(list[1].prefill.patient_type, ['Officiel']);
+});

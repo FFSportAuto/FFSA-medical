@@ -25,6 +25,20 @@ Organisateur ──(1) rapport d'accident──▶ Application ──(2) e-mail 
 Les e-mails ne contiennent **aucune donnée de santé ni l'identité de la victime** : uniquement une
 référence de dossier et un lien.
 
+### Fonctionnement détaillé
+
+- **Brouillons automatiques** : la saisie de l'organisateur et du médecin est enregistrée (chiffrée) toutes
+  les quelques secondes. On peut fermer la page et reprendre plus tard ; brouillons purgés après 30 jours.
+  Les pièces jointes ne sont pas conservées dans le brouillon.
+- **Reprise des données de l'organisateur** : le médecin choisit le patient parmi les personnes déclarées
+  (pilotes, copilotes, autres personnes) ; identité, licence, n° de concurrent, catégorie et qualité sont
+  pré-remplis, ainsi que l'épreuve, la date et l'heure. Chaque rapport médical est relié à la personne déclarée.
+- **Médecin joignable** : lien et code envoyés par e-mail **et par SMS** (portable obligatoire dans le
+  formulaire accident). Le médecin peut **transmettre la demande à un confrère** ; son lien est alors désactivé.
+- **Suivi des dossiers** (back office) : statut de traitement (à analyser / en cours / clos), médecin fédéral
+  référent, notes internes chiffrées, alerte « en retard » quand le rapport médical n'est pas arrivé sous 48 h,
+  filtres correspondants et tableau de bord.
+
 ## Rôles
 
 | Rôle | Accès |
@@ -91,6 +105,11 @@ npm run dev                       # http://localhost:3000
 ```
 
 Sans `SMTP_HOST`, les e-mails sont écrits dans `./outbox/` (pratique pour tester le parcours médecin).
+Sans `SMS_PROVIDER`, les SMS y sont également écrits. En production : `SMS_PROVIDER=brevo` et `SMS_API_KEY`.
+
+**Délivrabilité des e-mails** : envoyer depuis un domaine FFSA (`MAIL_FROM`) dont les enregistrements
+SPF, DKIM et DMARC autorisent le relais SMTP utilisé, sinon les liens envoyés aux médecins risquent
+d'arriver en courrier indésirable.
 
 Tests (base `ffsa_test` requise) : `npm test`.
 

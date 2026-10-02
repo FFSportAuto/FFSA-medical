@@ -3,10 +3,11 @@
   <h1>Dossiers</h1>
   <a class="btn" href="/back-office/export.csv<%= exportQuery ? '?' + exportQuery : '' %>">Exporter (CSV)</a>
 </div>
-<div class="stats">
-  <div class="stat card"><span class="stat-num"><%= stats.total %></span><span>dossiers</span></div>
-  <div class="stat card"><span class="stat-num warn"><%= stats.pending %></span><span>en attente du rapport médical</span></div>
-  <div class="stat card"><span class="stat-num ok"><%= stats.complete %></span><span>complets</span></div>
+<div class="stats four">
+  <a class="stat card <%= Number(stats.overdue) ? 'alert-tile' : '' %>" href="/back-office?retard=1"><span class="stat-num <%= Number(stats.overdue) ? 'danger' : '' %>"><%= stats.overdue %></span><span>en retard (rapport médical &gt; 48 h)</span></a>
+  <a class="stat card" href="/back-office?statut=awaiting_medical"><span class="stat-num warn"><%= stats.pending %></span><span>en attente du médecin</span></a>
+  <a class="stat card" href="/back-office?statut=complete&amp;suivi=a_analyser"><span class="stat-num"><%= stats.to_review %></span><span>complets à analyser</span></a>
+  <a class="stat card" href="/back-office?attribue=moi"><span class="stat-num ok"><%= stats.mine %></span><span>qui me sont attribués</span></a>
 </div>
 <form method="get" class="card filters">
   <input type="search" name="q" value="<%= query.q || '' %>" placeholder="Référence ou épreuve" aria-label="Recherche">
@@ -19,6 +20,16 @@
     <option value="">Toutes disciplines</option>
     <% disciplines.forEach(function (d) { %><option <%= query.discipline === d ? 'selected' : '' %>><%= d %></option><% }) %>
   </select>
+  <select name="suivi" aria-label="Suivi">
+    <option value="">Tout suivi</option>
+    <% Object.entries(processing).forEach(function ([k, l]) { %><option value="<%= k %>" <%= query.suivi === k ? 'selected' : '' %>><%= l %></option><% }) %>
+  </select>
+  <select name="attribue" aria-label="Attribution">
+    <option value="">Toutes attributions</option>
+    <option value="moi" <%= query.attribue === 'moi' ? 'selected' : '' %>>Attribués à moi</option>
+    <option value="personne" <%= query.attribue === 'personne' ? 'selected' : '' %>>Non attribués</option>
+  </select>
+  <label class="inline-label"><input type="checkbox" name="retard" value="1" <%= query.retard === '1' ? 'checked' : '' %>> en retard</label>
   <label class="inline-label">du <input type="date" name="du" value="<%= query.du || '' %>"></label>
   <label class="inline-label">au <input type="date" name="au" value="<%= query.au || '' %>"></label>
   <button class="btn primary" type="submit">Filtrer</button>
@@ -26,9 +37,9 @@
 </form>
 <div class="card table-wrap">
   <table>
-    <thead><tr><th>Référence</th><th>Épreuve</th><th>Discipline</th><th>Date</th><th>Organisateur</th><th>Statut</th><th>Déposé le</th></tr></thead>
+    <thead><tr><th>Référence</th><th>Épreuve</th><th>Discipline</th><th>Date</th><th>Organisateur</th><th>Statut</th><th>Suivi</th><th>Déposé le</th></tr></thead>
     <tbody>
-    <% if (!reports.length) { %><tr><td colspan="7" class="empty">Aucun dossier.</td></tr><% } %>
+    <% if (!reports.length) { %><tr><td colspan="8" class="empty">Aucun dossier.</td></tr><% } %>
     <% reports.forEach(function (r) { %>
       <tr class="clickable">
         <td class="mono"><a href="/back-office/dossiers/<%= r.id %>"><%= r.reference %></a></td>
@@ -36,7 +47,8 @@
         <td><% if (r.discipline) { %><span class="disc <%= disciplineClass(r.discipline) %>"><%= r.discipline %></span><% } %></td>
         <td><%= r.event_date ? new Date(r.event_date).toLocaleDateString('fr-FR') : '' %></td>
         <td><%= r.organizer_name %></td>
-        <td><% if (r.status === 'complete') { %><span class="badge ok">Complet</span><% } else { %><span class="badge wait">Attente médical</span><% } %></td>
+        <td><% if (r.status === 'complete') { %><span class="badge ok">Complet</span><% } else if (r.overdue) { %><span class="badge late">En retard</span><% } else { %><span class="badge wait">Attente médical</span><% } %></td>
+        <td><span class="badge track-<%= r.processing_status %>"><%= processing[r.processing_status] %></span><% if (r.assignee_name) { %><span class="muted small block"><%= r.assignee_name %></span><% } %></td>
         <td><%= new Date(r.created_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }) %></td>
       </tr>
     <% }) %>

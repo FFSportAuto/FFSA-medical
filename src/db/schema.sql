@@ -116,3 +116,35 @@ CREATE TABLE IF NOT EXISTS session (
   expire timestamp(6) NOT NULL
 );
 CREATE INDEX IF NOT EXISTS session_expire_idx ON session (expire);
+
+-- ---------- Évolutions ----------
+
+-- Lien entre un rapport médical et la personne déclarée par l'organisateur (vehicle1, person2…)
+ALTER TABLE medical_reports ADD COLUMN IF NOT EXISTS patient_ref text;
+
+-- Portable du médecin (envoi du lien et du code par SMS)
+ALTER TABLE medical_requests ADD COLUMN IF NOT EXISTS doctor_phone_enc bytea;
+ALTER TABLE medical_requests ADD COLUMN IF NOT EXISTS transferred_from uuid REFERENCES medical_requests(id);
+
+-- Brouillons enregistrés automatiquement (chiffrés), purgés après 30 jours
+CREATE TABLE IF NOT EXISTS drafts (
+  owner_key   text PRIMARY KEY,
+  data_enc    bytea NOT NULL,
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- Suivi des dossiers par le service médical
+ALTER TABLE accident_reports ADD COLUMN IF NOT EXISTS processing_status text NOT NULL DEFAULT 'a_analyser';
+ALTER TABLE accident_reports ADD COLUMN IF NOT EXISTS assigned_to uuid REFERENCES users(id);
+DO $$ BEGIN
+  ALTER TABLE accident_reports ADD CONSTRAINT accident_reports_processing_chk CHECK (processing_status IN ('a_analyser', 'en_cours', 'clos'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+CREATE TABLE IF NOT EXISTS case_notes (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  accident_id  uuid NOT NULL REFERENCES accident_reports(id) ON DELETE CASCADE,
+  user_id      uuid REFERENCES users(id),
+  body_enc     bytea NOT NULL,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS case_notes_accident_idx ON case_notes (accident_id, created_at);

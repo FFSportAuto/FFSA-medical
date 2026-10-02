@@ -7,6 +7,8 @@ const engine = require('../forms/engine');
 const medicalForm = require('../forms/medical');
 const accidentForm = require('../forms/accident');
 const reports = require('../services/reports');
+const sms = require('../lib/sms');
+const { declaredPersons } = require('../forms/patients');
 const { uploadFields } = require('../middleware/upload');
 
 const router = express.Router();
@@ -48,6 +50,7 @@ function renderVerify(res, request, { codeSent = false, error = null, status = 2
     title: 'Vérification',
     reference: request.reference,
     maskedEmail: maskEmail(request.doctorEmail),
+    maskedPhone: request.doctorPhone ? sms.maskPhone(request.doctorPhone) : null,
     codeSent,
     error,
   });
@@ -58,19 +61,30 @@ const contextFor = (accident) => engine.toDisplay(accidentForm, accident.data).f
 
 const patientName = (data) => [data.patient_last_name, data.patient_first_name].filter(Boolean).join(' ');
 
-// Tableau de bord du médecin : rapports déjà saisis, ajout d'un patient, clôture
+// Personnes déclarées par l'organisateur, avec l'état de leur rapport médical
+function patientsOverview(accident, medical) {
+  const done = new Map(medical.filter((m) => m.patient_ref).map((m) => [m.patient_ref, m]));
+  const persons = declaredPersons(accident.data).map((p) => ({ ...p, report: done.get(p.key) || null }));
+  const others = medical.filter((m) => !m.patient_ref || !persons.some((p) => p.key === m.patient_ref));
+  return { persons, others };
+}
+
+// Tableau de bord du médecin : personnes déclarées, rapports saisis, transfert, clôture
 router.get('/medecin/:token', loadRequest, async (req, res) => {
   const request = req.medicalRequest;
   if (!req.doctorVerified) return renderVerify(res, request);
   const accident = await reports.getAccident(request.accident_id);
   const medical = await reports.listMedical(accident.id);
+  const { persons, others } = patientsOverview(accident, medical);
   res.render('doctor/dossier', {
     title: `Rapport médical – ${accident.reference}`,
     accident,
     context: contextFor(accident),
-    patients: medical.map((m) => ({ name: patientName(m.data), classification: m.data.classification, at: m.created_at })),
+    persons,
+    others: others.map((m) => ({ name: patientName(m.data), classification: m.data.classification, at: m.created_at })),
+    reportCount: medical.length,
     flash: req.query.ajoute ? 'Rapport enregistré.' : null,
-    error: req.query.vide ? 'Ajoutez au moins un rapport patient avant de clôturer.' : null,
+    error: req.query.vide ? 'Ajoutez au moins un rapport patient avant de clôturer.' : req.query.transfert === 'invalide' ? 'Adresse e-mail du confrère invalide.' : null,
   });
 });
 
@@ -91,38 +105,88 @@ router.post('/medecin/:token/verifier', codeLimiter, loadRequest, async (req, re
   res.redirect(`/medecin/${req.params.token}`);
 });
 
-async function renderForm(req, res, { values, errors = {}, formError = null, status = 200 }) {
+// Clé du patient : une personne déclarée (vehicle1, person2…) ou « autre » (patient non déclaré)
+async function resolvePatient(req) {
   const accident = await reports.getAccident(req.medicalRequest.accident_id);
+  const ref = String(req.query.p || 'autre');
+  const person = declaredPersons(accident.data).find((p) => p.key === ref) || null;
+  return { accident, ref: person ? person.key : 'autre', person };
+}
+const draftKeyFor = (accidentId, ref) => `medical:${accidentId}:${ref}`;
+
+async function renderForm(req, res, { accident, ref, person, values, errors = {}, formError = null, status = 200, draft = null }) {
+  const token = req.params.token;
   res.status(status).render('doctor/form', {
     title: `${medicalForm.title} – ${accident.reference}`,
     form: medicalForm,
     accident,
+    person,
     values,
     errors,
     formError,
+    action: `/medecin/${token}/patient?p=${encodeURIComponent(ref)}`,
+    draftUrl: `/medecin/${token}/brouillon?p=${encodeURIComponent(ref)}`,
+    discardUrl: `/medecin/${token}/brouillon/supprimer?p=${encodeURIComponent(ref)}`,
+    draftSavedAt: draft ? draft.updatedAt : null,
   });
 }
 
 router.get('/medecin/:token/patient', loadRequest, requireVerified, async (req, res) => {
-  const accident = await reports.getAccident(req.medicalRequest.accident_id);
-  await renderForm(req, res, { values: engine.prefill(medicalForm, accident.data) });
+  const { accident, ref, person } = await resolvePatient(req);
+  const draft = await reports.getDraft(draftKeyFor(accident.id, ref));
+  // Brouillon s'il existe, sinon reprise de l'épreuve, du médecin et de la personne déclarée
+  const values = draft ? draft.values : { ...engine.prefill(medicalForm, accident.data), ...(person ? person.prefill : {}) };
+  await renderForm(req, res, { accident, ref, person, values, draft });
+});
+
+router.post('/medecin/:token/brouillon', loadRequest, requireVerified, express.json({ limit: '1mb' }), async (req, res) => {
+  const { accident, ref } = await resolvePatient(req);
+  const { raw } = engine.validate(medicalForm, req.body || {});
+  await reports.saveDraft(draftKeyFor(accident.id, ref), raw);
+  res.json({ savedAt: new Date().toISOString() });
+});
+
+router.post('/medecin/:token/brouillon/supprimer', loadRequest, requireVerified, async (req, res) => {
+  const { accident, ref } = await resolvePatient(req);
+  await reports.deleteDraft(draftKeyFor(accident.id, ref));
+  res.redirect(`/medecin/${req.params.token}/patient?p=${encodeURIComponent(ref)}`);
 });
 
 router.post('/medecin/:token/patient', ...uploadFields(medicalForm), loadRequest, requireVerified, async (req, res) => {
   const request = req.medicalRequest;
+  const { accident, ref, person } = await resolvePatient(req);
   const { values, errors, raw } = engine.validate(medicalForm, req.body, req.files);
   if (req.uploadError || Object.keys(errors).length) {
     return renderForm(req, res, {
+      accident, ref, person,
       values: raw,
       errors,
       formError: req.uploadError || 'Le formulaire contient des erreurs, vérifiez les champs signalés.',
       status: 400,
     });
   }
-  const id = await reports.addMedicalReport(request, values, req.files);
+  const id = await reports.addMedicalReport(request, values, req.files, ref === 'autre' ? null : ref);
   if (!id) return res.status(409).render('errors/info', { title: 'Rapport médical', message: STATE_MESSAGES.used });
+  await reports.deleteDraft(draftKeyFor(accident.id, ref));
   await audit(req, 'medical_submitted', { targetType: 'medical_report', targetId: id, actor: `médecin ${request.doctorEmail}`, details: { accident: request.accident_id } });
   res.redirect(`/medecin/${req.params.token}?ajoute=1`);
+});
+
+// Transmission à un confrère (par exemple le médecin qui a réellement vu le patient)
+router.post('/medecin/:token/transferer', loadRequest, requireVerified, async (req, res) => {
+  const request = req.medicalRequest;
+  const email = String(req.body.email || '').trim();
+  const phone = String(req.body.phone || '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.redirect(`/medecin/${req.params.token}?transfert=invalide`);
+  if (!(await reports.transferRequest(request, email, phone || null))) {
+    return res.status(409).render('errors/info', { title: 'Rapport médical', message: STATE_MESSAGES.used });
+  }
+  await audit(req, 'doctor_transferred', { targetType: 'accident', targetId: request.accident_id, actor: `médecin ${request.doctorEmail}` });
+  delete req.session.doctorAccess;
+  res.render('errors/info', {
+    title: 'Demande transmise',
+    message: `La demande de rapport médical du dossier ${request.reference} a été transmise à ${email}. Votre lien est désormais désactivé ; les rapports déjà saisis sont conservés.`,
+  });
 });
 
 router.post('/medecin/:token/cloturer', loadRequest, requireVerified, async (req, res) => {

@@ -6,23 +6,36 @@
 <% if (error) { %><div class="alert error"><%= error %></div><% } %>
 
 <section class="card">
-  <h2>Patients déclarés</h2>
-  <% if (!patients.length) { %>
-    <p class="muted">Aucun rapport patient pour le moment.</p>
+  <h2>Personnes déclarées par l'organisateur</h2>
+  <% if (!persons.length) { %>
+    <p class="muted">L'organisateur n'a déclaré aucune personne nominativement. Utilisez « Autre patient » ci-dessous.</p>
   <% } else { %>
-    <table>
-      <thead><tr><th>Patient</th><th>Classification</th><th>Enregistré le</th></tr></thead>
-      <tbody>
-      <% patients.forEach(function (p) { %><tr><td><%= p.name %></td><td><%= p.classification %></td><td><%= fmt(p.at) %></td></tr><% }) %>
-      </tbody>
-    </table>
+    <p class="muted small">Choisissez un patient : son identité et les informations connues seront reprises dans le formulaire.</p>
+    <ul class="patients">
+      <% persons.forEach(function (p) { %>
+        <li>
+          <span><b><%= p.name %></b><span class="muted small"><%= p.detail %></span></span>
+          <% if (p.report) { %>
+            <span class="badge ok">Rapport saisi · <%= p.report.data.classification || '' %></span>
+          <% } else { %>
+            <a class="btn small" href="/medecin/<%= token %>/patient?p=<%= p.key %>">Remplir son rapport</a>
+          <% } %>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+  <% if (others.length) { %>
+    <h3>Autres patients</h3>
+    <ul class="patients">
+      <% others.forEach(function (o) { %><li><span><b><%= o.name %></b><span class="muted small">Enregistré le <%= fmt(o.at) %></span></span><span class="badge ok">Rapport saisi · <%= o.classification || '' %></span></li><% }) %>
+    </ul>
   <% } %>
   <div class="row-actions">
-    <a class="btn primary" href="/medecin/<%= token %>/patient">+ Ajouter un rapport patient</a>
-    <% if (patients.length) { %>
+    <a class="btn" href="/medecin/<%= token %>/patient?p=autre">+ Autre patient (non déclaré)</a>
+    <% if (reportCount) { %>
       <form method="post" action="/medecin/<%= token %>/cloturer" class="inline" data-confirm="Clôturer le dossier ? Vous ne pourrez plus ajouter de patient.">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <button class="btn" type="submit">J'ai terminé : transmettre au service médical</button>
+        <button class="btn primary" type="submit">J'ai terminé : transmettre au service médical</button>
       </form>
     <% } %>
   </div>
@@ -31,5 +44,16 @@
 <details class="card context">
   <summary>Rappel de la déclaration d'accident</summary>
   <%- include('../partials/display', { sections: context }) %>
+</details>
+
+<details class="card context">
+  <summary>Vous n'avez pas vu ce patient ? Transmettre à un confrère</summary>
+  <p class="muted small">Le confrère recevra un nouveau lien par e-mail (et SMS si vous indiquez son portable). Votre lien sera désactivé ; les rapports déjà saisis sont conservés.</p>
+  <form method="post" action="/medecin/<%= token %>/transferer" class="transfer" data-confirm="Transmettre la demande à ce confrère ? Votre lien sera désactivé.">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label class="label" for="t_email">E-mail du confrère</label><input id="t_email" name="email" type="email" required></div>
+    <div class="field"><label class="label" for="t_phone">Portable du confrère (facultatif)</label><input id="t_phone" name="phone" type="tel"></div>
+    <button class="btn" type="submit">Transmettre</button>
+  </form>
 </details>
 <%- include('../partials/footer') %>

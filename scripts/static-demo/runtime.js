@@ -16,6 +16,9 @@
   var accidentForm = req('accident');
   var medicalForm = req('medical');
   var mailTemplates = req('mail-templates');
+  var smsTemplates = req('sms-templates');
+  var declaredPersons = req('patients').declaredPersons;
+  var PROCESSING = { a_analyser: 'À analyser', en_cours: 'En cours', clos: 'Clos' };
 
   // ---------- Stockage local ----------
   var KEY = 'ffsa-demo-v1';
@@ -35,6 +38,21 @@
     var t = mailTemplates[tpl](params);
     state.mails.push({ to: to, subject: t.subject, text: t.text, date: now() });
   }
+  function normPhone(raw) {
+    var n = String(raw || '').replace(/[\s.\-()]/g, '');
+    if (/^0[1-9]\d{8}$/.test(n)) n = '+33' + n.slice(1);
+    return /^\+\d{8,15}$/.test(n) ? n : null;
+  }
+  function sms(tpl, phone, params) {
+    var to = normPhone(phone);
+    if (to && smsTemplates[tpl]) state.mails.push({ to: to, subject: 'SMS', text: smsTemplates[tpl](params), date: now(), sms: true });
+  }
+  var maskPhone = function (raw) { var n = String(raw || '').replace(/\D/g, ''); return n.length >= 4 ? '•• •• •• ' + n.slice(-4, -2) + ' ' + n.slice(-2) : ''; };
+  function invite(r, a, tpl) {
+    var link = '/medecin/' + r.token;
+    mail(tpl || 'doctorInvitation', r.doctorEmail, { reference: a.reference, eventName: a.event_name, link: link, expiresAt: new Date(r.expires_at).toLocaleDateString('fr-FR') });
+    sms(tpl || 'doctorInvitation', r.doctorPhone, { reference: a.reference, link: link });
+  }
   function audit(action, targetType, targetId) {
     var u = currentUser();
     state.audit.unshift({ at: now(), actor: u ? u.email + ' (' + u.role + ')' : (state.session.doctorEmail ? 'médecin ' + state.session.doctorEmail : 'anonyme'), action: action, target_type: targetType || null, target_id: targetId || null, ip: 'démo' });
@@ -46,18 +64,18 @@
     var id = uuid();
     state.seq += 1;
     var ref = 'ACC-' + new Date().getFullYear() + '-' + String(state.seq).padStart(5, '0');
-    var a = { id: id, reference: ref, organizer_id: organizer.id, status: 'awaiting_medical', event_name: values.event_name, event_date: values.event_date || null, discipline: values.discipline || null, data: values, created_at: now(), completed_at: null };
+    var a = { id: id, reference: ref, organizer_id: organizer.id, status: 'awaiting_medical', event_name: values.event_name, event_date: values.event_date || null, discipline: values.discipline || null, data: values, created_at: now(), completed_at: null, processing_status: 'a_analyser', assigned_to: null };
     state.accidents.unshift(a);
-    var r = createRequest(a, values.doctor_email);
+    var r = createRequest(a, values.doctor_email, values.doctor_phone);
     var ctx = { reference: ref, eventName: a.event_name };
-    mail('doctorInvitation', values.doctor_email, { reference: ref, eventName: a.event_name, link: '/medecin/' + r.token, expiresAt: new Date(r.expires_at).toLocaleDateString('fr-FR') });
+    invite(r, a);
     mail('organizerConfirmation', organizer.email, ctx);
     mail('serviceNewAccident', 'service.medical@ffsa.fr', { reference: ref, eventName: a.event_name, link: '/back-office/dossiers/' + id });
     return a;
   }
-  function createRequest(a, email) {
+  function createRequest(a, email, phone, from) {
     state.requests.forEach(function (r) { if (r.accident_id === a.id && !r.revoked_at && !r.used_at) r.revoked_at = now(); });
-    var r = { id: uuid(), accident_id: a.id, doctorEmail: email, token: rnd(24), expires_at: new Date(Date.now() + 14 * 864e5).toISOString(), sent_at: now(), reminder_sent_at: null, revoked_at: null, used_at: null, otp: null, otp_expires: 0 };
+    var r = { id: uuid(), accident_id: a.id, doctorEmail: email, doctorPhone: phone || null, transferred_from: from || null, token: rnd(24), expires_at: new Date(Date.now() + 14 * 864e5).toISOString(), sent_at: now(), reminder_sent_at: null, revoked_at: null, used_at: null, otp: null, otp_expires: 0 };
     state.requests.push(r);
     return r;
   }
@@ -68,30 +86,32 @@
   }
 
   function seed() {
-    state = { seq: 0, users: [], accidents: [], requests: [], medical: [], attachments: [], mails: [], audit: [], session: {} };
+    state = { seq: 0, users: [], accidents: [], requests: [], medical: [], attachments: [], mails: [], audit: [], notes: [], drafts: {}, session: {} };
     [['organisateur@demo.ffsa.fr', 'Organisateur Démo', 'organizer', false], ['medical@demo.ffsa.fr', 'Service médical Démo', 'medical', true], ['admin@demo.ffsa.fr', 'Administrateur Démo', 'admin', true]]
       .forEach(function (u) { state.users.push({ id: uuid(), email: u[0], full_name: u[1], role: u[2], password: PASSWORD, totp_enabled: u[3], active: true, activated: true, last_login_at: null, created_at: now() }); });
     var orga = state.users[0];
-    var base = { doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course' };
+    var base = { doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78', author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course' };
     var a1 = createAccident(orga, Object.assign({}, base, {
       event_name: 'Rallye des Vosges (exemple)', event_location: 'Gérardmer', discipline: 'Rallye', event_level: 'Épreuve nationale',
-      event_date: '2026-09-20', accident_date: '2026-09-20', accident_time: '14:35', summary_victim_name: 'Paul Exemple',
+      event_date: '2026-09-20', accident_date: '2026-09-20', accident_time: '14:35', summary_victim_last_name: 'Exemple', summary_victim_first_name: 'Paul',
       circumstances: 'Sortie de route en ES3, tonneau. Pilote extrait par l’équipe d’intervention.', hospitalised_count: 1, deaths_count: 0,
-      casualties: { Pilotes: { 'Nombre de blessés': 1 } }, vehicle1_driver_name: 'Paul Exemple', vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
+      casualties: { Pilotes: { 'Nombre de blessés': 1 } }, vehicle1_driver_role: 'Pilote', vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Paul', vehicle1_number: '27', vehicle1_license: '254781', vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
       weather: ['Nuageux'], surface: ['Asphalte'], track_condition: ['Mouillé'],
     }));
     createAccident(orga, Object.assign({}, base, {
       event_name: 'Course de côte du Mont-Dore (exemple)', event_location: 'Le Mont-Dore', discipline: 'Course de côte',
-      event_date: '2026-09-27', accident_date: '2026-09-27', accident_time: '10:05', summary_victim_name: 'Léa Exemple',
+      event_date: '2026-09-27', accident_date: '2026-09-27', accident_time: '10:05', summary_victim_last_name: 'Exemple', summary_victim_first_name: 'Léa', vehicle1_driver_role: 'Pilote', vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Léa', vehicle1_number: '112', vehicle1_license: '287654',
       circumstances: 'Choc latéral contre le rail au virage 7.',
     }));
-    state.medical.push({ id: uuid(), accident_id: a1.id, created_at: now(), data: {
+    state.medical.push({ id: uuid(), accident_id: a1.id, patient_ref: 'vehicle1', created_at: now(), data: {
       date: '2026-09-20', time: '14:35', place: 'Gérardmer', event: 'Rallye des Vosges (exemple)',
       patient_last_name: 'Exemple', patient_first_name: 'Paul', patient_type: ['Pilote'], bp: '130/80', pulse: '92', glasgow: '15',
       upper_limbs: { Clavicule: { Droite: 'F' } }, spine: ['Cervical'], decision: ['Évacuation non urgente', 'Imagerie'],
       hospital: 'CHU de Nancy', diagnosis: 'Fracture de la clavicule droite suspectée.', classification: "2 : transfert à l'hôpital",
       unfit: 'Non (pas de suspension de licence)', current_event: 'Inapte à reprendre', doctor_name: 'Claire Moreau' } });
     finish(a1);
+    // Le second dossier date de 3 jours : il apparaît « en retard » dans le back office
+    state.accidents.forEach(function (a) { if (a.status === 'awaiting_medical') a.created_at = new Date(Date.now() - 3 * 864e5).toISOString(); });
     state.mails = [];
     state.audit = [];
     save();
@@ -132,9 +152,11 @@
   }
 
   function verifyLocals(ctx, codeSent, error) {
-    return { title: 'Vérification', reference: ctx.a.reference, maskedEmail: maskEmail(ctx.r.doctorEmail), codeSent: codeSent, error: error || null, token: ctx.r.token };
+    return { title: 'Vérification', reference: ctx.a.reference, maskedEmail: maskEmail(ctx.r.doctorEmail), maskedPhone: ctx.r.doctorPhone ? maskPhone(ctx.r.doctorPhone) : null, codeSent: codeSent, error: error || null, token: ctx.r.token };
   }
 
+  var isOverdue = function (a) { return a.status === 'awaiting_medical' && Date.now() - new Date(a.created_at) > 48 * 3600e3; };
+  var draftLocals = function (url, discard, key) { var d = state.drafts[key]; return { draftUrl: url, discardUrl: discard, draftSavedAt: d ? d.updatedAt : null }; };
   function filtered(q) {
     return state.accidents.filter(function (a) {
       if (q.statut && a.status !== q.statut) return false;
@@ -142,6 +164,10 @@
       if (q.du && (!a.event_date || a.event_date < q.du)) return false;
       if (q.au && (!a.event_date || a.event_date > q.au)) return false;
       if (q.q) { var s = q.q.toLowerCase(); if (a.reference.toLowerCase().indexOf(s) === -1 && a.event_name.toLowerCase().indexOf(s) === -1) return false; }
+      if (q.suivi && a.processing_status !== q.suivi) return false;
+      if (q.attribue === 'moi' && a.assigned_to !== state.session.userId) return false;
+      if (q.attribue === 'personne' && a.assigned_to) return false;
+      if (q.retard === '1' && !isOverdue(a)) return false;
       return true;
     });
   }
@@ -204,11 +230,17 @@
         var mine = state.accidents.filter(function (a) { return a.organizer_id === u.id; });
         return view('organizer/index', { title: 'Mes déclarations', reports: mine, created: query.cree || null });
       }
-      if (path === '/organisateur/rapports/nouveau') return view('organizer/new', { title: accidentForm.title, form: accidentForm, values: {}, errors: {}, formError: null });
+      var okey = 'accident:' + u.id;
+      if (path === '/organisateur/brouillon/supprimer' && method === 'POST') { delete state.drafts[okey]; return redirect('/organisateur/rapports/nouveau'); }
+      if (path === '/organisateur/rapports/nouveau') {
+        var od = state.drafts[okey];
+        return view('organizer/new', Object.assign({ title: accidentForm.title, form: accidentForm, values: od ? od.values : {}, errors: {}, formError: null }, draftLocals('/organisateur/brouillon', '/organisateur/brouillon/supprimer', okey)));
+      }
       if (path === '/organisateur/rapports' && method === 'POST') {
         var v = engine.validate(accidentForm, body, files);
-        if (Object.keys(v.errors).length) return view('organizer/new', { title: accidentForm.title, form: accidentForm, values: v.raw, errors: v.errors, formError: 'Le formulaire contient des erreurs, vérifiez les champs signalés.' }, 400);
+        if (Object.keys(v.errors).length) return view('organizer/new', Object.assign({ title: accidentForm.title, form: accidentForm, values: v.raw, errors: v.errors, formError: 'Le formulaire contient des erreurs, vérifiez les champs signalés.' }, draftLocals('/organisateur/brouillon', '/organisateur/brouillon/supprimer', '')), 400);
         var a = createAccident(u, v.values);
+        delete state.drafts[okey];
         addFiles(a.id, 'accident', files);
         audit('accident_created', 'accident', a.id);
         return redirect('/organisateur?cree=' + encodeURIComponent(a.reference));
@@ -222,13 +254,14 @@
     }
 
     // Médecin
-    if ((m = path.match(/^\/medecin\/(\w+)(\/[a-z]+)?$/))) {
+    if ((m = path.match(/^\/medecin\/(\w+)(\/[a-z]+)?(?:\/supprimer)?$/))) {
       ctx = loadRequest(m[1]); if (ctx.stop) return ctx.stop;
       var sub = m[2] || '';
       var token = ctx.r.token;
       if (sub === '/code' && method === 'POST') {
         ctx.r.otp = digits(); ctx.r.otp_expires = Date.now() + 10 * 60000;
         mail('doctorOtp', ctx.r.doctorEmail, { reference: ctx.a.reference, code: ctx.r.otp });
+        sms('doctorOtp', ctx.r.doctorPhone, { reference: ctx.a.reference, code: ctx.r.otp });
         return view('doctor/verify', verifyLocals(ctx, true));
       }
       if (sub === '/verifier' && method === 'POST') {
@@ -240,16 +273,36 @@
         return redirect('/medecin/' + token);
       }
       if (!ctx.verified) return sub ? redirect('/medecin/' + token) : view('doctor/verify', verifyLocals(ctx, Boolean(ctx.r.otp && ctx.r.otp_expires > Date.now())));
+      var persons = declaredPersons(ctx.a.data);
+      var ref = query.p && persons.some(function (x) { return x.key === query.p; }) ? query.p : 'autre';
+      var person = persons.find(function (x) { return x.key === ref; }) || null;
+      var dkey = 'medical:' + ctx.a.id + ':' + ref;
+      var formLocals = function (values, errors, formError) {
+        return Object.assign({ title: medicalForm.title + ' – ' + ctx.a.reference, form: medicalForm, accident: ctx.a, person: person, values: values, errors: errors || {}, formError: formError || null, token: token,
+          action: '/medecin/' + token + '/patient?p=' + ref }, draftLocals('/medecin/' + token + '/brouillon?p=' + ref, '/medecin/' + token + '/brouillon/supprimer?p=' + ref, dkey));
+      };
+      if (sub === '/brouillon') { delete state.drafts[dkey]; return redirect('/medecin/' + token + '/patient?p=' + ref); }
       if (sub === '/patient') {
         if (method === 'POST') {
           var mv = engine.validate(medicalForm, body, files);
-          if (Object.keys(mv.errors).length) return view('doctor/form', { title: medicalForm.title + ' – ' + ctx.a.reference, form: medicalForm, accident: ctx.a, values: mv.raw, errors: mv.errors, formError: 'Le formulaire contient des erreurs, vérifiez les champs signalés.', token: token }, 400);
-          var rep = { id: uuid(), accident_id: ctx.a.id, data: mv.values, created_at: now() };
+          if (Object.keys(mv.errors).length) return view('doctor/form', formLocals(mv.raw, mv.errors, 'Le formulaire contient des erreurs, vérifiez les champs signalés.'), 400);
+          var rep = { id: uuid(), accident_id: ctx.a.id, patient_ref: ref === 'autre' ? null : ref, data: mv.values, created_at: now() };
           state.medical.push(rep);
+          delete state.drafts[dkey];
           audit('medical_submitted', 'medical_report', rep.id);
           return redirect('/medecin/' + token + '?ajoute=1');
         }
-        return view('doctor/form', { title: medicalForm.title + ' – ' + ctx.a.reference, form: medicalForm, accident: ctx.a, values: engine.prefill(medicalForm, ctx.a.data), errors: {}, formError: null, token: token });
+        var dd = state.drafts[dkey];
+        return view('doctor/form', formLocals(dd ? dd.values : Object.assign({}, engine.prefill(medicalForm, ctx.a.data), person ? person.prefill : {})));
+      }
+      if (sub === '/transferer' && method === 'POST') {
+        var temail = String(body.email || '').trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(temail)) return redirect('/medecin/' + token + '?transfert=invalide');
+        var nr = createRequest(ctx.a, temail, String(body.phone || '').trim() || null, ctx.r.id);
+        invite(nr, ctx.a, 'doctorTransfer');
+        audit('doctor_transferred', 'accident', ctx.a.id);
+        delete state.session.doctorAccess;
+        return info('Demande transmise', 'La demande de rapport médical du dossier ' + ctx.a.reference + ' a été transmise à ' + temail + '. Votre lien est désormais désactivé ; les rapports déjà saisis sont conservés.');
       }
       if (sub === '/cloturer' && method === 'POST') {
         if (!state.medical.some(function (x) { return x.accident_id === ctx.a.id; })) return redirect('/medecin/' + token + '?vide=1');
@@ -259,11 +312,16 @@
         return info('Rapport médical transmis', 'Merci, le rapport médical du dossier ' + ctx.a.reference + ' a été transmis au service médical de la FFSA.');
       }
       var pats = state.medical.filter(function (x) { return x.accident_id === ctx.a.id; });
+      var plist = persons.map(function (p) { return Object.assign({}, p, { report: pats.find(function (x) { return x.patient_ref === p.key; }) || null }); });
       return view('doctor/dossier', {
         title: 'Rapport médical – ' + ctx.a.reference, accident: ctx.a, token: token,
         context: engine.toDisplay(accidentForm, ctx.a.data).filter(function (s) { return s.shareWithDoctor; }),
-        patients: pats.map(function (x) { return { name: patientName(x.data), classification: x.data.classification, at: x.created_at }; }),
-        flash: query.ajoute ? 'Rapport enregistré.' : null, error: query.vide ? 'Ajoutez au moins un rapport patient avant de clôturer.' : null,
+        persons: plist,
+        others: pats.filter(function (x) { return !x.patient_ref || !persons.some(function (p) { return p.key === x.patient_ref; }); })
+          .map(function (x) { return { name: patientName(x.data), classification: x.data.classification, at: x.created_at }; }),
+        reportCount: pats.length,
+        flash: query.ajoute ? 'Rapport enregistré.' : null,
+        error: query.vide ? 'Ajoutez au moins un rapport patient avant de clôturer.' : query.transfert === 'invalide' ? 'Adresse e-mail du confrère invalide.' : null,
       });
     }
 
@@ -273,24 +331,42 @@
       if (path === '/back-office') {
         var list = filtered(query);
         var page = Math.max(1, Number(query.page) || 1);
+        list.sort(function (x, y) { return (isOverdue(y) - isOverdue(x)) || (y.created_at > x.created_at ? 1 : -1); });
         var rows = list.slice((page - 1) * 50, page * 50).map(function (a) {
           var o = state.users.find(function (x) { return x.id === a.organizer_id; });
-          return Object.assign({}, a, { organizer_name: o ? o.full_name : '' });
+          var as = state.users.find(function (x) { return x.id === a.assigned_to; });
+          return Object.assign({}, a, { organizer_name: o ? o.full_name : '', assignee_name: as ? as.full_name : null, overdue: isOverdue(a) });
         });
-        var stats = { total: state.accidents.length, pending: state.accidents.filter(function (a) { return a.status === 'awaiting_medical'; }).length, complete: state.accidents.filter(function (a) { return a.status === 'complete'; }).length };
+        var all = state.accidents;
+        var stats = { total: all.length, overdue: all.filter(isOverdue).length, pending: all.filter(function (a) { return a.status === 'awaiting_medical'; }).length,
+          to_review: all.filter(function (a) { return a.status === 'complete' && a.processing_status === 'a_analyser'; }).length,
+          mine: all.filter(function (a) { return a.assigned_to === u.id && a.processing_status !== 'clos'; }).length };
         var eq = new URLSearchParams(Object.entries(query).filter(function (e) { return e[0] !== 'page' && e[1]; })).toString();
         return view('backoffice/index', { title: 'Dossiers', reports: rows, stats: stats, query: query, page: page, pages: Math.max(1, Math.ceil(list.length / 50)), total: list.length,
-          disciplines: engine.allFields(accidentForm).find(function (f) { return f.name === 'discipline'; }).options, exportQuery: eq });
+          disciplines: engine.allFields(accidentForm).find(function (f) { return f.name === 'discipline'; }).options, processing: PROCESSING, exportQuery: eq });
       }
       if (path === '/back-office/export.csv') return info('Export tableur', "L'export CSV (une ligne par patient, ouvrable dans Excel) fonctionne dans l'application. Le téléchargement de fichiers n'est pas possible dans cette démo en ligne.", '/back-office', 'Retour aux dossiers');
       if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/pdf\/\w+$/))) return info('Téléchargement PDF', "Dans l'application, ce bouton télécharge le dossier en PDF au format du rapport FFSA (en-tête et pied de page FFSA, rubriques du formulaire, signatures). Le téléchargement de fichiers n'est pas possible dans cette démo en ligne.", '/back-office/dossiers/' + m[1], 'Retour au dossier');
       if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/pieces\/[\w-]+$/))) return info('Pièce jointe', "Le téléchargement des pièces jointes fonctionne dans l'application. Les fichiers ne sont pas conservés dans cette démo en ligne.", '/back-office/dossiers/' + m[1], 'Retour au dossier');
       if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/relance$/)) && method === 'POST') {
         var ra = accidentById(m[1]); if (!ra) return notFound();
-        var re = createRequest(ra, String(body.doctor_email || '').trim());
-        mail('doctorInvitation', re.doctorEmail, { reference: ra.reference, eventName: ra.event_name, link: '/medecin/' + re.token, expiresAt: new Date(re.expires_at).toLocaleDateString('fr-FR') });
+        var lastReq = state.requests.filter(function (x) { return x.accident_id === ra.id; }).pop();
+        var re = createRequest(ra, String(body.doctor_email || '').trim(), String(body.doctor_phone || '').trim() || (lastReq && lastReq.doctorPhone));
+        invite(re, ra);
         audit('doctor_invitation_resent', 'accident', ra.id);
         return redirect('/back-office/dossiers/' + ra.id + '?relance=1');
+      }
+      if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/suivi$/)) && method === 'POST') {
+        var sa = accidentById(m[1]); if (!sa) return notFound();
+        if (PROCESSING[body.processing_status]) sa.processing_status = body.processing_status;
+        sa.assigned_to = body.assigned_to || null;
+        audit('case_updated', 'accident', sa.id);
+        return redirect('/back-office/dossiers/' + sa.id + '?suivi=1');
+      }
+      if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/notes$/)) && method === 'POST') {
+        var note = String(body.note || '').trim();
+        if (note) { state.notes.push({ id: uuid(), accident_id: m[1], author: u.full_name, body: note.slice(0, 5000), created_at: now() }); audit('note_added', 'accident', m[1]); }
+        return redirect('/back-office/dossiers/' + m[1] + '?note=1');
       }
       if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)$/))) {
         var acc = accidentById(m[1]); if (!acc) return notFound();
@@ -302,7 +378,10 @@
           medicalReports: state.medical.filter(function (x) { return x.accident_id === acc.id; }).map(function (x) { return Object.assign({}, x, { sections: engine.toDisplay(medicalForm, x.data) }); }),
           attachments: state.attachments.filter(function (x) { return x.accident_id === acc.id; }),
           requests: state.requests.filter(function (x) { return x.accident_id === acc.id; }).slice().reverse(),
-          flash: query.relance ? 'Nouvelle invitation envoyée au médecin.' : null,
+          notes: state.notes.filter(function (x) { return x.accident_id === acc.id; }),
+          staff: state.users.filter(function (x) { return (x.role === 'medical' || x.role === 'admin') && x.active; }),
+          processing: PROCESSING, overdue: isOverdue(acc),
+          flash: query.relance ? 'Nouvelle invitation envoyée au médecin.' : query.suivi ? 'Suivi mis à jour.' : query.note ? 'Note ajoutée.' : null,
         });
       }
       var ad = requireRole(['admin']); if (ad) return ad;
@@ -444,6 +523,25 @@
     go('POST', action, body, files);
   });
 
+  // Enregistrement automatique des brouillons : intercepté et conservé dans le navigateur
+  var realFetch = window.fetch ? window.fetch.bind(window) : null;
+  window.fetch = function (url, opts) {
+    var u = new URL(String(url), 'https://demo.local');
+    var key = null, form = null;
+    var cu = currentUser();
+    if (u.pathname === '/organisateur/brouillon' && cu) { key = 'accident:' + cu.id; form = accidentForm; }
+    var dm = u.pathname.match(/^\/medecin\/(\w+)\/brouillon$/);
+    if (dm) {
+      var r = state.requests.find(function (x) { return x.token === dm[1]; });
+      if (r) { var ps = declaredPersons(accidentById(r.accident_id).data); var p = u.searchParams.get('p'); key = 'medical:' + r.accident_id + ':' + (ps.some(function (x) { return x.key === p; }) ? p : 'autre'); form = medicalForm; }
+    }
+    if (!key) return realFetch ? realFetch(url, opts) : Promise.reject(new Error('fetch'));
+    var data = JSON.parse((opts && opts.body) || '{}');
+    state.drafts[key] = { values: engine.validate(form, data).raw, updatedAt: now() };
+    save();
+    return Promise.resolve(new Response(JSON.stringify({ savedAt: now() }), { status: 200, headers: { 'content-type': 'application/json' } }));
+  };
+
   // Les fenêtres de confirmation natives sont bloquées dans la démo : on confirme d'office
   window.confirm = function () { return true; };
 
@@ -466,6 +564,6 @@
   });
 
   state = load();
-  if (!state || !state.users) seed();
+  if (!state || !state.users || !state.drafts) seed(); // données d'une ancienne version : on repart à zéro
   go('GET', state.lastUrl || '/connexion');
 })();

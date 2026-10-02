@@ -17,6 +17,7 @@ async function main() {
   // Relance horaire des médecins n'ayant pas complété leur rapport
   setInterval(() => {
     reports.sendReminders().catch((err) => console.error('Relances :', err));
+    reports.purgeDrafts().catch((err) => console.error('Purge des brouillons :', err));
   }, 60 * 60 * 1000).unref();
 }
 

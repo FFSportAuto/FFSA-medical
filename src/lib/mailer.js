@@ -28,10 +28,11 @@ function getTransport() {
 
 const outbox = [];
 
-async function sendMail({ to, subject, text }) {
+async function sendMail({ to, subject, text, sms = false }) {
   const message = { from: config.mail.from, to, subject, text };
-  const info = await getTransport().sendMail(message);
-  if (!config.mail.host) {
+  const info = sms ? null : await getTransport().sendMail(message);
+  if (sms) message.sms = true;
+  if (!config.mail.host || sms) {
     // Mode développement : conserve les messages en mémoire et dans ./outbox
     outbox.push({ ...message, date: new Date() });
     if (outbox.length > 200) outbox.shift();

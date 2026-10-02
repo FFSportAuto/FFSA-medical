@@ -12,6 +12,10 @@ const { uploadFields } = require('../middleware/upload');
 const router = express.Router();
 router.use('/organisateur', requireRole('organizer'));
 
+const DRAFT_URL = '/organisateur/brouillon';
+const draftKey = (user) => `accident:${user.id}`;
+const draftLocals = (draft) => ({ draftUrl: DRAFT_URL, discardUrl: `${DRAFT_URL}/supprimer`, draftSavedAt: draft ? draft.updatedAt : null });
+
 router.get('/organisateur', async (req, res) => {
   const { rows } = await db.query(
     `SELECT id, reference, event_name, event_date, status, created_at, completed_at
@@ -21,14 +25,28 @@ router.get('/organisateur', async (req, res) => {
   res.render('organizer/index', { title: 'Mes déclarations', reports: rows, created: req.query.cree || null });
 });
 
-router.get('/organisateur/rapports/nouveau', (req, res) => {
+router.get('/organisateur/rapports/nouveau', async (req, res) => {
+  const draft = await reports.getDraft(draftKey(req.user));
   res.render('organizer/new', {
     title: accidentForm.title,
     form: accidentForm,
-    values: {},
+    values: draft ? draft.values : {},
     errors: {},
     formError: null,
+    ...draftLocals(draft),
   });
+});
+
+// Enregistrement automatique du brouillon (appelé par le navigateur pendant la saisie)
+router.post(DRAFT_URL, express.json({ limit: '1mb' }), async (req, res) => {
+  const { raw } = engine.validate(accidentForm, req.body || {});
+  await reports.saveDraft(draftKey(req.user), raw);
+  res.json({ savedAt: new Date().toISOString() });
+});
+
+router.post(`${DRAFT_URL}/supprimer`, async (req, res) => {
+  await reports.deleteDraft(draftKey(req.user));
+  res.redirect('/organisateur/rapports/nouveau');
 });
 
 router.post('/organisateur/rapports', ...uploadFields(accidentForm), async (req, res) => {
@@ -40,9 +58,11 @@ router.post('/organisateur/rapports', ...uploadFields(accidentForm), async (req,
       values: raw,
       errors,
       formError: req.uploadError || 'Le formulaire contient des erreurs, vérifiez les champs signalés.',
+      ...draftLocals(null),
     });
   }
   const report = await reports.createAccidentReport(req.user, values, req.files);
+  await reports.deleteDraft(draftKey(req.user));
   await audit(req, 'accident_created', { targetType: 'accident', targetId: report.id, details: { reference: report.reference } });
   res.redirect(`/organisateur?cree=${encodeURIComponent(report.reference)}`);
 });

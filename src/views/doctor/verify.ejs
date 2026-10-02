@@ -2,7 +2,7 @@
 <div class="auth card">
   <h1>Rapport médical</h1>
   <p>Dossier <strong class="mono"><%= reference %></strong></p>
-  <p class="muted">Pour protéger les données de santé, nous devons vérifier votre identité. Un code à usage unique va être envoyé à <strong><%= maskedEmail %></strong>.</p>
+  <p class="muted">Pour protéger les données de santé, nous devons vérifier votre identité. Un code à usage unique va être envoyé à <strong><%= maskedEmail %></strong><% if (maskedPhone) { %> et par SMS au <strong><%= maskedPhone %></strong><% } %>.</p>
   <% if (error) { %><div class="alert error" role="alert"><%= error %></div><% } %>
   <% if (codeSent) { %>
     <div class="alert info">Code envoyé. Il est valable 10 minutes.<% if (demoMode) { %> Démonstration : <a href="/demo/emails" target="_blank">ouvrir la boîte mail</a>.<% } %></div>

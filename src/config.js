@@ -49,6 +49,12 @@ const config = {
     pass: process.env.SMTP_PASS || '',
     from: process.env.MAIL_FROM || 'FFSA - Service médical <no-reply@example.org>',
   },
+  sms: {
+    // Fournisseur SMS : 'brevo' (API transactionnelle) ; vide = SMS affichés dans ./outbox (démo)
+    provider: process.env.SMS_PROVIDER || '',
+    apiKey: process.env.SMS_API_KEY || '',
+    sender: process.env.SMS_SENDER || 'FFSA',
+  },
   appName: 'FFSA – Rapports accident & médical',
 };
 
