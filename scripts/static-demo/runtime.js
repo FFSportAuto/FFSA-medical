@@ -1,0 +1,470 @@
+/* Démo interactive : simule le serveur dans le navigateur à partir des vrais gabarits EJS,
+   formulaires et règles de validation de l'application. Données fictives, stockées dans ce navigateur. */
+(function () {
+  'use strict';
+
+  // ---------- Modules de l'application (formulaires, moteur, e-mails) ----------
+  var cache = {};
+  function req(name) {
+    if (cache[name]) return cache[name].exports;
+    var m = { exports: {} };
+    cache[name] = m;
+    MODULES[name](m, m.exports, req);
+    return m.exports;
+  }
+  var engine = req('engine');
+  var accidentForm = req('accident');
+  var medicalForm = req('medical');
+  var mailTemplates = req('mail-templates');
+
+  // ---------- Stockage local ----------
+  var KEY = 'ffsa-demo-v1';
+  var PASSWORD = 'Demo-FFSA-2026!';
+  var state;
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* stockage indisponible */ } }
+  function load() {
+    try { var raw = localStorage.getItem(KEY); if (raw) return JSON.parse(raw); } catch (e) { /* ignore */ }
+    return null;
+  }
+  var rnd = function (n) { var a = new Uint8Array(n || 18); crypto.getRandomValues(a); return Array.prototype.map.call(a, function (b) { return 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[b % 62]; }).join(''); };
+  var uuid = function () { return crypto.randomUUID ? crypto.randomUUID() : rnd(8) + '-' + rnd(4) + '-' + rnd(4) + '-' + rnd(4) + '-' + rnd(12); };
+  var now = function () { return new Date().toISOString(); };
+  var digits = function () { return String(Math.floor(Math.random() * 900000) + 100000); };
+
+  function mail(tpl, to, params) {
+    var t = mailTemplates[tpl](params);
+    state.mails.push({ to: to, subject: t.subject, text: t.text, date: now() });
+  }
+  function audit(action, targetType, targetId) {
+    var u = currentUser();
+    state.audit.unshift({ at: now(), actor: u ? u.email + ' (' + u.role + ')' : (state.session.doctorEmail ? 'médecin ' + state.session.doctorEmail : 'anonyme'), action: action, target_type: targetType || null, target_id: targetId || null, ip: 'démo' });
+    if (state.audit.length > 300) state.audit.length = 300;
+  }
+
+  // ---------- Données initiales ----------
+  function createAccident(organizer, values) {
+    var id = uuid();
+    state.seq += 1;
+    var ref = 'ACC-' + new Date().getFullYear() + '-' + String(state.seq).padStart(5, '0');
+    var a = { id: id, reference: ref, organizer_id: organizer.id, status: 'awaiting_medical', event_name: values.event_name, event_date: values.event_date || null, discipline: values.discipline || null, data: values, created_at: now(), completed_at: null };
+    state.accidents.unshift(a);
+    var r = createRequest(a, values.doctor_email);
+    var ctx = { reference: ref, eventName: a.event_name };
+    mail('doctorInvitation', values.doctor_email, { reference: ref, eventName: a.event_name, link: '/medecin/' + r.token, expiresAt: new Date(r.expires_at).toLocaleDateString('fr-FR') });
+    mail('organizerConfirmation', organizer.email, ctx);
+    mail('serviceNewAccident', 'service.medical@ffsa.fr', { reference: ref, eventName: a.event_name, link: '/back-office/dossiers/' + id });
+    return a;
+  }
+  function createRequest(a, email) {
+    state.requests.forEach(function (r) { if (r.accident_id === a.id && !r.revoked_at && !r.used_at) r.revoked_at = now(); });
+    var r = { id: uuid(), accident_id: a.id, doctorEmail: email, token: rnd(24), expires_at: new Date(Date.now() + 14 * 864e5).toISOString(), sent_at: now(), reminder_sent_at: null, revoked_at: null, used_at: null, otp: null, otp_expires: 0 };
+    state.requests.push(r);
+    return r;
+  }
+  function finish(a) {
+    state.requests.forEach(function (r) { if (r.accident_id === a.id && !r.used_at) r.used_at = now(); });
+    a.status = 'complete'; a.completed_at = now();
+    mail('serviceComplete', 'service.medical@ffsa.fr', { reference: a.reference, eventName: a.event_name, link: '/back-office/dossiers/' + a.id });
+  }
+
+  function seed() {
+    state = { seq: 0, users: [], accidents: [], requests: [], medical: [], attachments: [], mails: [], audit: [], session: {} };
+    [['organisateur@demo.ffsa.fr', 'Organisateur Démo', 'organizer', false], ['medical@demo.ffsa.fr', 'Service médical Démo', 'medical', true], ['admin@demo.ffsa.fr', 'Administrateur Démo', 'admin', true]]
+      .forEach(function (u) { state.users.push({ id: uuid(), email: u[0], full_name: u[1], role: u[2], password: PASSWORD, totp_enabled: u[3], active: true, activated: true, last_login_at: null, created_at: now() }); });
+    var orga = state.users[0];
+    var base = { doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course' };
+    var a1 = createAccident(orga, Object.assign({}, base, {
+      event_name: 'Rallye des Vosges (exemple)', event_location: 'Gérardmer', discipline: 'Rallye', event_level: 'Épreuve nationale',
+      event_date: '2026-09-20', accident_date: '2026-09-20', accident_time: '14:35', summary_victim_name: 'Paul Exemple',
+      circumstances: 'Sortie de route en ES3, tonneau. Pilote extrait par l’équipe d’intervention.', hospitalised_count: 1, deaths_count: 0,
+      casualties: { Pilotes: { 'Nombre de blessés': 1 } }, vehicle1_driver_name: 'Paul Exemple', vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
+      weather: ['Nuageux'], surface: ['Asphalte'], track_condition: ['Mouillé'],
+    }));
+    createAccident(orga, Object.assign({}, base, {
+      event_name: 'Course de côte du Mont-Dore (exemple)', event_location: 'Le Mont-Dore', discipline: 'Course de côte',
+      event_date: '2026-09-27', accident_date: '2026-09-27', accident_time: '10:05', summary_victim_name: 'Léa Exemple',
+      circumstances: 'Choc latéral contre le rail au virage 7.',
+    }));
+    state.medical.push({ id: uuid(), accident_id: a1.id, created_at: now(), data: {
+      date: '2026-09-20', time: '14:35', place: 'Gérardmer', event: 'Rallye des Vosges (exemple)',
+      patient_last_name: 'Exemple', patient_first_name: 'Paul', patient_type: ['Pilote'], bp: '130/80', pulse: '92', glasgow: '15',
+      upper_limbs: { Clavicule: { Droite: 'F' } }, spine: ['Cervical'], decision: ['Évacuation non urgente', 'Imagerie'],
+      hospital: 'CHU de Nancy', diagnosis: 'Fracture de la clavicule droite suspectée.', classification: "2 : transfert à l'hôpital",
+      unfit: 'Non (pas de suspension de licence)', current_event: 'Inapte à reprendre', doctor_name: 'Claire Moreau' } });
+    finish(a1);
+    state.mails = [];
+    state.audit = [];
+    save();
+  }
+
+  // ---------- Helpers « serveur » ----------
+  var ROLE_LABELS = { organizer: 'Organisateur', medical: 'Service médical', admin: 'Administrateur' };
+  function currentUser() { var id = state.session.userId; return id ? state.users.find(function (u) { return u.id === id && u.active; }) || null : null; }
+  var homeFor = function (u) { return !u ? '/connexion' : u.role === 'organizer' ? '/organisateur' : '/back-office'; };
+  // Code de double authentification simulé : change chaque minute, affiché à l'écran
+  var demoCode = function (offset) { var t = Math.floor(Date.now() / 60000) - (offset || 0); return String((t * 104729) % 900000 + 100000); };
+  var view = function (name, locals, status) { return { view: name, locals: locals || {}, status: status || 200 }; };
+  var redirect = function (to) { return { redirect: to }; };
+  var info = function (title, message, link, linkLabel) { return view('errors/info', { title: title, message: message, link: link || null, linkLabel: linkLabel || '' }); };
+  var notFound = function () { return view('errors/error', { title: 'Page introuvable', message: "Cette page n'existe pas." }, 404); };
+  var denied = function () { return view('errors/error', { title: 'Accès refusé', message: "Vous n'avez pas accès à cette page." }, 403); };
+  var maskEmail = function (e) { return e.replace(/^(.)(.*)(@.*)$/, function (m, a, b, c) { return a + '•'.repeat(Math.min(b.length, 6)) + c; }); };
+  var accidentById = function (id) { return state.accidents.find(function (a) { return a.id === id; }); };
+  var patientName = function (d) { return [d.patient_last_name, d.patient_first_name].filter(Boolean).join(' '); };
+
+  function requireRole(roles) {
+    var u = currentUser();
+    if (!u) { state.session.returnTo = null; return redirect('/connexion'); }
+    if (roles.indexOf(u.role) === -1) return denied();
+    return null;
+  }
+
+  function loadRequest(token) {
+    var r = state.requests.find(function (x) { return x.token === token; });
+    if (!r) return { stop: view('errors/error', { title: 'Lien invalide', message: "Ce lien n'est pas valide." }, 404) };
+    var a = accidentById(r.accident_id);
+    var msg = null;
+    if (r.used_at || a.status === 'complete') msg = 'Le dossier médical de cet accident a été clôturé et transmis au service médical de la FFSA. Merci.';
+    else if (r.revoked_at) msg = 'Ce lien a été remplacé par un lien plus récent. Utilisez le dernier e-mail reçu.';
+    if (msg) return { stop: view('errors/info', { title: 'Rapport médical', message: msg }, 410) };
+    var acc = state.session.doctorAccess;
+    return { r: r, a: a, verified: Boolean(acc && acc.requestId === r.id && acc.until > Date.now()) };
+  }
+
+  function verifyLocals(ctx, codeSent, error) {
+    return { title: 'Vérification', reference: ctx.a.reference, maskedEmail: maskEmail(ctx.r.doctorEmail), codeSent: codeSent, error: error || null, token: ctx.r.token };
+  }
+
+  function filtered(q) {
+    return state.accidents.filter(function (a) {
+      if (q.statut && a.status !== q.statut) return false;
+      if (q.discipline && a.discipline !== q.discipline) return false;
+      if (q.du && (!a.event_date || a.event_date < q.du)) return false;
+      if (q.au && (!a.event_date || a.event_date > q.au)) return false;
+      if (q.q) { var s = q.q.toLowerCase(); if (a.reference.toLowerCase().indexOf(s) === -1 && a.event_name.toLowerCase().indexOf(s) === -1) return false; }
+      return true;
+    });
+  }
+
+  // ---------- Routes ----------
+  function handle(method, path, query, body, files) {
+    var m, u = currentUser(), ctx, err;
+    if (path === '/' ) return redirect(homeFor(u));
+
+    // Authentification
+    if (path === '/connexion' && method === 'GET') {
+      if (u) return redirect(homeFor(u));
+      return view('auth/login', { title: 'Connexion', error: null, email: '', demoAccounts: demoAccounts() });
+    }
+    if (path === '/connexion' && method === 'POST') {
+      var email = String(body.email || '').trim().toLowerCase();
+      var found = state.users.find(function (x) { return x.email === email && x.active; });
+      if (!found || found.password !== body.password) {
+        return view('auth/login', { title: 'Connexion', error: 'Identifiants incorrects.', email: email, demoAccounts: demoAccounts() }, 401);
+      }
+      if (found.totp_enabled) { state.session.mfaUserId = found.id; return redirect('/connexion/2fa'); }
+      return login(found);
+    }
+    if (path === '/connexion/2fa') {
+      if (!state.session.mfaUserId) return redirect('/connexion');
+      if (method === 'POST') {
+        var typed = String(body.code || '').replace(/\s/g, '');
+        if (typed !== demoCode() && typed !== demoCode(1)) return view('auth/totp', { title: 'Double authentification', error: 'Code incorrect.', demoCode: demoCode() }, 401);
+        var mu = state.users.find(function (x) { return x.id === state.session.mfaUserId; });
+        delete state.session.mfaUserId;
+        return login(mu);
+      }
+      return view('auth/totp', { title: 'Double authentification', error: null, demoCode: demoCode() });
+    }
+    if (path === '/deconnexion' && method === 'POST') { audit('logout'); state.session = {}; return redirect('/connexion'); }
+    if (path === '/mot-de-passe-oublie') return view('auth/forgot', { title: 'Mot de passe oublié', sent: method === 'POST' });
+    if ((m = path.match(/^\/mot-de-passe\/(\w+)$/))) {
+      var invited = state.users.find(function (x) { return x.inviteToken === m[1]; });
+      if (!invited) return view('errors/error', { title: 'Lien invalide', message: 'Ce lien est invalide ou a expiré.' }, 410);
+      if (method === 'POST') {
+        var p = body.password || '';
+        var classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(function (re) { return re.test(p); }).length;
+        err = p !== body.confirm ? 'Les mots de passe ne correspondent pas.' : p.length < 12 ? 'Le mot de passe doit contenir au moins 12 caractères.' : classes < 3 ? 'Le mot de passe doit mélanger au moins 3 types : minuscules, majuscules, chiffres, caractères spéciaux.' : null;
+        if (err) return view('auth/set-password', { title: 'Définir le mot de passe', error: err, email: invited.email }, 400);
+        invited.password = p; invited.activated = true; delete invited.inviteToken;
+        return info('Mot de passe enregistré', 'Vous pouvez maintenant vous connecter.', '/connexion', 'Se connecter');
+      }
+      return view('auth/set-password', { title: 'Définir le mot de passe', error: null, email: invited.email });
+    }
+    if (path === '/compte/2fa') {
+      if (!u) return redirect('/connexion');
+      if (u.totp_enabled) return view('account/totp-enabled', { title: 'Double authentification' });
+      return info('Double authentification', "Dans l'application, l'utilisateur scanne ici un QR code avec son téléphone. Cette étape n'est pas simulée dans la démo en ligne.");
+    }
+
+    // Organisateur
+    if (path.indexOf('/organisateur') === 0) {
+      var stop = requireRole(['organizer']); if (stop) return stop;
+      if (path === '/organisateur') {
+        var mine = state.accidents.filter(function (a) { return a.organizer_id === u.id; });
+        return view('organizer/index', { title: 'Mes déclarations', reports: mine, created: query.cree || null });
+      }
+      if (path === '/organisateur/rapports/nouveau') return view('organizer/new', { title: accidentForm.title, form: accidentForm, values: {}, errors: {}, formError: null });
+      if (path === '/organisateur/rapports' && method === 'POST') {
+        var v = engine.validate(accidentForm, body, files);
+        if (Object.keys(v.errors).length) return view('organizer/new', { title: accidentForm.title, form: accidentForm, values: v.raw, errors: v.errors, formError: 'Le formulaire contient des erreurs, vérifiez les champs signalés.' }, 400);
+        var a = createAccident(u, v.values);
+        addFiles(a.id, 'accident', files);
+        audit('accident_created', 'accident', a.id);
+        return redirect('/organisateur?cree=' + encodeURIComponent(a.reference));
+      }
+      if ((m = path.match(/^\/organisateur\/rapports\/([\w-]+)$/))) {
+        var own = accidentById(m[1]);
+        if (!own || own.organizer_id !== u.id) return notFound();
+        return view('organizer/show', { title: 'Dossier ' + own.reference, accident: own, sections: engine.toDisplay(accidentForm, own.data) });
+      }
+      return notFound();
+    }
+
+    // Médecin
+    if ((m = path.match(/^\/medecin\/(\w+)(\/[a-z]+)?$/))) {
+      ctx = loadRequest(m[1]); if (ctx.stop) return ctx.stop;
+      var sub = m[2] || '';
+      var token = ctx.r.token;
+      if (sub === '/code' && method === 'POST') {
+        ctx.r.otp = digits(); ctx.r.otp_expires = Date.now() + 10 * 60000;
+        mail('doctorOtp', ctx.r.doctorEmail, { reference: ctx.a.reference, code: ctx.r.otp });
+        return view('doctor/verify', verifyLocals(ctx, true));
+      }
+      if (sub === '/verifier' && method === 'POST') {
+        if (!ctx.r.otp || ctx.r.otp_expires < Date.now() || String(body.code || '').trim() !== ctx.r.otp) return view('doctor/verify', verifyLocals(ctx, true, 'Code incorrect ou expiré.'), 401);
+        ctx.r.otp = null;
+        state.session.doctorAccess = { requestId: ctx.r.id, until: Date.now() + 3600e3 };
+        state.session.doctorEmail = ctx.r.doctorEmail;
+        audit('doctor_access_granted', 'accident', ctx.a.id);
+        return redirect('/medecin/' + token);
+      }
+      if (!ctx.verified) return sub ? redirect('/medecin/' + token) : view('doctor/verify', verifyLocals(ctx, Boolean(ctx.r.otp && ctx.r.otp_expires > Date.now())));
+      if (sub === '/patient') {
+        if (method === 'POST') {
+          var mv = engine.validate(medicalForm, body, files);
+          if (Object.keys(mv.errors).length) return view('doctor/form', { title: medicalForm.title + ' – ' + ctx.a.reference, form: medicalForm, accident: ctx.a, values: mv.raw, errors: mv.errors, formError: 'Le formulaire contient des erreurs, vérifiez les champs signalés.', token: token }, 400);
+          var rep = { id: uuid(), accident_id: ctx.a.id, data: mv.values, created_at: now() };
+          state.medical.push(rep);
+          audit('medical_submitted', 'medical_report', rep.id);
+          return redirect('/medecin/' + token + '?ajoute=1');
+        }
+        return view('doctor/form', { title: medicalForm.title + ' – ' + ctx.a.reference, form: medicalForm, accident: ctx.a, values: engine.prefill(medicalForm, ctx.a.data), errors: {}, formError: null, token: token });
+      }
+      if (sub === '/cloturer' && method === 'POST') {
+        if (!state.medical.some(function (x) { return x.accident_id === ctx.a.id; })) return redirect('/medecin/' + token + '?vide=1');
+        finish(ctx.a);
+        audit('medical_closed', 'accident', ctx.a.id);
+        delete state.session.doctorAccess;
+        return info('Rapport médical transmis', 'Merci, le rapport médical du dossier ' + ctx.a.reference + ' a été transmis au service médical de la FFSA.');
+      }
+      var pats = state.medical.filter(function (x) { return x.accident_id === ctx.a.id; });
+      return view('doctor/dossier', {
+        title: 'Rapport médical – ' + ctx.a.reference, accident: ctx.a, token: token,
+        context: engine.toDisplay(accidentForm, ctx.a.data).filter(function (s) { return s.shareWithDoctor; }),
+        patients: pats.map(function (x) { return { name: patientName(x.data), classification: x.data.classification, at: x.created_at }; }),
+        flash: query.ajoute ? 'Rapport enregistré.' : null, error: query.vide ? 'Ajoutez au moins un rapport patient avant de clôturer.' : null,
+      });
+    }
+
+    // Back office
+    if (path.indexOf('/back-office') === 0) {
+      var st = requireRole(['medical', 'admin']); if (st) return st;
+      if (path === '/back-office') {
+        var list = filtered(query);
+        var page = Math.max(1, Number(query.page) || 1);
+        var rows = list.slice((page - 1) * 50, page * 50).map(function (a) {
+          var o = state.users.find(function (x) { return x.id === a.organizer_id; });
+          return Object.assign({}, a, { organizer_name: o ? o.full_name : '' });
+        });
+        var stats = { total: state.accidents.length, pending: state.accidents.filter(function (a) { return a.status === 'awaiting_medical'; }).length, complete: state.accidents.filter(function (a) { return a.status === 'complete'; }).length };
+        var eq = new URLSearchParams(Object.entries(query).filter(function (e) { return e[0] !== 'page' && e[1]; })).toString();
+        return view('backoffice/index', { title: 'Dossiers', reports: rows, stats: stats, query: query, page: page, pages: Math.max(1, Math.ceil(list.length / 50)), total: list.length,
+          disciplines: engine.allFields(accidentForm).find(function (f) { return f.name === 'discipline'; }).options, exportQuery: eq });
+      }
+      if (path === '/back-office/export.csv') return info('Export tableur', "L'export CSV (une ligne par patient, ouvrable dans Excel) fonctionne dans l'application. Le téléchargement de fichiers n'est pas possible dans cette démo en ligne.", '/back-office', 'Retour aux dossiers');
+      if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/pieces\/[\w-]+$/))) return info('Pièce jointe', "Le téléchargement des pièces jointes fonctionne dans l'application. Les fichiers ne sont pas conservés dans cette démo en ligne.", '/back-office/dossiers/' + m[1], 'Retour au dossier');
+      if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/relance$/)) && method === 'POST') {
+        var ra = accidentById(m[1]); if (!ra) return notFound();
+        var re = createRequest(ra, String(body.doctor_email || '').trim());
+        mail('doctorInvitation', re.doctorEmail, { reference: ra.reference, eventName: ra.event_name, link: '/medecin/' + re.token, expiresAt: new Date(re.expires_at).toLocaleDateString('fr-FR') });
+        audit('doctor_invitation_resent', 'accident', ra.id);
+        return redirect('/back-office/dossiers/' + ra.id + '?relance=1');
+      }
+      if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)$/))) {
+        var acc = accidentById(m[1]); if (!acc) return notFound();
+        audit('dossier_viewed', 'accident', acc.id);
+        var orgUser = state.users.find(function (x) { return x.id === acc.organizer_id; }) || {};
+        return view('backoffice/show', {
+          title: 'Dossier ' + acc.reference, accident: acc, organizer: { full_name: orgUser.full_name, email: orgUser.email },
+          accidentSections: engine.toDisplay(accidentForm, acc.data),
+          medicalReports: state.medical.filter(function (x) { return x.accident_id === acc.id; }).map(function (x) { return Object.assign({}, x, { sections: engine.toDisplay(medicalForm, x.data) }); }),
+          attachments: state.attachments.filter(function (x) { return x.accident_id === acc.id; }),
+          requests: state.requests.filter(function (x) { return x.accident_id === acc.id; }).slice().reverse(),
+          flash: query.relance ? 'Nouvelle invitation envoyée au médecin.' : null,
+        });
+      }
+      var ad = requireRole(['admin']); if (ad) return ad;
+      if (path === '/back-office/utilisateurs' && method === 'GET') return usersView(query.ok || null, null);
+      if (path === '/back-office/utilisateurs' && method === 'POST') {
+        var ne = String(body.email || '').trim().toLowerCase();
+        var nn = String(body.full_name || '').trim();
+        err = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ne) ? 'Adresse e-mail invalide.' : !nn ? 'Le nom est obligatoire.' : !ROLE_LABELS[body.role] ? 'Rôle invalide.' : state.users.some(function (x) { return x.email === ne; }) ? 'Un compte existe déjà avec cette adresse.' : null;
+        if (err) return usersView(null, err, 400);
+        var nu = { id: uuid(), email: ne, full_name: nn, role: body.role, password: null, totp_enabled: false, active: true, activated: false, last_login_at: null, created_at: now(), inviteToken: rnd(24) };
+        state.users.push(nu);
+        mail('userInvitation', ne, { name: nn, role: ROLE_LABELS[nu.role], link: '/mot-de-passe/' + nu.inviteToken });
+        audit('user_created', 'user', nu.id);
+        return redirect('/back-office/utilisateurs?ok=' + encodeURIComponent('Invitation envoyée à ' + ne));
+      }
+      if ((m = path.match(/^\/back-office\/utilisateurs\/([\w-]+)\/([a-z0-9-]+)$/)) && method === 'POST') {
+        var tu = state.users.find(function (x) { return x.id === m[1]; }); if (!tu) return notFound();
+        var msg;
+        if (tu.id === u.id && m[2] !== 'inviter') msg = 'Action impossible sur votre propre compte.';
+        else if (m[2] === 'activer') { tu.active = !tu.active; msg = tu.active ? 'Compte de ' + tu.email + ' réactivé.' : 'Compte de ' + tu.email + ' désactivé.'; }
+        else if (m[2] === 'reinit-2fa') { tu.totp_enabled = false; msg = 'Double authentification réinitialisée pour ' + tu.email + '.'; }
+        else if (m[2] === 'inviter') { tu.inviteToken = rnd(24); mail('userInvitation', tu.email, { name: tu.full_name, role: ROLE_LABELS[tu.role], link: '/mot-de-passe/' + tu.inviteToken }); msg = 'Lien de (ré)initialisation envoyé à ' + tu.email + '.'; }
+        audit('user_' + m[2], 'user', tu.id);
+        return redirect('/back-office/utilisateurs?ok=' + encodeURIComponent(msg));
+      }
+      if (path === '/back-office/audit') return view('backoffice/audit', { title: "Journal d'audit", entries: state.audit.slice(0, 100), page: 1 });
+      return notFound();
+    }
+
+    if (path === '/demo/emails') {
+      return view('demo/emails', { title: 'E-mails de démonstration', mails: state.mails.slice().reverse().map(function (x) { return Object.assign({}, x, { to: [].concat(x.to).join(', ') }); }) });
+    }
+    return notFound();
+  }
+
+  function login(user) {
+    state.session = { userId: user.id };
+    user.last_login_at = now();
+    audit('login');
+    return redirect(homeFor(user));
+  }
+  function demoAccounts() {
+    return [['organisateur@demo.ffsa.fr', 'Organisateur'], ['medical@demo.ffsa.fr', 'Service médical'], ['admin@demo.ffsa.fr', 'Administrateur']]
+      .map(function (a) { return { email: a[0], label: a[1], password: PASSWORD }; });
+  }
+  function usersView(flash, error, status) {
+    return view('backoffice/users', { title: 'Utilisateurs', roleLabels: ROLE_LABELS, flash: flash, error: error,
+      users: state.users.slice().sort(function (a, b) { return a.role.localeCompare(b.role) || a.full_name.localeCompare(b.full_name); }) }, status);
+  }
+  function addFiles(accidentId, source, files) {
+    Object.keys(files).forEach(function (field) {
+      files[field].forEach(function (f) { state.attachments.push({ id: uuid(), accident_id: accidentId, source: source, field: field, filename: f.originalname, mime_type: f.mimetype, size_bytes: f.size, created_at: now() }); });
+    });
+  }
+
+  // ---------- Rendu ----------
+  var root = document.getElementById('app');
+  var currentPath = '/connexion';
+  // Les gabarits n'incluent que des partiels : '../partials/x' depuis une vue, 'x' depuis un partiel.
+  // (Pas d'option filename : la version navigateur d'EJS n'a pas accès au disque.)
+  function includer(originalPath) {
+    var key = String(originalPath).replace(/^(\.\.\/)+/, '');
+    if (key.indexOf('/') === -1) key = 'partials/' + key;
+    if (!TEMPLATES[key]) throw new Error('Gabarit introuvable : ' + originalPath);
+    return { template: TEMPLATES[key] };
+  }
+  function render(name, locals) {
+    var u = currentUser();
+    var data = Object.assign({
+      user: u, csrfToken: 'demo', path: currentPath, demoMode: true, appName: 'FFSA',
+      sectionHasValues: engine.sectionHasValues, disciplineClass: disciplineClass,
+    }, locals);
+    var html = ejs.render(TEMPLATES[name], data, { includer: includer });
+    var doc = new DOMParser().parseFromString(html.split('"/static/').join('"static/'), 'text/html');
+    doc.querySelectorAll('script').forEach(function (s) { s.remove(); });
+    root.innerHTML = doc.body.innerHTML;
+    document.title = (locals.title || 'FFSA') + ' – Démo FFSA';
+    runAppScript();
+  }
+  function runAppScript() { try { new Function(APP_JS)(); } catch (e) { console.error(e); } }
+
+  function go(method, url, body, files) {
+    var u = new URL(url, 'https://demo.local');
+    var query = Object.fromEntries(u.searchParams.entries());
+    var res;
+    for (var hops = 0; hops < 5; hops++) {
+      currentPath = u.pathname;
+      res = handle(method, u.pathname, query, body || {}, files || {});
+      if (!res.redirect) break;
+      u = new URL(res.redirect, 'https://demo.local');
+      query = Object.fromEntries(u.searchParams.entries());
+      method = 'GET'; body = {}; files = {};
+    }
+    state.lastUrl = u.pathname + u.search;
+    save();
+    render(res.view, res.locals);
+    window.scrollTo(0, 0);
+  }
+
+  function disciplineClass(d) {
+    d = String(d || '').toLowerCase();
+    if (d.indexOf('karting') > -1) return 'disc-karting';
+    if (d.indexOf('drift') > -1) return 'disc-drift';
+    if (d.indexOf('tout-terrain') > -1 || d.indexOf('tout terrain') > -1 || /cross|trial|fol/.test(d)) return 'disc-tt';
+    if (d.indexOf('côte') > -1 || d.indexOf('slalom') > -1) return 'disc-montagne';
+    if (d.indexOf('vhc') > -1) return 'disc-vhc';
+    if (d.indexOf('rallye') > -1) return 'disc-rallye';
+    if (d.indexOf('circuit') > -1 || d.indexOf('dragster') > -1) return 'disc-circuit';
+    return '';
+  }
+
+  // Navigation : liens internes et formulaires
+  root.addEventListener('click', function (e) {
+    var a = e.target.closest('a[href]');
+    if (!a) return;
+    var href = a.getAttribute('href');
+    if (href.charAt(0) === '/' || href.charAt(0) === '?') {
+      e.preventDefault();
+      go('GET', href.charAt(0) === '?' ? currentPath + href : href);
+    }
+  });
+  root.addEventListener('submit', function (e) {
+    if (e.defaultPrevented) return;
+    var form = e.target;
+    e.preventDefault();
+    var fd = new FormData(form, e.submitter || undefined);
+    var method = (form.getAttribute('method') || 'GET').toUpperCase();
+    var action = form.getAttribute('action') || currentPath;
+    if (method === 'GET') {
+      var qs = new URLSearchParams();
+      fd.forEach(function (v, k) { if (v) qs.append(k, v); });
+      return go('GET', action + (qs.toString() ? '?' + qs.toString() : ''));
+    }
+    var body = {}, files = {};
+    fd.forEach(function (v, k) {
+      if (v instanceof File) { if (v.name && v.size) (files[k] = files[k] || []).push({ originalname: v.name, size: v.size, mimetype: v.type }); return; }
+      if (k in body) body[k] = [].concat(body[k], v); else body[k] = v;
+    });
+    go('POST', action, body, files);
+  });
+
+  // Les fenêtres de confirmation natives sont bloquées dans la démo : on confirme d'office
+  window.confirm = function () { return true; };
+
+  var guide = document.getElementById('demo-guide');
+  var help = document.getElementById('demo-help');
+  function toggleGuide(open) {
+    guide.hidden = !open;
+    help.setAttribute('aria-expanded', String(open));
+    try { localStorage.setItem(KEY + '-guide', open ? '1' : '0'); } catch (e) { /* ignore */ }
+  }
+  help.addEventListener('click', function () { toggleGuide(guide.hidden); });
+  var guidePref = null;
+  try { guidePref = localStorage.getItem(KEY + '-guide'); } catch (e) { /* ignore */ }
+  toggleGuide(guidePref !== '0'); // ouvert à la première visite
+
+  document.getElementById('demo-reset').addEventListener('click', function () {
+    seed();
+    state.session = {};
+    go('GET', '/connexion');
+  });
+
+  state = load();
+  if (!state || !state.users) seed();
+  go('GET', state.lastUrl || '/connexion');
+})();

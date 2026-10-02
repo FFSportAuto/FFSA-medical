@@ -52,6 +52,12 @@ au niveau d'un champ ou d'une section.
 
 ## Tester l'application (démonstration)
 
+**Démo interactive en ligne** : `npm run build:demo` génère dans `dist-demo/` une version autonome
+qui s'ouvre dans un navigateur (sans serveur). Elle réutilise les vrais gabarits, formulaires, règles
+de validation et styles ; seules la base de données et l'envoi d'e-mails sont simulés (données
+fictives conservées dans le navigateur du testeur). À régénérer après chaque modification des formulaires.
+
+**Version complète** (serveur + base de données) :
 Le plus simple, sans rien installer : sur GitHub, bouton **Code → Codespaces → Create codespace on
 `<branche>`**. L'application démarre seule en **mode démonstration** (voir [`docs/TESTER.md`](docs/TESTER.md)) :
 comptes de test affichés sur la page de connexion, code de double authentification affiché à l'écran,

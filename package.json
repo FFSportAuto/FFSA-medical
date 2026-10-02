@@ -10,7 +10,8 @@
     "migrate": "node src/db/migrate.js",
     "create-user": "node scripts/create-user.js",
     "test": "node --test --test-concurrency=1 test/*.test.js",
-    "demo": "DEMO_MODE=true node src/server.js"
+    "demo": "DEMO_MODE=true node src/server.js",
+    "build:demo": "node scripts/build-static-demo.js"
   },
   "engines": {
     "node": ">=20"
