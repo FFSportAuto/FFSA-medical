@@ -1,0 +1,57 @@
+<%
+  const v = values[field.name];
+  const err = errors[field.name];
+  const id = 'f_' + field.name;
+  const showIf = field.showIf ? JSON.stringify(field.showIf) : '';
+%>
+<div class="field <%= field.width === 'half' ? 'half' : '' %> <%= err ? 'has-error' : '' %>" <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
+  <% if (field.type === 'consent') { %>
+    <label class="check consent"><input type="checkbox" name="<%= field.name %>" value="1" <%= v ? 'checked' : '' %>> <span><%= field.label %><% if (field.required) { %> <abbr title="obligatoire">*</abbr><% } %></span></label>
+  <% } else { %>
+    <% if (['radio', 'checkboxes'].includes(field.type)) { %>
+      <span class="label" id="<%= id %>_label"><%= field.label %><% if (field.required) { %> <abbr title="obligatoire">*</abbr><% } %></span>
+    <% } else { %>
+      <label class="label" for="<%= id %>"><%= field.label %><% if (field.required) { %> <abbr title="obligatoire">*</abbr><% } %></label>
+    <% } %>
+
+    <% if (['text', 'email', 'tel', 'date', 'time', 'number'].includes(field.type)) { %>
+      <input id="<%= id %>" name="<%= field.name %>" type="<%= field.type %>" value="<%= v ?? '' %>"
+        <% if (field.placeholder) { %>placeholder="<%= field.placeholder %>"<% } %>
+        <% if (field.min !== undefined) { %>min="<%= field.min %>"<% } %>
+        <% if (field.max !== undefined) { %>max="<%= field.max %>"<% } %>
+        <% if (field.type === 'number') { %>step="any"<% } %>
+        <% if (field.type === 'email') { %>autocomplete="off"<% } %>
+        data-required="<%= field.required ? 1 : 0 %>">
+    <% } else if (field.type === 'textarea') { %>
+      <textarea id="<%= id %>" name="<%= field.name %>" rows="<%= field.rows || 4 %>" data-required="<%= field.required ? 1 : 0 %>"><%= v ?? '' %></textarea>
+    <% } else if (field.type === 'select') { %>
+      <select id="<%= id %>" name="<%= field.name %>" data-required="<%= field.required ? 1 : 0 %>">
+        <option value="">— Choisir —</option>
+        <% field.options.forEach(function (o) { %><option <%= v === o ? 'selected' : '' %>><%= o %></option><% }) %>
+      </select>
+    <% } else if (field.type === 'radio') { %>
+      <div class="choices" role="radiogroup" aria-labelledby="<%= id %>_label">
+        <% field.options.forEach(function (o) { %>
+          <label class="check"><input type="radio" name="<%= field.name %>" value="<%= o %>" <%= v === o ? 'checked' : '' %>> <span><%= o %></span></label>
+        <% }) %>
+      </div>
+    <% } else if (field.type === 'checkboxes') { %>
+      <div class="choices" role="group" aria-labelledby="<%= id %>_label">
+        <% const arr = [].concat(v || []); field.options.forEach(function (o) { %>
+          <label class="check"><input type="checkbox" name="<%= field.name %>" value="<%= o %>" <%= arr.includes(o) ? 'checked' : '' %>> <span><%= o %></span></label>
+        <% }) %>
+      </div>
+    <% } else if (field.type === 'file') { %>
+      <input id="<%= id %>" name="<%= field.name %>" type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" <%= field.multiple ? 'multiple' : '' %>>
+      <% if (Object.keys(errors).length) { %><p class="help">Les fichiers doivent être sélectionnés à nouveau après une erreur.</p><% } %>
+    <% } else if (field.type === 'signature') { %>
+      <div class="signature" data-signature>
+        <canvas width="600" height="180" aria-label="Zone de signature"></canvas>
+        <input type="hidden" name="<%= field.name %>" value="<%= v ?? '' %>">
+        <button type="button" class="btn small ghost" data-signature-clear>Effacer</button>
+      </div>
+    <% } %>
+  <% } %>
+  <% if (field.help) { %><p class="help"><%= field.help %></p><% } %>
+  <% if (err) { %><p class="error-msg"><%= err %></p><% } %>
+</div>

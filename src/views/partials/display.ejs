@@ -1,0 +1,11 @@
+<% sections.forEach(function (s) { %>
+  <section class="display-section">
+    <h3><%= s.title %></h3>
+    <dl class="kv">
+      <% s.fields.forEach(function (f) { %>
+        <dt><%= f.label %></dt>
+        <dd><% if (f.type === 'signature') { %><img class="sig" src="<%= f.display %>" alt="Signature"><% } else { %><%= f.display %><% } %></dd>
+      <% }) %>
+    </dl>
+  </section>
+<% }) %>

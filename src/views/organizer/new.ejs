@@ -1,0 +1,5 @@
+<%- include('../partials/header') %>
+<div class="page-head"><h1><%= form.title %></h1></div>
+<p class="lead"><%= form.intro %></p>
+<%- include('../partials/form', { action: '/organisateur/rapports', submitLabel: 'Envoyer le rapport d’accident' }) %>
+<%- include('../partials/footer') %>

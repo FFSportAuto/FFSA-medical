@@ -1,0 +1,7 @@
+<%- include('../partials/header') %>
+<div class="auth card">
+  <h1><%= title %></h1>
+  <p><%= message %></p>
+  <% if (typeof link !== 'undefined' && link) { %><p><a class="btn primary" href="<%= link %>"><%= linkLabel %></a></p><% } %>
+</div>
+<%- include('../partials/footer') %>

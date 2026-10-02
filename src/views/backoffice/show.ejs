@@ -1,0 +1,70 @@
+<%- include('../partials/header') %>
+<% const fmt = (d) => d ? new Date(d).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }) : '—'; %>
+<div class="page-head">
+  <h1>Dossier <span class="mono"><%= accident.reference %></span></h1>
+  <div class="head-actions">
+    <% if (accident.status === 'complete') { %><span class="badge ok">Complet</span><% } else { %><span class="badge wait">En attente du rapport médical</span><% } %>
+    <button type="button" class="btn ghost" data-print>Imprimer / PDF</button>
+  </div>
+</div>
+<% if (flash) { %><div class="alert success"><%= flash %></div><% } %>
+
+<div class="meta card">
+  <div><span class="muted">Épreuve</span><strong><%= accident.event_name %></strong></div>
+  <div><span class="muted">Déclaré par</span><strong><%= organizer.full_name %></strong> <span class="small muted"><%= organizer.email %></span></div>
+  <div><span class="muted">Déclaré le</span><strong><%= fmt(accident.created_at) %></strong></div>
+  <div><span class="muted">Rapport médical reçu le</span><strong><%= fmt(accident.completed_at) %></strong></div>
+</div>
+
+<div class="two-cols">
+  <section class="card">
+    <h2>Rapport d'accident</h2>
+    <%- include('../partials/display', { sections: accidentSections }) %>
+  </section>
+  <section class="card">
+    <h2>Rapport médical</h2>
+    <% if (medical) { %>
+      <%- include('../partials/display', { sections: medicalSections }) %>
+    <% } else { %>
+      <p class="muted">Le médecin n'a pas encore transmis son rapport.</p>
+      <h3>Invitations envoyées</h3>
+      <ul class="plain">
+        <% requests.forEach(function (r) { %>
+          <li><%= r.doctorEmail %> — envoyée <%= fmt(r.sent_at) %><%= r.reminder_sent_at ? ' (relance)' : '' %>
+            <% if (r.revoked_at) { %><span class="badge">remplacée</span><% } else if (new Date(r.expires_at) < new Date()) { %><span class="badge">expirée</span><% } else { %><span class="badge wait">valable jusqu'au <%= new Date(r.expires_at).toLocaleDateString('fr-FR') %></span><% } %>
+          </li>
+        <% }) %>
+      </ul>
+      <form method="post" action="/back-office/dossiers/<%= accident.id %>/relance" class="resend no-print">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label class="label" for="doctor_email">Renvoyer un lien au médecin</label>
+        <div class="row">
+          <input id="doctor_email" name="doctor_email" type="email" value="<%= requests[0] ? requests[0].doctorEmail : '' %>" required>
+          <button class="btn primary" type="submit">Envoyer</button>
+        </div>
+        <p class="help">Les liens précédents seront désactivés.</p>
+      </form>
+    <% } %>
+  </section>
+</div>
+
+<% if (attachments.length) { %>
+<section class="card">
+  <h2>Pièces jointes</h2>
+  <table>
+    <thead><tr><th>Fichier</th><th>Origine</th><th>Taille</th><th></th></tr></thead>
+    <tbody>
+    <% attachments.forEach(function (a) { %>
+      <tr>
+        <td><%= a.filename %></td>
+        <td><%= a.source === 'medical' ? 'Rapport médical' : 'Rapport d’accident' %></td>
+        <td><%= (a.size_bytes / 1024).toFixed(0) %> Ko</td>
+        <td><a href="/back-office/dossiers/<%= accident.id %>/pieces/<%= a.id %>">Télécharger</a></td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</section>
+<% } %>
+<p class="no-print"><a href="/back-office">← Retour aux dossiers</a></p>
+<%- include('../partials/footer') %>

@@ -1,0 +1,39 @@
+<%- include('../partials/header') %>
+<div class="page-head"><h1>Utilisateurs</h1></div>
+<% if (flash) { %><div class="alert success"><%= flash %></div><% } %>
+<% if (error) { %><div class="alert error"><%= error %></div><% } %>
+<form method="post" action="/back-office/utilisateurs" class="card filters">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <input name="full_name" placeholder="Nom complet" required aria-label="Nom complet">
+  <input name="email" type="email" placeholder="E-mail" required aria-label="E-mail">
+  <select name="role" aria-label="Rôle">
+    <% Object.entries(roleLabels).forEach(function ([k, l]) { %><option value="<%= k %>"><%= l %></option><% }) %>
+  </select>
+  <button class="btn primary" type="submit">Créer et inviter</button>
+</form>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>État</th><th>2FA</th><th>Dernière connexion</th><th>Actions</th></tr></thead>
+    <tbody>
+    <% users.forEach(function (u) { %>
+      <tr class="<%= u.active ? '' : 'inactive' %>">
+        <td><%= u.full_name %></td>
+        <td><%= u.email %></td>
+        <td><%= roleLabels[u.role] %></td>
+        <td><%= !u.active ? 'Désactivé' : (u.activated ? 'Actif' : 'Invitation envoyée') %></td>
+        <td><%= u.totp_enabled ? 'Oui' : 'Non' %></td>
+        <td><%= u.last_login_at ? new Date(u.last_login_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }) : '—' %></td>
+        <td class="actions-cell">
+          <% [['inviter', 'Renvoyer le lien'], ['reinit-2fa', 'Réinit. 2FA'], ['activer', u.active ? 'Désactiver' : 'Réactiver']].forEach(function ([a, l]) { %>
+            <form method="post" action="/back-office/utilisateurs/<%= u.id %>/<%= a %>" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn small ghost" type="submit"><%= l %></button>
+            </form>
+          <% }) %>
+        </td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,20 @@
+<%- include('../partials/header') %>
+<div class="auth card wide">
+  <h1>Activer la double authentification</h1>
+  <% if (user.role !== 'organizer') { %>
+    <div class="alert info">La double authentification est obligatoire pour accéder au back office.</div>
+  <% } %>
+  <ol class="steps">
+    <li>Installez une application d'authentification (Google Authenticator, Microsoft Authenticator, FreeOTP…).</li>
+    <li>Scannez ce QR code :<br><img src="<%= qr %>" alt="QR code" class="qr"><br>
+      <span class="muted small">ou saisissez la clé : <code><%= secret %></code></span></li>
+    <li>Entrez le code à 6 chiffres affiché par l'application.</li>
+  </ol>
+  <% if (error) { %><div class="alert error" role="alert"><%= error %></div><% } %>
+  <form method="post" action="/compte/2fa">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label class="label" for="code">Code</label><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required class="code-input"></div>
+    <button class="btn primary full" type="submit">Activer</button>
+  </form>
+</div>
+<%- include('../partials/footer') %>

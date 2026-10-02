@@ -1,0 +1,9 @@
+<%- include('../partials/header') %>
+<div class="page-head"><h1><%= form.title %> <span class="mono muted"><%= accident.reference %></span></h1></div>
+<p class="lead"><%= form.intro %></p>
+<details class="card context" open>
+  <summary>Rappel de la déclaration d'accident</summary>
+  <%- include('../partials/display', { sections: context }) %>
+</details>
+<%- include('../partials/form', { action: '/medecin/' + token, submitLabel: 'Transmettre le rapport médical' }) %>
+<%- include('../partials/footer') %>

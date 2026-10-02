@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title><%= title %> – FFSA</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="/"><span class="brand-mark">FFSA</span><span class="brand-text">Rapports accident &amp; médical</span></a>
+    <% if (user) { %>
+    <nav class="nav">
+      <% if (user.role === 'organizer') { %>
+        <a href="/organisateur" class="<%= path === '/organisateur' ? 'active' : '' %>">Mes déclarations</a>
+        <a href="/organisateur/rapports/nouveau" class="<%= path.endsWith('/nouveau') ? 'active' : '' %>">Déclarer un accident</a>
+      <% } else { %>
+        <a href="/back-office" class="<%= path === '/back-office' || path.startsWith('/back-office/dossiers') ? 'active' : '' %>">Dossiers</a>
+        <% if (user.role === 'admin') { %>
+          <a href="/back-office/utilisateurs" class="<%= path.startsWith('/back-office/utilisateurs') ? 'active' : '' %>">Utilisateurs</a>
+          <a href="/back-office/audit" class="<%= path.startsWith('/back-office/audit') ? 'active' : '' %>">Audit</a>
+        <% } %>
+      <% } %>
+      <a href="/compte/2fa" class="<%= path.startsWith('/compte') ? 'active' : '' %>">Sécurité</a>
+      <form method="post" action="/deconnexion" class="inline">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="linklike">Déconnexion</button>
+      </form>
+    </nav>
+    <% } %>
+  </div>
+</header>
+<main class="wrap">

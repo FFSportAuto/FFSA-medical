@@ -1,0 +1,27 @@
+# Déploiement type sur un serveur HDS (VM ou conteneurs chez un hébergeur certifié).
+# La terminaison TLS est assurée par un reverse proxy (Caddy, Traefik, Nginx) devant `app`.
+services:
+  app:
+    build: .
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ffsa
+      POSTGRES_USER: ffsa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?définir POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ffsa"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+volumes:
+  pgdata:

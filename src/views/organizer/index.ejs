@@ -1,0 +1,29 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <h1>Mes déclarations</h1>
+  <a class="btn primary" href="/organisateur/rapports/nouveau">+ Déclarer un accident</a>
+</div>
+<% if (created) { %>
+  <div class="alert success">Rapport <strong><%= created %></strong> enregistré. Le médecin désigné a été invité par e-mail à compléter le rapport médical.</div>
+<% } %>
+<% if (!reports.length) { %>
+  <div class="card empty">Aucune déclaration pour le moment.</div>
+<% } else { %>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Référence</th><th>Épreuve</th><th>Date</th><th>Rapport médical</th><th></th></tr></thead>
+      <tbody>
+      <% reports.forEach(function (r) { %>
+        <tr>
+          <td class="mono"><%= r.reference %></td>
+          <td><%= r.event_name %></td>
+          <td><%= r.event_date ? new Date(r.event_date).toLocaleDateString('fr-FR') : '' %></td>
+          <td><% if (r.status === 'complete') { %><span class="badge ok">Reçu</span><% } else { %><span class="badge wait">En attente</span><% } %></td>
+          <td><a href="/organisateur/rapports/<%= r.id %>">Voir</a></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+<%- include('../partials/footer') %>

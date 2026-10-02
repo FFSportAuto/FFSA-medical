@@ -1,0 +1,15 @@
+<%- include('../partials/header') %>
+<div class="auth card">
+  <h1>Connexion</h1>
+  <p class="muted">Espace réservé aux organisateurs et au service médical de la FFSA.</p>
+  <% if (error) { %><div class="alert error" role="alert"><%= error %></div><% } %>
+  <form method="post" action="/connexion">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label class="label" for="email">E-mail</label><input id="email" name="email" type="email" value="<%= email %>" autocomplete="username" required autofocus></div>
+    <div class="field"><label class="label" for="password">Mot de passe</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
+    <button class="btn primary full" type="submit">Se connecter</button>
+  </form>
+  <p class="center"><a href="/mot-de-passe-oublie">Mot de passe oublié ?</a></p>
+  <p class="muted small center">Médecins : utilisez le lien sécurisé reçu par e-mail, aucun compte n'est nécessaire.</p>
+</div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,54 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <h1>Dossiers</h1>
+  <a class="btn" href="/back-office/export.csv<%= exportQuery ? '?' + exportQuery : '' %>">Exporter (CSV)</a>
+</div>
+<div class="stats">
+  <div class="stat card"><span class="stat-num"><%= stats.total %></span><span>dossiers</span></div>
+  <div class="stat card"><span class="stat-num warn"><%= stats.pending %></span><span>en attente du rapport médical</span></div>
+  <div class="stat card"><span class="stat-num ok"><%= stats.complete %></span><span>complets</span></div>
+</div>
+<form method="get" class="card filters">
+  <input type="search" name="q" value="<%= query.q || '' %>" placeholder="Référence ou épreuve" aria-label="Recherche">
+  <select name="statut" aria-label="Statut">
+    <option value="">Tous les statuts</option>
+    <option value="awaiting_medical" <%= query.statut === 'awaiting_medical' ? 'selected' : '' %>>En attente médical</option>
+    <option value="complete" <%= query.statut === 'complete' ? 'selected' : '' %>>Complet</option>
+  </select>
+  <select name="discipline" aria-label="Discipline">
+    <option value="">Toutes disciplines</option>
+    <% disciplines.forEach(function (d) { %><option <%= query.discipline === d ? 'selected' : '' %>><%= d %></option><% }) %>
+  </select>
+  <label class="inline-label">du <input type="date" name="du" value="<%= query.du || '' %>"></label>
+  <label class="inline-label">au <input type="date" name="au" value="<%= query.au || '' %>"></label>
+  <button class="btn primary" type="submit">Filtrer</button>
+  <a href="/back-office" class="btn ghost">Réinitialiser</a>
+</form>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>Référence</th><th>Épreuve</th><th>Discipline</th><th>Date</th><th>Organisateur</th><th>Statut</th><th>Déposé le</th></tr></thead>
+    <tbody>
+    <% if (!reports.length) { %><tr><td colspan="7" class="empty">Aucun dossier.</td></tr><% } %>
+    <% reports.forEach(function (r) { %>
+      <tr class="clickable">
+        <td class="mono"><a href="/back-office/dossiers/<%= r.id %>"><%= r.reference %></a></td>
+        <td><%= r.event_name %></td>
+        <td><%= r.discipline %></td>
+        <td><%= r.event_date ? new Date(r.event_date).toLocaleDateString('fr-FR') : '' %></td>
+        <td><%= r.organizer_name %></td>
+        <td><% if (r.status === 'complete') { %><span class="badge ok">Complet</span><% } else { %><span class="badge wait">Attente médical</span><% } %></td>
+        <td><%= new Date(r.created_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }) %></td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+<% if (pages > 1) { %>
+  <nav class="pager">
+    <% const qs = (p) => '?' + new URLSearchParams(Object.assign({}, query, { page: p })).toString(); %>
+    <% if (page > 1) { %><a href="<%= qs(page - 1) %>">← Précédent</a><% } %>
+    <span>Page <%= page %> / <%= pages %> (<%= total %> dossiers)</span>
+    <% if (page < pages) { %><a href="<%= qs(page + 1) %>">Suivant →</a><% } %>
+  </nav>
+<% } %>
+<%- include('../partials/footer') %>

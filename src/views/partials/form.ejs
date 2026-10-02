@@ -1,0 +1,18 @@
+<% if (formError) { %><div class="alert error" role="alert"><%= formError %></div><% } %>
+<form method="post" action="<%= action %>" enctype="multipart/form-data" class="dyn-form" novalidate>
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <% form.sections.forEach(function (section, i) { %>
+    <fieldset class="card section" <% if (section.showIf) { %>data-show-if="<%= JSON.stringify(section.showIf) %>"<% } %>>
+      <legend><span class="step"><%= i + 1 %></span><%= section.title %></legend>
+      <% if (section.intro) { %><p class="muted"><%= section.intro %></p><% } %>
+      <div class="grid">
+        <% section.fields.forEach(function (field) { %>
+          <%- include('field', { field, values, errors }) %>
+        <% }) %>
+      </div>
+    </fieldset>
+  <% }) %>
+  <div class="actions">
+    <button type="submit" class="btn primary large"><%= submitLabel %></button>
+  </div>
+</form>
