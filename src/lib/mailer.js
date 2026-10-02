@@ -53,7 +53,7 @@ const templates = {
       `Bonjour Docteur,\n\n` +
       `Un rapport d'accident a été déclaré lors de l'épreuve « ${eventName} » ` +
       `et vous a été désigné(e) comme médecin intervenant.\n\n` +
-      `Merci de compléter le rapport médical via le lien sécurisé ci-dessous :\n${link}\n\n` +
+      `Merci de compléter le rapport médical (un formulaire par patient consulté) via le lien sécurisé ci-dessous :\n${link}\n\n` +
       `Pour des raisons de sécurité, un code de vérification vous sera envoyé à l'ouverture du lien.\n` +
       `Ce lien est personnel et valable jusqu'au ${expiresAt}.` +
       signature,
@@ -84,9 +84,9 @@ const templates = {
       signature,
   }),
   serviceComplete: ({ reference, eventName, link }) => ({
-    subject: `[FFSA] Dossier complet : rapport d'accident + rapport médical – ${reference}`,
+    subject: `[FFSA] Dossier complet : rapport d'accident + rapport(s) médical(aux) – ${reference}`,
     text:
-      `Le rapport médical du dossier ${reference} (épreuve « ${eventName} ») vient d'être déposé.\n` +
+      `Le médecin a transmis le(s) rapport(s) médical(aux) du dossier ${reference} (épreuve « ${eventName} »).\n` +
       `Le dossier contient désormais le rapport d'accident et le rapport médical.\n\nConsulter : ${link}` +
       signature,
   }),

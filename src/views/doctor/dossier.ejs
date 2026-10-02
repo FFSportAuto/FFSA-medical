@@ -1,0 +1,35 @@
+<%- include('../partials/header') %>
+<% const fmt = (d) => new Date(d).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }); %>
+<div class="page-head"><h1>Rapport médical <span class="mono muted"><%= accident.reference %></span></h1></div>
+<p class="lead">Épreuve « <%= accident.event_name %> ». Merci de remplir un formulaire par patient consulté, puis de clôturer le dossier.</p>
+<% if (flash) { %><div class="alert success"><%= flash %></div><% } %>
+<% if (error) { %><div class="alert error"><%= error %></div><% } %>
+
+<section class="card">
+  <h2>Patients déclarés</h2>
+  <% if (!patients.length) { %>
+    <p class="muted">Aucun rapport patient pour le moment.</p>
+  <% } else { %>
+    <table>
+      <thead><tr><th>Patient</th><th>Classification</th><th>Enregistré le</th></tr></thead>
+      <tbody>
+      <% patients.forEach(function (p) { %><tr><td><%= p.name %></td><td><%= p.classification %></td><td><%= fmt(p.at) %></td></tr><% }) %>
+      </tbody>
+    </table>
+  <% } %>
+  <div class="row-actions">
+    <a class="btn primary" href="/medecin/<%= token %>/patient">+ Ajouter un rapport patient</a>
+    <% if (patients.length) { %>
+      <form method="post" action="/medecin/<%= token %>/cloturer" class="inline" data-confirm="Clôturer le dossier ? Vous ne pourrez plus ajouter de patient.">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn" type="submit">J'ai terminé : transmettre au service médical</button>
+      </form>
+    <% } %>
+  </div>
+</section>
+
+<details class="card context">
+  <summary>Rappel de la déclaration d'accident</summary>
+  <%- include('../partials/display', { sections: context }) %>
+</details>
+<%- include('../partials/footer') %>

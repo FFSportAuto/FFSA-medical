@@ -1,212 +1,272 @@
 'use strict';
 
-// Formulaire « Rapport d'accident » rempli par l'organisateur.
-// ⚠️ Pour aligner sur le formulaire Jotform de référence, modifier uniquement ce fichier :
-// le rendu, la validation, l'affichage back office et l'export CSV s'adaptent automatiquement.
+// Formulaire « Rapport d'accident » rempli par le directeur de course / l'organisateur.
+// Reprend le formulaire Jotform FFSA 260223577062049.
+// Pour modifier un champ, il suffit d'éditer ce fichier : rendu, validation, back office et export suivent.
 
-const YES_NO = ['Oui', 'Non'];
-const PILOT_ROLES = ['Pilote', 'Copilote'];
+const VEHICLE_TYPES = [
+  'Monoplace',
+  'Kart',
+  'Voiture de tourisme (y compris SUV et 4x4)',
+  'GT',
+  'Voiture de sport deux places',
+  'Prototype Le Mans (LMP)',
+  'Silhouette',
+  'Camion',
+  'Buggy',
+  'Dragster',
+  'Autre',
+];
+
+function vehicleSection(n) {
+  const p = `vehicle${n}_`;
+  return {
+    title: n === 1 ? 'Pilote / copilote accidenté' : `Autre pilote / copilote accidenté (${n})`,
+    optional: n > 1,
+    shareWithDoctor: true,
+    fields: [
+      { name: `${p}driver_name`, label: 'Nom et prénom du pilote / copilote', type: 'text', width: 'half' },
+      { name: `${p}license`, label: 'Licence n°', type: 'text', width: 'half' },
+      { name: `${p}number`, label: 'Concurrent n°', type: 'text', width: 'half' },
+      { name: `${p}group`, label: 'Groupe', type: 'text', width: 'half' },
+      { name: `${p}kart_category`, label: 'Catégorie (karting)', type: 'text', width: 'half' },
+      { name: `${p}vehicle_type`, label: 'Type de véhicule', type: 'select', width: 'half', options: VEHICLE_TYPES },
+      { name: `${p}dragster_category`, label: 'Catégorie de dragster', type: 'text', width: 'half', showIf: { field: `${p}vehicle_type`, equals: 'Dragster' } },
+      { name: `${p}make`, label: 'Marque', type: 'text', width: 'half' },
+      { name: `${p}model`, label: 'Modèle', type: 'text', width: 'half' },
+      { name: `${p}year`, label: 'Année de construction', type: 'text', width: 'half' },
+    ],
+  };
+}
+
+function otherPersonSection(n) {
+  const p = `person${n}_`;
+  return {
+    title: `Autre personne accidentée (${n}) – spectateur, officiel…`,
+    optional: true,
+    shareWithDoctor: true,
+    fields: [
+      { name: `${p}name`, label: 'Nom et prénom', type: 'text', width: 'half' },
+      { name: `${p}license`, label: 'Licence n°', type: 'text', width: 'half' },
+      { name: `${p}role`, label: 'Qualité', type: 'text', width: 'half' },
+      { name: `${p}address`, label: 'Adresse (si non licencié)', type: 'text', width: 'half' },
+    ],
+  };
+}
+
+function witnessSection(n) {
+  const p = `witness${n}_`;
+  return {
+    title: n === 1 ? "Témoin de l'accident" : `Autre témoin (${n})`,
+    optional: n > 1,
+    intro:
+      n === 1
+        ? "À compléter OBLIGATOIREMENT si la classification médicale est de 3 à 4 et/ou en cas d'incendie. " +
+          'À remplir par le directeur de course, le ou les officiels, pilotes ou spectateurs témoins (notamment en rallye, course de côte, slalom…).'
+        : null,
+    fields: [
+      { name: `${p}first_name`, label: 'Prénom', type: 'text', width: 'half' },
+      { name: `${p}last_name`, label: 'Nom', type: 'text', width: 'half' },
+      { name: `${p}role`, label: 'Qualité', type: 'text' },
+      { name: `${p}signature`, label: 'Signature', type: 'signature' },
+    ],
+  };
+}
+
+const withOther = (name, label, options) => [
+  { name, label, type: 'checkboxes', options: [...options, 'Autre'] },
+  { name: `${name}_other`, label: 'Préciser', type: 'text', showIf: { field: name, includes: 'Autre' } },
+];
 
 module.exports = {
   id: 'accident',
-  version: 1,
+  version: 2,
   title: "Rapport d'accident",
   intro:
-    "À compléter par l'organisateur ou le directeur de course pour chaque personne blessée. " +
-    'Le médecin désigné en fin de formulaire recevra automatiquement une demande de rapport médical.',
+    "À remplir dans les 48 heures après l'accident par le directeur de course, " +
+    'et aussi en cas d’incident médical (malaise cardiaque au volant…). ' +
+    'Le rapport d’accident et le rapport médical sont transmis directement au service médical de la FFSA.',
   sections: [
     {
-      title: "L'épreuve",
+      title: "Médecin de l'épreuve",
+      intro:
+        'Le rapport médical doit être rempli par le médecin de l’épreuve. ' +
+        'Renseignez ses coordonnées : le formulaire en ligne lui sera directement envoyé par e-mail.',
       fields: [
-        { name: 'event_name', label: "Nom de l'épreuve", type: 'text', required: true },
-        { name: 'event_date', label: "Date de l'accident", type: 'date', required: true, width: 'half' },
-        { name: 'accident_time', label: "Heure de l'accident", type: 'time', required: true, width: 'half' },
-        { name: 'event_location', label: 'Lieu / circuit', type: 'text', required: true },
+        { name: 'doctor_first_name', label: 'Prénom du médecin', type: 'text', required: true, width: 'half' },
+        { name: 'doctor_last_name', label: 'Nom du médecin', type: 'text', required: true, width: 'half' },
+        { name: 'doctor_email', label: 'Adresse e-mail du médecin', type: 'email', required: true },
+      ],
+    },
+    {
+      title: 'Synthèse – accident avec blessé (évacué par ambulance) ou plus grave',
+      intro: 'À remplir impérativement en cas d’accident avec blessé évacué par ambulance, ou plus grave.',
+      shareWithDoctor: true,
+      fields: [
+        { name: 'summary_victim_name', label: 'Nom et prénom de la personne accidentée', type: 'text', width: 'half' },
+        { name: 'summary_victim_license', label: 'N° de licence', type: 'text', width: 'half' },
+        { name: 'accident_date', label: "Date de l'accident", type: 'date', required: true, width: 'half' },
+        { name: 'accident_time', label: "Heure de l'accident", type: 'time', width: 'half' },
+        { name: 'circumstances', label: "Circonstances de l'accident", type: 'textarea', rows: 5 },
+        { name: 'heading_monday', label: "Personne de l'organisation joignable par téléphone le lundi matin", type: 'heading' },
+        { name: 'monday_contact_name', label: 'Nom et prénom', type: 'text', width: 'half' },
+        { name: 'monday_contact_phone', label: 'N° de téléphone', type: 'tel', width: 'half' },
+        { name: 'hospitalised_count', label: 'Nombre de blessés hospitalisés', type: 'number', min: 0, max: 999, width: 'half' },
+        { name: 'deaths_count', label: 'Nombre de décès éventuels', type: 'number', min: 0, max: 999, width: 'half' },
+      ],
+    },
+    {
+      title: "L'épreuve",
+      shareWithDoctor: true,
+      fields: [
+        { name: 'league', label: 'Ligue', type: 'text', width: 'half' },
+        { name: 'asa', label: 'A.S.A. – ASK', type: 'text', width: 'half' },
+        { name: 'as_code', label: 'Code A.S', type: 'text', width: 'half' },
+        { name: 'visa_number', label: 'Numéro de visa', type: 'text', width: 'half' },
+        { name: 'event_name', label: "Nom de l'épreuve", type: 'text', required: true, width: 'half' },
+        { name: 'event_location', label: "Lieu de l'épreuve", type: 'text', width: 'half' },
         {
           name: 'discipline',
           label: 'Discipline',
           type: 'select',
-          required: true,
           width: 'half',
           options: [
+            'Circuit asphalte',
             'Rallye',
-            'Rallye VHC / VHRS',
-            'Circuit',
-            'Course de côte',
-            'Slalom',
             'Karting',
-            'Tout-terrain',
-            'Rallycross / Autocross / Sprint car',
+            'Course de côte',
+            'Rallye tout-terrain',
+            'Dragster / Épreuves d’accélération',
+            'Autocross',
+            'Rallycross',
             'Drift',
-            'Énergies nouvelles',
+            '2 CV Cross / 4L Cross',
+            'Fol’Car',
+            'Camion Cross',
+            'Slalom',
+            'Trial',
+            'Endurance Tout terrain',
             'Autre',
           ],
         },
+        { name: 'discipline_other', label: 'Préciser la discipline', type: 'text', width: 'half', showIf: { field: 'discipline', equals: 'Autre' } },
         {
-          name: 'discipline_other',
-          label: 'Préciser la discipline',
-          type: 'text',
-          width: 'half',
-          required: true,
-          showIf: { field: 'discipline', equals: 'Autre' },
-        },
-        { name: 'asa', label: 'ASA / organisateur', type: 'text', required: true, width: 'half' },
-        { name: 'event_permit', label: "N° de permis d'organisation", type: 'text', width: 'half' },
-        {
-          name: 'session_type',
-          label: 'Phase de l’épreuve',
+          name: 'event_level',
+          label: "Niveau de l'épreuve",
           type: 'select',
-          options: ['Reconnaissances', 'Essais libres', 'Essais chronométrés', 'Course / épreuve spéciale', 'Liaison', 'Parc / paddock', 'Autre'],
-        },
-      ],
-    },
-    {
-      title: 'Déclarant',
-      fields: [
-        { name: 'declarant_name', label: 'Nom et prénom', type: 'text', required: true, width: 'half' },
-        {
-          name: 'declarant_role',
-          label: 'Fonction',
-          type: 'select',
-          required: true,
           width: 'half',
-          options: ['Directeur de course', 'Directeur de course adjoint', 'Responsable sécurité', 'Commissaire', 'Organisateur', 'Autre'],
-        },
-        { name: 'declarant_phone', label: 'Téléphone', type: 'tel', required: true, width: 'half' },
-        { name: 'declarant_email', label: 'E-mail', type: 'email', required: true, width: 'half' },
-      ],
-    },
-    {
-      title: 'Personne accidentée',
-      fields: [
-        {
-          name: 'victim_role',
-          label: 'Qualité',
-          type: 'radio',
-          required: true,
-          options: ['Pilote', 'Copilote', 'Commissaire', 'Officiel', 'Spectateur', "Membre d'équipe / assistance", 'Autre'],
-        },
-        { name: 'victim_last_name', label: 'Nom', type: 'text', required: true, width: 'half' },
-        { name: 'victim_first_name', label: 'Prénom', type: 'text', required: true, width: 'half' },
-        { name: 'victim_birthdate', label: 'Date de naissance', type: 'date', width: 'half' },
-        { name: 'victim_sex', label: 'Sexe', type: 'radio', options: ['Homme', 'Femme'], width: 'half' },
-        {
-          name: 'victim_license',
-          label: 'N° de licence FFSA',
-          type: 'text',
-          width: 'half',
-          showIf: { field: 'victim_role', in: ['Pilote', 'Copilote', 'Commissaire', 'Officiel'] },
-        },
-        { name: 'victim_nationality', label: 'Nationalité', type: 'text', width: 'half' },
-        { name: 'victim_phone', label: 'Téléphone', type: 'tel', width: 'half' },
-        { name: 'victim_email', label: 'E-mail', type: 'email', width: 'half' },
-        { name: 'victim_address', label: 'Adresse', type: 'textarea', rows: 2 },
-        { name: 'emergency_contact', label: 'Personne à prévenir (nom, lien, téléphone)', type: 'text' },
-      ],
-    },
-    {
-      title: 'Véhicule et équipements',
-      showIf: { field: 'victim_role', in: PILOT_ROLES },
-      fields: [
-        { name: 'vehicle', label: 'Marque et modèle', type: 'text', width: 'half' },
-        { name: 'race_number', label: 'N° de course', type: 'text', width: 'half' },
-        { name: 'vehicle_class', label: 'Groupe / classe', type: 'text', width: 'half' },
-        {
-          name: 'safety_equipment',
-          label: 'Équipements de sécurité portés / présents',
-          type: 'checkboxes',
-          options: ['Casque', 'RFT (HANS…)', 'Combinaison ignifugée', 'Gants / sous-vêtements ignifugés', 'Harnais', 'Siège baquet', 'Arceau / cellule de sécurité', 'Filet de fenêtre'],
-        },
-      ],
-    },
-    {
-      title: "Circonstances de l'accident",
-      fields: [
-        { name: 'accident_place', label: 'Localisation précise (ES, virage, PK, zone…)', type: 'text', required: true },
-        { name: 'weather', label: 'Météo', type: 'select', width: 'half', options: ['Beau / sec', 'Couvert', 'Pluie', 'Brouillard', 'Neige / verglas'] },
-        { name: 'track_condition', label: 'État de la piste / route', type: 'select', width: 'half', options: ['Sèche', 'Humide', 'Mouillée', 'Grasse / boueuse', 'Gravier / terre', 'Neige / glace'] },
-        {
-          name: 'accident_type',
-          label: "Type d'accident",
-          type: 'checkboxes',
-          required: true,
           options: [
-            'Sortie de route',
-            'Tonneau(x)',
-            'Choc frontal',
-            'Choc latéral',
-            'Choc arrière',
-            'Collision avec un autre véhicule',
-            'Choc contre un obstacle (rail, mur, arbre…)',
-            'Incendie',
-            'Personne percutée',
-            'Chute',
-            'Malaise',
+            'Championnat, Trophée ou Coupe FIA/CIK',
+            'Championnat, Trophée ou Coupe FFSA',
+            'Série internationale',
+            'Épreuve internationale',
+            'Épreuve nationale',
+            'Épreuve régionale',
+            'Événement de club',
             'Autre',
           ],
         },
-        { name: 'estimated_speed', label: "Vitesse estimée à l'impact (km/h)", type: 'number', min: 0, max: 400, width: 'half' },
-        { name: 'red_flag', label: 'Neutralisation / drapeau rouge', type: 'radio', options: YES_NO, width: 'half' },
-        { name: 'description', label: "Description de l'accident", type: 'textarea', required: true, rows: 6 },
-      ],
-    },
-    {
-      title: 'Intervention et secours',
-      fields: [
-        { name: 'alert_time', label: "Heure de l'alerte", type: 'time', width: 'half' },
-        { name: 'intervention_time', label: 'Heure d’arrivée des secours', type: 'time', width: 'half' },
+        { name: 'event_date', label: "Date de l'épreuve", type: 'date', required: true, width: 'half' },
         {
-          name: 'rescue_means',
-          label: 'Moyens engagés',
-          type: 'checkboxes',
-          options: ['Médecin de l’épreuve', 'Véhicule d’intervention rapide', 'Ambulance', 'Équipe de désincarcération', 'Véhicule incendie', 'SMUR / SAMU', 'Pompiers (SDIS)', 'Hélicoptère'],
-        },
-        { name: 'extrication', label: 'Désincarcération nécessaire', type: 'radio', options: YES_NO, width: 'half' },
-        { name: 'self_exit', label: 'Sortie du véhicule par ses propres moyens', type: 'radio', options: YES_NO, width: 'half', showIf: { field: 'victim_role', in: PILOT_ROLES } },
-        { name: 'conscious', label: 'Victime consciente à l’arrivée des secours', type: 'radio', options: ['Oui', 'Non', 'Ne sait pas'] },
-        {
-          name: 'evacuation',
-          label: 'Évacuation',
-          type: 'select',
-          required: true,
-          width: 'half',
-          options: ['Aucune (laissé sur place)', 'Centre médical de l’épreuve', 'Centre hospitalier', 'Autre'],
-        },
-        {
-          name: 'hospital_name',
-          label: 'Établissement hospitalier',
-          type: 'text',
-          width: 'half',
-          showIf: { field: 'evacuation', equals: 'Centre hospitalier' },
-        },
-        {
-          name: 'evacuation_means',
-          label: 'Moyen d’évacuation',
-          type: 'select',
-          width: 'half',
-          options: ['Ambulance', 'VSAV (pompiers)', 'SMUR', 'Hélicoptère', 'Véhicule personnel'],
-          showIf: { field: 'evacuation', in: ['Centre médical de l’épreuve', 'Centre hospitalier', 'Autre'] },
+          name: 'casualties',
+          label: 'Bilan humain',
+          type: 'matrix',
+          rows: ['Pilotes', 'Copilotes', 'Médias accrédités', 'Officiels', "Personnel d'équipe", 'Spectateurs / riverains', 'Autres'],
+          columns: ['Nombre de blessés', 'Nombre de décès'],
+          cell: { type: 'number', min: 0, max: 999 },
         },
       ],
     },
+    vehicleSection(1),
+    vehicleSection(2),
+    vehicleSection(3),
+    otherPersonSection(1),
+    otherPersonSection(2),
+    otherPersonSection(3),
+    otherPersonSection(4),
     {
-      title: 'Médecin intervenant',
-      intro: 'Ce médecin recevra par e-mail un lien sécurisé pour compléter le rapport médical.',
+      title: 'Conditions météo',
       fields: [
-        { name: 'doctor_last_name', label: 'Nom du médecin', type: 'text', required: true, width: 'half' },
-        { name: 'doctor_first_name', label: 'Prénom du médecin', type: 'text', required: true, width: 'half' },
-        { name: 'doctor_email', label: 'E-mail du médecin', type: 'email', required: true, width: 'half' },
-        { name: 'doctor_phone', label: 'Téléphone du médecin', type: 'tel', required: true, width: 'half' },
+        ...withOther('weather', 'Conditions atmosphériques', ['Temps clair', 'Nuageux', 'Brouillard', 'Précipitations', 'Neige / Verglas', 'Grêle']),
+        { name: 'temperature', label: 'Température', type: 'text', width: 'half' },
+        ...withOther('visibility', 'Visibilité', ['Bonne', 'Moyenne', 'Mauvaise', 'Nuit']),
       ],
     },
     {
-      title: 'Compléments et validation',
+      title: 'Type de revêtement',
       fields: [
-        { name: 'witnesses', label: 'Témoins / autres personnes impliquées', type: 'textarea', rows: 3 },
-        { name: 'attachments', label: 'Photos, croquis, documents', type: 'file', multiple: true, help: 'Images ou PDF.' },
-        { name: 'certify', label: 'Je certifie l’exactitude des informations déclarées.', type: 'consent', required: true },
-        { name: 'signature', label: 'Signature du déclarant', type: 'signature', required: true },
+        ...withOther('surface', 'Revêtement', ['Asphalte', 'Gravier / Terre']),
+        ...withOther('track_layout', 'Configuration du tracé', ['Plat', 'En montée', 'Sommet de côte / Crête', 'En descente']),
+        ...withOther('track_condition', 'État du tracé', ['Sec', 'Mouillé', 'Huileux', 'Graviers', 'Débris', 'Neige / Verglas']),
       ],
+    },
+    {
+      title: "Étude de l'équipement",
+      fields: [
+        {
+          name: 'equipment',
+          label: 'Observations par véhicule concurrent',
+          type: 'matrix',
+          rows: [
+            'Numéro',
+            'Combinaison du pilote / copilote',
+            'Casque',
+            'Visière',
+            'Hans / Simpson',
+            'Harnais de sécurité',
+            'Arceau de sécurité',
+            'Extincteur à bord',
+            'Extincteur utilisé ? (oui / non)',
+          ],
+          columns: ['Véhicule 1', 'Véhicule 2', 'Véhicule 3'],
+          cell: { type: 'text' },
+        },
+        { name: 'equipment_comments', label: 'Commentaires spécifiques (exemple : problème avec système Hans / Simpson)', type: 'textarea', rows: 3 },
+      ],
+    },
+    {
+      title: "Schéma de l'accident",
+      intro:
+        'À compléter pour toute classification médicale. Indiquez : numéro de poste et emplacement ; numéro de licence des officiels ' +
+        'présents dans la zone de l’accident ; la protection du bord de la piste ; les drapeaux et/ou signaux lumineux utilisés ' +
+        'immédiatement avant l’accident ; le(s) véhicule(s) et leur(s) numéro(s) ; point GPS de l’accident. ' +
+        'Transmettre obligatoirement des photos de l’accident sur place ainsi que du véhicule. ' +
+        'Sur circuit, le schéma devra être réalisé en utilisant un zoom du plan.',
+      fields: [{ name: 'diagram', label: 'Schéma et photos', type: 'file', multiple: true }],
+    },
+    {
+      title: 'Intervention des secours',
+      intro:
+        'À compléter OBLIGATOIREMENT si la classification médicale est de 3 à 4 et/ou en cas d’incendie. ' +
+        'Joindre une copie de la main courante de la direction de course. Indiquez les personnes intervenues ' +
+        '(extracteurs, sapeurs-pompiers, SAMU…) et le déroulé horaire des secours (temps depuis l’accident et durée de l’intervention).',
+      fields: [
+        { name: 'logbook', label: 'Main courante', type: 'file', multiple: true },
+        { name: 'rescue_observations', label: 'Observations', type: 'textarea', rows: 5 },
+      ],
+    },
+    witnessSection(1),
+    witnessSection(2),
+    witnessSection(3),
+    witnessSection(4),
+    {
+      title: 'Rapport établi par',
+      fields: [
+        { name: 'author_first_name', label: 'Prénom', type: 'text', required: true, width: 'half' },
+        { name: 'author_last_name', label: 'Nom', type: 'text', required: true, width: 'half' },
+        { name: 'author_role', label: 'Qualité', type: 'text' },
+        { name: 'author_date', label: 'Le', type: 'date', width: 'half' },
+        { name: 'author_time', label: 'À', type: 'time', width: 'half' },
+        { name: 'author_signature', label: 'Signature', type: 'signature' },
+      ],
+    },
+    {
+      title: 'Pièces à joindre',
+      intro:
+        'Témoignages visuels, rapports des commissaires, du directeur de la spéciale, des responsables du service incendie ; ' +
+        'rapport des vérifications techniques effectuées sur toutes les voitures accidentées ; tout autre rapport d’expert ' +
+        'présentant un intérêt ; photos ou vidéos.',
+      fields: [{ name: 'attachments', label: 'Fichiers complémentaires', type: 'file', multiple: true }],
     },
   ],
 };

@@ -70,12 +70,16 @@ CREATE INDEX IF NOT EXISTS medical_requests_accident_idx ON medical_requests (ac
 
 CREATE TABLE IF NOT EXISTS medical_reports (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  accident_id   uuid NOT NULL UNIQUE REFERENCES accident_reports(id) ON DELETE CASCADE,
+  accident_id   uuid NOT NULL REFERENCES accident_reports(id) ON DELETE CASCADE,
   request_id    uuid REFERENCES medical_requests(id),
   data_enc      bytea NOT NULL,
   form_version  integer NOT NULL DEFAULT 1,
   created_at    timestamptz NOT NULL DEFAULT now()
 );
+
+-- Un rapport médical par patient consulté : plusieurs rapports par accident
+ALTER TABLE medical_reports DROP CONSTRAINT IF EXISTS medical_reports_accident_id_key;
+CREATE INDEX IF NOT EXISTS medical_reports_accident_idx ON medical_reports (accident_id);
 
 -- Pièces jointes chiffrées (photos, croquis, comptes rendus)
 CREATE TABLE IF NOT EXISTS attachments (

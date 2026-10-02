@@ -77,37 +77,60 @@ async function login(c, email, secret) {
 
 const lastMail = (re) => [...mailer.outbox].reverse().find((m) => re.test(m.subject));
 
+const accidentFields = (form) => form.sections.flatMap((x) => x.fields);
+const casualties = accidentFields(require('../src/forms/accident')).find((f) => f.name === 'casualties');
+const upperLimbs = accidentFields(require('../src/forms/medical')).find((f) => f.name === 'upper_limbs');
+const { cellName } = require('../src/forms/engine');
+
 function accidentFormData() {
   const fd = new FormData();
   const fields = {
-    event_name: 'Rallye Test des Vosges',
-    event_date: '2026-09-20',
+    doctor_first_name: 'Marie',
+    doctor_last_name: 'Docteur',
+    doctor_email: 'dr.marie@hopital.test',
+    summary_victim_name: 'Paul Pilote',
+    accident_date: '2026-09-20',
     accident_time: '14:35',
+    circumstances: 'Sortie de route dans un virage à droite.',
+    hospitalised_count: '2',
+    event_name: 'Rallye Test des Vosges',
     event_location: 'Gérardmer',
     discipline: 'Rallye',
-    asa: 'ASA Vosges',
-    declarant_name: 'Jean Directeur',
-    declarant_role: 'Directeur de course',
-    declarant_phone: '06 12 34 56 78',
-    declarant_email: 'dc@asa.test',
-    victim_role: 'Pilote',
-    victim_last_name: 'Pilote',
-    victim_first_name: 'Paul',
-    accident_place: 'ES3 PK 4.2',
-    description: 'Sortie de route dans un virage à droite.',
-    evacuation: 'Centre hospitalier',
-    hospital_name: 'CHU de Nancy',
-    doctor_last_name: 'Docteur',
-    doctor_first_name: 'Marie',
-    doctor_email: 'dr.marie@hopital.test',
-    doctor_phone: '0601020304',
-    certify: '1',
-    signature: SIGNATURE,
+    event_date: '2026-09-20',
+    vehicle1_driver_name: 'Paul Pilote',
+    vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
+    person1_name: 'Jean Spectateur',
+    author_first_name: 'Jean',
+    author_last_name: 'Directeur',
+    author_signature: SIGNATURE,
+    [cellName(casualties, 0, 0)]: '1',
+    [cellName(casualties, 5, 0)]: '1',
   };
   for (const [k, v] of Object.entries(fields)) fd.set(k, v);
-  fd.append('accident_type', 'Sortie de route');
-  fd.append('accident_type', 'Tonneau(x)');
-  fd.append('attachments', new Blob([PNG], { type: 'image/png' }), 'photo.png');
+  fd.append('weather', 'Nuageux');
+  fd.append('weather', 'Autre');
+  fd.set('weather_other', 'Vent fort');
+  fd.append('diagram', new Blob([PNG], { type: 'image/png' }), 'schema.png');
+  return fd;
+}
+
+function medicalFormData(last, first, classification) {
+  const fd = new FormData();
+  const fields = {
+    patient_last_name: last,
+    patient_first_name: first,
+    bp: '125/80',
+    glasgow: '15',
+    diagnosis: 'Entorse cervicale probable.',
+    classification,
+    unfit: 'Non (pas de suspension de licence)',
+    current_event: 'Inapte à reprendre',
+    doctor_name: 'Marie Docteur',
+    hospital: 'CHU de Nancy',
+    [cellName(upperLimbs, 1, 0)]: 'L',
+  };
+  for (const [k, v] of Object.entries(fields)) fd.set(k, v);
+  fd.append('spine', 'Cervical');
   return fd;
 }
 
@@ -151,8 +174,7 @@ test('workflow complet accident -> médical -> back office', async () => {
   assert.deepStrictEqual([].concat(invite.to), ['dr.marie@hopital.test']);
   assert.ok(lastMail(/Nouveau rapport d'accident/));
   for (const m of mailer.outbox) assert.ok(!/Paul|CHU|Sortie de route/.test(m.text), 'pas de donnée sensible par e-mail');
-  const link = invite.text.match(/https?:\/\/\S+\/medecin\/(\S+)/);
-  const token = link[1];
+  const token = invite.text.match(/https?:\/\/\S+\/medecin\/(\S+)/)[1];
 
   // Un autre organisateur ne peut pas voir le dossier ; l'organisateur n'a pas accès au back office
   const orga2 = client();
@@ -165,29 +187,33 @@ test('workflow complet accident -> médical -> back office', async () => {
   const landing = await doc.get(`/medecin/${token}`);
   assert.match(landing.text, /d•+@hopital\.test/);
   assert.ok(!landing.text.includes('Paul'), 'aucune donnée avant vérification');
+  assert.strictEqual((await doc.get(`/medecin/${token}/patient`)).status, 302, 'formulaire inaccessible sans code');
   assert.strictEqual((await doc.post(`/medecin/${token}/verifier`, { code: '000000' })).status, 401);
   await doc.post(`/medecin/${token}/code`, {});
   const code = lastMail(/Code de vérification/).text.match(/(\d{6})/)[1];
-  const verified = await doc.post(`/medecin/${token}/verifier`, { code });
-  assert.strictEqual(verified.status, 302);
-  const medPage = await doc.get(`/medecin/${token}`);
-  assert.match(medPage.text, /Rappel de la déclaration/);
-  assert.match(medPage.text, /value="Docteur"/, 'pré-remplissage');
+  assert.strictEqual((await doc.post(`/medecin/${token}/verifier`, { code })).status, 302);
+  const dossier = await doc.get(`/medecin/${token}`);
+  assert.match(dossier.text, /Rappel de la déclaration/);
+  assert.match(dossier.text, /Paul Pilote/);
+  const medPage = await doc.get(`/medecin/${token}/patient`);
+  assert.match(medPage.text, /value="Marie Docteur"/, 'pré-remplissage');
+  assert.match(medPage.text, /value="Rallye Test des Vosges"/);
 
-  // 4. Le médecin transmet son rapport
-  const mfd = new FormData();
-  const mfields = {
-    doctor_last_name: 'Docteur', doctor_first_name: 'Marie', doctor_function: 'Médecin-chef de l’épreuve',
-    exam_time: '14:50', loss_of_consciousness: 'Non', gcs: '15', blood_pressure: '125/80',
-    clinical_findings: 'Douleur cervicale, pas de déficit.', severity: 'Blessure modérée (hospitalisation, pronostic non engagé)',
-    outcome: 'Évacuation vers un centre hospitalier', hospital_name: 'CHU de Nancy', fitness: 'Inapte pour la suite de l’épreuve',
-    certify: '1', signature: SIGNATURE,
-  };
-  for (const [k, v] of Object.entries(mfields)) mfd.set(k, v);
-  mfd.append('injured_regions', 'Rachis cervical');
-  const submitted = await doc.request(`/medecin/${token}`, { method: 'POST', body: mfd });
-  assert.strictEqual(submitted.status, 200, submitted.text.slice(0, 300));
-  assert.match(submitted.text, /Rapport médical transmis/);
+  // Clôture impossible sans rapport
+  assert.match((await doc.post(`/medecin/${token}/cloturer`, {})).location, /vide=1/);
+
+  // 4. Le médecin transmet un rapport par patient, puis clôture
+  for (const [last, first, cls] of [['Pilote', 'Paul', "2 : transfert à l'hôpital"], ['Spectateur', 'Jean', '1 : traitement sur place']]) {
+    await doc.get(`/medecin/${token}/patient`);
+    const r = await doc.request(`/medecin/${token}/patient`, { method: 'POST', body: medicalFormData(last, first, cls) });
+    assert.strictEqual(r.status, 302, r.text.slice(0, 400));
+  }
+  assert.strictEqual((await db.one('SELECT count(*)::int AS n FROM medical_reports')).n, 2);
+  assert.strictEqual((await db.one('SELECT status FROM accident_reports')).status, 'awaiting_medical');
+  const list = await doc.get(`/medecin/${token}`);
+  assert.match(list.text, /Spectateur Jean/);
+  const closed = await doc.post(`/medecin/${token}/cloturer`, {});
+  assert.match(closed.text, /Rapport médical transmis/);
   assert.strictEqual((await db.one('SELECT status FROM accident_reports')).status, 'complete');
   assert.ok(lastMail(/Dossier complet/));
   // Le lien ne peut plus être utilisé
@@ -196,17 +222,19 @@ test('workflow complet accident -> médical -> back office', async () => {
   // 5. Le service médical consulte le dossier (2FA obligatoire)
   const med = client();
   await login(med, 'medical@ffsa.test', medSecret);
-  const list = await med.get('/back-office');
-  assert.match(list.text, new RegExp(accident.reference));
+  const boList = await med.get('/back-office');
+  assert.match(boList.text, new RegExp(accident.reference));
   const detail = await med.get(`/back-office/dossiers/${accident.id}`);
-  assert.match(detail.text, /Douleur cervicale/);
-  assert.match(detail.text, /CHU de Nancy/);
+  assert.match(detail.text, /Entorse cervicale probable/);
+  assert.match(detail.text, /Patient 2 – Spectateur Jean/);
+  assert.match(detail.text, /Vent fort/);
   const att = detail.text.match(/\/pieces\/([0-9a-f-]{36})/);
   const file = await med.get(`/back-office/dossiers/${accident.id}/pieces/${att[1]}`);
   assert.strictEqual(file.status, 200);
   const csv = await med.get('/back-office/export.csv?statut=complete');
   assert.match(csv.text, /Rallye Test des Vosges/);
-  assert.match(csv.text, /Rachis cervical/);
+  assert.match(csv.text, /Cervical/);
+  assert.strictEqual(csv.text.trim().split('\r\n').length, 3, 'une ligne par patient');
   // Le service médical n'administre pas les comptes
   assert.strictEqual((await med.get('/back-office/utilisateurs')).status, 403);
 

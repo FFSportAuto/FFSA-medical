@@ -12,6 +12,38 @@ const MAX_SIGNATURE = 300000;
 
 const allFields = (form) => form.sections.flatMap((s) => s.fields.map((f) => ({ ...f, section: s })));
 
+// Nom du champ HTML d'une cellule de matrice
+const cellName = (field, ri, ci) => `${field.name}__${ri}__${ci}`;
+
+function validateCell(cell, v) {
+  if (cell.type === 'select') return cell.options.includes(v) ? null : 'Choix invalide.';
+  if (cell.type === 'number') {
+    const n = Number(v.replace(',', '.'));
+    if (!Number.isFinite(n)) return 'Nombre invalide.';
+    if (cell.min !== undefined && n < cell.min) return `Minimum : ${cell.min}.`;
+    if (cell.max !== undefined && n > cell.max) return `Maximum : ${cell.max}.`;
+    return null;
+  }
+  return v.length > MAX_TEXT ? `${MAX_TEXT} caractères maximum.` : null;
+}
+
+// Matrice stockée sous la forme { ligne: { colonne: valeur } } (cellules vides omises)
+function readMatrix(field, body) {
+  const out = {};
+  let error = null;
+  field.rows.forEach((row, ri) => {
+    field.columns.forEach((col, ci) => {
+      const raw = body[cellName(field, ri, ci)];
+      const v = typeof raw === 'string' ? raw.trim() : '';
+      if (!v) return;
+      const err = validateCell(field.cell, v);
+      if (err) error = `${row} / ${col} : ${err}`;
+      (out[row] = out[row] || {})[col] = field.cell.type === 'number' && !err ? Number(v.replace(',', '.')) : v;
+    });
+  });
+  return { value: out, error };
+}
+
 function conditionMet(cond, values) {
   if (!cond) return true;
   const v = values[cond.field];
@@ -35,8 +67,14 @@ const asArray = (v) => (v === undefined || v === null || v === '' ? [] : [].conc
  */
 function validate(form, body, files = {}) {
   const raw = {};
+  const matrixErrors = {};
   for (const f of allFields(form)) {
-    if (f.type === 'checkboxes') raw[f.name] = asArray(body[f.name]).map(String);
+    if (f.type === 'heading') continue;
+    if (f.type === 'matrix') {
+      const { value, error } = readMatrix(f, body);
+      raw[f.name] = value;
+      if (error) matrixErrors[f.name] = error;
+    } else if (f.type === 'checkboxes') raw[f.name] = asArray(body[f.name]).map(String);
     else if (f.type === 'consent') raw[f.name] = body[f.name] ? true : false;
     else if (f.type !== 'file') raw[f.name] = typeof body[f.name] === 'string' ? body[f.name].trim() : '';
   }
@@ -44,12 +82,14 @@ function validate(form, body, files = {}) {
   const values = {};
   const errors = {};
   for (const f of allFields(form)) {
-    if (!isVisible(f, raw)) continue;
+    if (f.type === 'heading' || !isVisible(f, raw)) continue;
     const v = raw[f.name];
     const empty =
       f.type === 'file'
         ? !(files[f.name] && files[f.name].length)
-        : Array.isArray(v)
+        : f.type === 'matrix'
+          ? Object.keys(v).length === 0
+          : Array.isArray(v)
           ? v.length === 0
           : v === '' || v === false;
 
@@ -97,6 +137,9 @@ function validate(form, body, files = {}) {
         break;
       case 'consent':
         break;
+      case 'matrix':
+        err = matrixErrors[f.name] || null;
+        break;
       default:
         err = 'Type de champ inconnu.';
     }
@@ -109,6 +152,11 @@ function validate(form, body, files = {}) {
 
 function formatValue(field, value) {
   if (value === undefined || value === null || value === '') return '';
+  if (field.type === 'matrix') {
+    return Object.entries(value)
+      .map(([row, cols]) => `${row} : ${Object.entries(cols).map(([c, v]) => `${c} ${v}`).join(', ')}`)
+      .join(' ; ');
+  }
   if (Array.isArray(value)) return value.join(', ');
   if (field.type === 'consent') return value ? 'Oui' : 'Non';
   if (field.type === 'date') {
@@ -123,15 +171,49 @@ function toDisplay(form, values) {
   return form.sections
     .map((s) => ({
       title: s.title,
+      shareWithDoctor: Boolean(s.shareWithDoctor),
       fields: s.fields
         .filter((f) => f.type !== 'file' && isVisible({ ...f, section: s }, values) && values[f.name] !== undefined)
-        .map((f) => ({ ...f, display: formatValue(f, values[f.name]) })),
+        .map((f) => ({ ...f, value: values[f.name], display: formatValue(f, values[f.name]) })),
     }))
     .filter((s) => s.fields.length);
 }
 
-// Colonnes pour l'export CSV (hors signature et fichiers)
-const exportColumns = (form) =>
-  allFields(form).filter((f) => !['file', 'signature'].includes(f.type));
+// Colonnes pour l'export CSV (hors signatures et fichiers) : { label, value(values) }
+function exportColumns(form) {
+  const cols = [];
+  for (const f of allFields(form)) {
+    if (['file', 'signature', 'heading'].includes(f.type)) continue;
+    if (f.type === 'matrix') {
+      for (const row of f.rows) {
+        for (const col of f.columns) {
+          cols.push({ label: `${f.label} – ${row} – ${col}`, value: (v) => (v[f.name] && v[f.name][row] && v[f.name][row][col]) ?? '' });
+        }
+      }
+    } else {
+      cols.push({ label: f.label, value: (v) => formatValue(f, v[f.name]) });
+    }
+  }
+  return cols;
+}
 
-module.exports = { validate, toDisplay, formatValue, exportColumns, allFields, isVisible };
+// Valeurs initiales d'un formulaire à partir d'un autre (ex. rapport d'accident -> rapport médical)
+function prefill(form, source) {
+  const values = {};
+  for (const f of allFields(form)) {
+    if (typeof f.prefill === 'function') values[f.name] = f.prefill(source) ?? '';
+  }
+  return values;
+}
+
+// Le formulaire contient-il une valeur dans cette section ? (pour déplier les sections facultatives)
+const sectionHasValues = (section, values) =>
+  section.fields.some((f) => {
+    const v = values[f.name];
+    if (v === undefined || v === null || v === '' || v === false) return false;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === 'object') return Object.keys(v).length > 0;
+    return true;
+  });
+
+module.exports = { validate, toDisplay, formatValue, exportColumns, allFields, isVisible, cellName, prefill, sectionHasValues };

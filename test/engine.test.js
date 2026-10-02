@@ -21,15 +21,37 @@ test('champs obligatoires et conditions', () => {
   assert.ok(errors.event_name);
   assert.ok(errors.doctor_email);
   assert.ok(!errors.discipline_other, 'champ conditionnel masqué non exigé');
+  assert.ok(!engine.validate(accidentForm, { discipline: 'Autre' }).errors.discipline_other, 'facultatif');
 
-  const r = engine.validate(accidentForm, { discipline: 'Autre' });
-  assert.ok(r.errors.discipline_other, 'champ conditionnel visible exigé');
+  const m = engine.validate(medicalForm, {});
+  assert.ok(m.errors.classification);
+  assert.ok(m.errors.patient_last_name);
 });
 
 test('les valeurs des champs masqués sont ignorées', () => {
-  const { values } = engine.validate(accidentForm, { victim_role: 'Spectateur', vehicle: 'Clio', race_number: '12' });
-  assert.strictEqual(values.vehicle, undefined);
-  assert.strictEqual(values.victim_role, 'Spectateur');
+  const { values } = engine.validate(medicalForm, {
+    unfit: 'Oui (suspension de licence)',
+    current_event: 'Apte à reprendre',
+  });
+  assert.strictEqual(values.current_event, undefined);
+  const r = engine.validate(medicalForm, { unfit: 'Non (pas de suspension de licence)', current_event: 'Apte à reprendre' });
+  assert.strictEqual(r.values.current_event, 'Apte à reprendre');
+});
+
+test('matrices', () => {
+  const upper = medicalForm.sections.flatMap((s) => s.fields).find((f) => f.name === 'upper_limbs');
+  const casualties = accidentForm.sections.flatMap((s) => s.fields).find((f) => f.name === 'casualties');
+  const m = engine.validate(medicalForm, { [engine.cellName(upper, 0, 1)]: 'F', [engine.cellName(upper, 5, 0)]: 'P' });
+  assert.deepStrictEqual(m.values.upper_limbs, { Clavicule: { Gauche: 'F' }, 'Main / Doigts': { Droite: 'P' } });
+  assert.ok(engine.validate(medicalForm, { [engine.cellName(upper, 0, 0)]: 'Z' }).errors.upper_limbs);
+
+  const a = engine.validate(accidentForm, { [engine.cellName(casualties, 0, 0)]: '2' });
+  assert.deepStrictEqual(a.values.casualties, { Pilotes: { 'Nombre de blessés': 2 } });
+  assert.ok(engine.validate(accidentForm, { [engine.cellName(casualties, 0, 0)]: '-1' }).errors.casualties);
+
+  const cols = engine.exportColumns(medicalForm);
+  const col = cols.find((c) => c.label === 'Membres supérieurs – Clavicule – Gauche');
+  assert.strictEqual(col.value(m.values), 'F');
 });
 
 test('validation des formats', () => {
@@ -37,18 +59,21 @@ test('validation des formats', () => {
     doctor_email: 'pas-un-email',
     event_date: '2026-13-45',
     discipline: 'Inconnue',
-    accident_type: ['Sortie de route', 'Piratage'],
-    estimated_speed: '9999',
+    weather: ['Nuageux', 'Piratage'],
+    deaths_count: '-3',
   });
   assert.ok(errors.doctor_email);
   assert.ok(errors.event_date);
   assert.ok(errors.discipline);
-  assert.ok(errors.accident_type);
-  assert.ok(errors.estimated_speed);
+  assert.ok(errors.weather);
+  assert.ok(errors.deaths_count);
+});
 
-  const m = engine.validate(medicalForm, { rpps: '123', blood_pressure: '12/8', gcs: '2' });
-  assert.ok(m.errors.rpps);
-  assert.ok(m.errors.gcs);
+test('pré-remplissage du rapport médical', () => {
+  const v = engine.prefill(medicalForm, { event_name: 'Rallye X', accident_date: '2026-09-20', doctor_first_name: 'Marie', doctor_last_name: 'Durand' });
+  assert.strictEqual(v.event, 'Rallye X');
+  assert.strictEqual(v.date, '2026-09-20');
+  assert.strictEqual(v.doctor_name, 'Marie Durand');
 });
 
 test('chiffrement AES-GCM aller-retour et intégrité', () => {

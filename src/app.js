@@ -16,6 +16,7 @@ function createApp() {
   app.set('views', path.join(__dirname, 'views'));
   app.set('trust proxy', /^\d+$/.test(config.trustProxy) ? Number(config.trustProxy) : config.trustProxy);
   app.disable('x-powered-by');
+  app.locals.sectionHasValues = require('./forms/engine').sectionHasValues;
 
   app.use(
     helmet({

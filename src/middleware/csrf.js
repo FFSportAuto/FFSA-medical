@@ -11,7 +11,7 @@ function csrfToken(req, res, next) {
 }
 
 // Routes acceptant un envoi multipart : le CSRF y est vérifié après l'analyse du corps
-const MULTIPART_ROUTES = [/^\/organisateur\/rapports$/, /^\/medecin\/[A-Za-z0-9_-]+$/];
+const MULTIPART_ROUTES = [/^\/organisateur\/rapports$/, /^\/medecin\/[A-Za-z0-9_-]+\/patient$/];
 
 function verifyCsrf(req, res, next) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();

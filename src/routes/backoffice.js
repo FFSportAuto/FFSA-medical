@@ -59,7 +59,7 @@ router.get('/back-office', async (req, res) => {
     page,
     pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
     total,
-    disciplines: accidentForm.sections[0].fields.find((f) => f.name === 'discipline').options,
+    disciplines: engine.allFields(accidentForm).find((f) => f.name === 'discipline').options,
     exportQuery: new URLSearchParams(Object.entries(req.query).filter(([k, v]) => k !== 'page' && v)).toString(),
   });
 });
@@ -69,7 +69,7 @@ router.get('/back-office/dossiers/:id', async (req, res, next) => {
   const accident = await reports.getAccident(req.params.id);
   if (!accident) return next();
   const [medical, attachments, requests, organizer] = await Promise.all([
-    reports.getMedical(accident.id),
+    reports.listMedical(accident.id),
     reports.listAttachments(accident.id),
     reports.listRequests(accident.id),
     db.one('SELECT full_name, email FROM users WHERE id = $1', [accident.organizer_id]),
@@ -80,8 +80,7 @@ router.get('/back-office/dossiers/:id', async (req, res, next) => {
     accident,
     organizer,
     accidentSections: engine.toDisplay(accidentForm, accident.data),
-    medical,
-    medicalSections: medical ? engine.toDisplay(medicalForm, medical.data) : [],
+    medicalReports: medical.map((m) => ({ ...m, sections: engine.toDisplay(medicalForm, m.data) })),
     attachments,
     requests,
     flash: req.query.relance ? 'Nouvelle invitation envoyée au médecin.' : null,
@@ -127,13 +126,13 @@ router.get('/back-office/export.csv', async (req, res) => {
   const { rows } = await db.query(
     `SELECT ar.id, ar.reference, ar.status, ar.created_at, ar.completed_at, ar.data_enc AS accident_enc, mr.data_enc AS medical_enc
        FROM accident_reports ar LEFT JOIN medical_reports mr ON mr.accident_id = ar.id
-       ${where} ORDER BY ar.created_at DESC`,
+       ${where} ORDER BY ar.created_at DESC, mr.created_at`,
     params,
   );
   const aCols = engine.exportColumns(accidentForm);
   const mCols = engine.exportColumns(medicalForm);
   const header = ['Référence', 'Statut', 'Déclaré le', 'Complété le',
-    ...aCols.map((f) => `Accident – ${f.label}`), ...mCols.map((f) => `Médical – ${f.label}`)];
+    ...aCols.map((c) => `Accident – ${c.label}`), ...mCols.map((c) => `Médical – ${c.label}`)];
   const lines = [header.map(csvCell).join(';')];
   for (const r of rows) {
     const a = decryptJson(r.accident_enc);
@@ -143,8 +142,8 @@ router.get('/back-office/export.csv', async (req, res) => {
       r.status === 'complete' ? 'Complet' : 'En attente du rapport médical',
       new Date(r.created_at).toISOString(),
       r.completed_at ? new Date(r.completed_at).toISOString() : '',
-      ...aCols.map((f) => engine.formatValue(f, a[f.name])),
-      ...mCols.map((f) => engine.formatValue(f, m[f.name])),
+      ...aCols.map((c) => c.value(a)),
+      ...mCols.map((c) => c.value(m)),
     ].map(csvCell).join(';'));
   }
   await audit(req, 'export_csv', { details: { count: rows.length, filters: req.query } });

@@ -13,11 +13,12 @@ Organisateur ──(1) rapport d'accident──▶ Application ──(2) e-mail 
                                            └──(e-mails)──▶ Service médical FFSA ──▶ Back office
 ```
 
-1. L'**organisateur** (compte créé par la FFSA) remplit le rapport d'accident, dont les coordonnées
-   du médecin intervenant.
+1. L'**organisateur** / directeur de course (compte créé par la FFSA) remplit le rapport d'accident
+   (jusqu'à 3 pilotes/copilotes, 4 autres personnes et 4 témoins), dont les coordonnées du médecin de l'épreuve.
 2. Le **médecin** reçoit un e-mail contenant un lien personnel (valable 14 jours, relance automatique
    après 48 h). À l'ouverture, un code à usage unique lui est envoyé par e-mail ; il n'a pas besoin de compte.
-3. Le médecin remplit le rapport médical (pré-rempli avec ses coordonnées, avec rappel de l'accident).
+3. Le médecin remplit **un rapport médical par patient consulté** (pré-rempli avec l'épreuve et son nom,
+   avec rappel de la déclaration d'accident), puis **clôture** le dossier.
 4. Le **service médical FFSA** est notifié au dépôt du rapport d'accident, puis lorsque le dossier est
    complet (accident + médical). Il consulte les dossiers dans le **back office**.
 
@@ -38,12 +39,14 @@ pour le back office et facultative pour les organisateurs.
 
 ## Formulaires
 
-Les formulaires sont décrits dans `src/forms/accident.js` et `src/forms/medical.js`. Le rendu,
+Les formulaires reprennent les formulaires Jotform FFSA (accident : 260223577062049, médical :
+260263404021340). Ils sont décrits dans `src/forms/accident.js` et `src/forms/medical.js`. Le rendu,
 la validation (serveur), les champs conditionnels, l'affichage back office et l'export CSV en
 découlent automatiquement : **pour ajouter, retirer ou renommer un champ, il suffit de modifier ces fichiers.**
 
 Types disponibles : `text`, `textarea`, `email`, `tel`, `date`, `time`, `number`, `select`, `radio`,
-`checkboxes`, `consent`, `file`, `signature`. Conditions d'affichage :
+`checkboxes`, `consent`, `file`, `signature`, `matrix` (tableau lignes × colonnes), `heading` (sous-titre).
+Une section peut être `optional` (repliée par défaut) ou `shareWithDoctor` (montrée au médecin). Conditions d'affichage :
 `showIf: { field, equals }`, `{ field, in: [...] }`, `{ field, includes }` (cases à cocher),
 au niveau d'un champ ou d'une section.
 

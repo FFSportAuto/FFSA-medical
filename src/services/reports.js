@@ -84,10 +84,10 @@ async function getAccident(id) {
   return { ...row, data: decryptJson(row.data_enc) };
 }
 
-async function getMedical(accidentId) {
-  const row = await db.one('SELECT * FROM medical_reports WHERE accident_id = $1', [accidentId]);
-  if (!row) return null;
-  return { ...row, data: decryptJson(row.data_enc) };
+// Rapports médicaux du dossier (un par patient consulté)
+async function listMedical(accidentId) {
+  const { rows } = await db.query('SELECT * FROM medical_reports WHERE accident_id = $1 ORDER BY created_at', [accidentId]);
+  return rows.map((r) => ({ ...r, data: decryptJson(r.data_enc) }));
 }
 
 async function listAttachments(accidentId) {
@@ -151,24 +151,29 @@ async function verifyDoctorOtp(request, code) {
   return ok;
 }
 
-async function submitMedicalReport(request, values, files) {
-  const done = await db.tx(async (client) => {
-    // Verrouille la demande pour éviter une double soumission
-    const { rows } = await client.query(
-      'SELECT used_at, revoked_at FROM medical_requests WHERE id = $1 FOR UPDATE',
-      [request.id],
-    );
-    if (!rows[0] || rows[0].used_at || rows[0].revoked_at) return false;
-    await client.query(
-      `INSERT INTO medical_reports (accident_id, request_id, data_enc, form_version) VALUES ($1, $2, $3, $4)`,
+// Ajoute le rapport d'un patient ; le dossier reste ouvert jusqu'à sa clôture par le médecin
+async function addMedicalReport(request, values, files) {
+  return db.tx(async (client) => {
+    const { rows } = await client.query('SELECT used_at, revoked_at FROM medical_requests WHERE id = $1 FOR UPDATE', [request.id]);
+    if (!rows[0] || rows[0].used_at || rows[0].revoked_at) return null;
+    const { rows: created } = await client.query(
+      `INSERT INTO medical_reports (accident_id, request_id, data_enc, form_version) VALUES ($1, $2, $3, $4) RETURNING id`,
       [request.accident_id, request.id, encryptJson(values), medicalForm.version],
     );
     await insertAttachments(client, request.accident_id, 'medical', files);
-    await client.query('UPDATE medical_requests SET used_at = now() WHERE id = $1', [request.id]);
-    await client.query(
-      "UPDATE accident_reports SET status = 'complete', completed_at = now() WHERE id = $1",
-      [request.accident_id],
-    );
+    return created[0].id;
+  });
+}
+
+// Le médecin indique avoir transmis tous ses rapports : le dossier est complet
+async function finishMedical(request) {
+  const done = await db.tx(async (client) => {
+    const { rows } = await client.query('SELECT used_at, revoked_at FROM medical_requests WHERE id = $1 FOR UPDATE', [request.id]);
+    if (!rows[0] || rows[0].used_at || rows[0].revoked_at) return false;
+    const { rows: count } = await client.query('SELECT count(*)::int AS n FROM medical_reports WHERE accident_id = $1', [request.accident_id]);
+    if (!count[0].n) return false;
+    await client.query('UPDATE medical_requests SET used_at = now() WHERE accident_id = $1 AND used_at IS NULL', [request.accident_id]);
+    await client.query("UPDATE accident_reports SET status = 'complete', completed_at = now() WHERE id = $1", [request.accident_id]);
     return true;
   });
   if (done) {
@@ -196,7 +201,8 @@ async function sendReminders() {
     `SELECT mr.id, mr.accident_id, mr.doctor_email_enc, ar.reference, ar.event_name
        FROM medical_requests mr JOIN accident_reports ar ON ar.id = mr.accident_id
       WHERE mr.used_at IS NULL AND mr.revoked_at IS NULL AND mr.reminder_sent_at IS NULL
-        AND mr.expires_at > now() AND mr.sent_at < now() - make_interval(hours => $1)`,
+        AND mr.expires_at > now() AND mr.sent_at < now() - make_interval(hours => $1)
+        AND NOT EXISTS (SELECT 1 FROM medical_reports r WHERE r.accident_id = mr.accident_id)`,
     [config.doctorReminderHours],
   );
   for (const r of rows) {
@@ -218,14 +224,15 @@ async function sendReminders() {
 module.exports = {
   createAccidentReport,
   getAccident,
-  getMedical,
+  listMedical,
   listAttachments,
   getAttachment,
   listRequests,
   findRequestByToken,
   sendDoctorOtp,
   verifyDoctorOtp,
-  submitMedicalReport,
+  addMedicalReport,
+  finishMedical,
   resendInvitation,
   sendReminders,
 };

@@ -3,8 +3,18 @@
     <h3><%= s.title %></h3>
     <dl class="kv">
       <% s.fields.forEach(function (f) { %>
-        <dt><%= f.label %></dt>
-        <dd><% if (f.type === 'signature') { %><img class="sig" src="<%= f.display %>" alt="Signature"><% } else { %><%= f.display %><% } %></dd>
+        <dt class="<%= f.type === 'matrix' ? 'wide' : '' %>"><%= f.label %></dt>
+        <dd class="<%= f.type === 'matrix' ? 'wide' : '' %>"><% if (f.type === 'signature') { %><img class="sig" src="<%= f.display %>" alt="Signature">
+        <% } else if (f.type === 'matrix') { %>
+          <table class="matrix small-table">
+            <thead><tr><th></th><% f.columns.forEach(function (c) { %><th><%= c %></th><% }) %></tr></thead>
+            <tbody>
+            <% Object.keys(f.value).forEach(function (row) { %>
+              <tr><th scope="row"><%= row %></th><% f.columns.forEach(function (c) { %><td><%= f.value[row][c] ?? '' %></td><% }) %></tr>
+            <% }) %>
+            </tbody>
+          </table>
+        <% } else { %><%= f.display %><% } %></dd>
       <% }) %>
     </dl>
   </section>

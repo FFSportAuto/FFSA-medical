@@ -25,7 +25,7 @@ router.get('/organisateur/rapports/nouveau', (req, res) => {
   res.render('organizer/new', {
     title: accidentForm.title,
     form: accidentForm,
-    values: { declarant_name: req.user.full_name, declarant_email: req.user.email },
+    values: {},
     errors: {},
     formError: null,
   });

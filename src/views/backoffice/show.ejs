@@ -22,11 +22,15 @@
     <%- include('../partials/display', { sections: accidentSections }) %>
   </section>
   <section class="card">
-    <h2>Rapport médical</h2>
-    <% if (medical) { %>
-      <%- include('../partials/display', { sections: medicalSections }) %>
-    <% } else { %>
-      <p class="muted">Le médecin n'a pas encore transmis son rapport.</p>
+    <h2>Rapport(s) médical(aux)</h2>
+    <% medicalReports.forEach(function (m, i) { %>
+      <div class="medical-report">
+        <h3>Patient <%= i + 1 %> – <%= [m.data.patient_last_name, m.data.patient_first_name].filter(Boolean).join(' ') %></h3>
+        <%- include('../partials/display', { sections: m.sections }) %>
+      </div>
+    <% }) %>
+    <% if (accident.status !== 'complete') { %>
+      <p class="muted"><%= medicalReports.length ? 'Le médecin n\u2019a pas encore clôturé le dossier.' : 'Le médecin n\u2019a pas encore transmis de rapport.' %></p>
       <h3>Invitations envoyées</h3>
       <ul class="plain">
         <% requests.forEach(function (r) { %>

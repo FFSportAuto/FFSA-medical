@@ -4,8 +4,38 @@
   const id = 'f_' + field.name;
   const showIf = field.showIf ? JSON.stringify(field.showIf) : '';
 %>
-<div class="field <%= field.width === 'half' ? 'half' : '' %> <%= err ? 'has-error' : '' %>" <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
-  <% if (field.type === 'consent') { %>
+<% if (field.type === 'heading') { %>
+<h4 class="subheading"><%= field.label %></h4>
+<% } else { %>
+<div class="field <%= field.width || '' %> <%= err ? 'has-error' : '' %>" <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
+  <% if (field.type === 'matrix') { %>
+    <span class="label"><%= field.label %><% if (field.required) { %> <abbr title="obligatoire">*</abbr><% } %></span>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead><tr><th></th><% field.columns.forEach(function (c) { %><th><%= c %></th><% }) %></tr></thead>
+        <tbody>
+        <% field.rows.forEach(function (row, ri) { %>
+          <tr><th scope="row"><%= row %></th>
+          <% field.columns.forEach(function (col, ci) {
+               const name = field.name + '__' + ri + '__' + ci;
+               const cv = (v && v[row] && v[row][col] !== undefined) ? v[row][col] : ''; %>
+            <td>
+              <% if (field.cell.type === 'select') { %>
+                <select name="<%= name %>" aria-label="<%= row %> – <%= col %>">
+                  <option value=""></option>
+                  <% field.cell.options.forEach(function (o) { %><option <%= cv === o ? 'selected' : '' %>><%= o %></option><% }) %>
+                </select>
+              <% } else { %>
+                <input type="<%= field.cell.type === 'number' ? 'number' : 'text' %>" name="<%= name %>" value="<%= cv %>" aria-label="<%= row %> – <%= col %>" <% if (field.cell.type === 'number') { %>min="<%= field.cell.min %>" max="<%= field.cell.max %>"<% } %>>
+              <% } %>
+            </td>
+          <% }) %>
+          </tr>
+        <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } else if (field.type === 'consent') { %>
     <label class="check consent"><input type="checkbox" name="<%= field.name %>" value="1" <%= v ? 'checked' : '' %>> <span><%= field.label %><% if (field.required) { %> <abbr title="obligatoire">*</abbr><% } %></span></label>
   <% } else { %>
     <% if (['radio', 'checkboxes'].includes(field.type)) { %>
@@ -55,3 +85,4 @@
   <% if (field.help) { %><p class="help"><%= field.help %></p><% } %>
   <% if (err) { %><p class="error-msg"><%= err %></p><% } %>
 </div>
+<% } %>
