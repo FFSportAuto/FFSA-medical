@@ -5,6 +5,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY src ./src
 COPY public ./public
+COPY assets ./assets
 COPY scripts ./scripts
 USER node
 EXPOSE 3000

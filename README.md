@@ -65,6 +65,14 @@ e-mails visibles dans l'application (« Voir les e-mails envoyés ») et deux do
 
 En local : `npm run demo`. Le mode démo (`DEMO_MODE=true`) ne doit **jamais** être activé sur le serveur HDS.
 
+## Export PDF
+
+Dans le back office, chaque dossier se télécharge en PDF : **dossier complet**, **rapport d'accident**
+ou **rapport(s) médical(aux)** (un patient par page). La mise en page reprend le modèle FFSA issu de
+Jotform : en-tête logo + date, titres bleu marine, rubriques soulignées, filets bleus entre pilotes,
+personnes et témoins, signatures, pied de page FFSA (`src/lib/pdf.js`, ressources dans `assets/pdf/`).
+Génération sur le serveur (pdfkit), sans service externe ; chaque téléchargement est tracé dans l'audit.
+
 ## Charte graphique
 
 Charte FFSA « maquette bleue » : police Poppins (hébergée localement, aucun appel à Google Fonts),

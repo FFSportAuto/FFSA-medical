@@ -283,6 +283,7 @@
           disciplines: engine.allFields(accidentForm).find(function (f) { return f.name === 'discipline'; }).options, exportQuery: eq });
       }
       if (path === '/back-office/export.csv') return info('Export tableur', "L'export CSV (une ligne par patient, ouvrable dans Excel) fonctionne dans l'application. Le téléchargement de fichiers n'est pas possible dans cette démo en ligne.", '/back-office', 'Retour aux dossiers');
+      if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/pdf\/\w+$/))) return info('Téléchargement PDF', "Dans l'application, ce bouton télécharge le dossier en PDF au format du rapport FFSA (en-tête et pied de page FFSA, rubriques du formulaire, signatures). Le téléchargement de fichiers n'est pas possible dans cette démo en ligne.", '/back-office/dossiers/' + m[1], 'Retour au dossier');
       if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/pieces\/[\w-]+$/))) return info('Pièce jointe', "Le téléchargement des pièces jointes fonctionne dans l'application. Les fichiers ne sont pas conservés dans cette démo en ligne.", '/back-office/dossiers/' + m[1], 'Retour au dossier');
       if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/relance$/)) && method === 'POST') {
         var ra = accidentById(m[1]); if (!ra) return notFound();

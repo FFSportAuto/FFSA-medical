@@ -75,7 +75,7 @@ function witnessSection(n) {
 
 const withOther = (name, label, options) => [
   { name, label, type: 'checkboxes', options: [...options, 'Autre'] },
-  { name: `${name}_other`, label: 'Préciser', type: 'text', showIf: { field: name, includes: 'Autre' } },
+  { name: `${name}_other`, label: `${label} – autre (préciser)`, type: 'text', showIf: { field: name, includes: 'Autre' } },
 ];
 
 module.exports = {

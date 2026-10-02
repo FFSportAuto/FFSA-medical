@@ -49,7 +49,12 @@ function client() {
     if (m) csrf = m[1];
     return { status: res.status, location: res.headers.get('location'), text, headers: res.headers };
   }
-  return { request, get: (p) => request(p), post: (p, body) => request(p, { method: 'POST', body }) };
+  return {
+    request,
+    get: (p) => request(p),
+    post: (p, body) => request(p, { method: 'POST', body }),
+    cookie: () => [...jar].map(([k, v]) => `${k}=${v}`).join('; '),
+  };
 }
 
 async function createUser(email, role, { withTotp = false } = {}) {
@@ -235,11 +240,21 @@ test('workflow complet accident -> médical -> back office', async () => {
   assert.match(csv.text, /Rallye Test des Vosges/);
   assert.match(csv.text, /Cervical/);
   assert.strictEqual(csv.text.trim().split('\r\n').length, 3, 'une ligne par patient');
+  // Téléchargement PDF au format du modèle FFSA, réservé au back office
+  for (const kind of ['accident', 'medical', 'complet']) {
+    const res = await fetch(`${base}/back-office/dossiers/${accident.id}/pdf/${kind}`, { headers: { cookie: med.cookie() } });
+    assert.strictEqual(res.status, 200, kind);
+    assert.strictEqual(res.headers.get('content-type'), 'application/pdf');
+    assert.match(res.headers.get('content-disposition'), new RegExp(`${accident.reference}-`));
+    assert.strictEqual(Buffer.from(await res.arrayBuffer()).subarray(0, 5).toString(), '%PDF-');
+  }
+  assert.strictEqual((await orga.get(`/back-office/dossiers/${accident.id}/pdf/complet`)).status, 403);
+
   // Le service médical n'administre pas les comptes
   assert.strictEqual((await med.get('/back-office/utilisateurs')).status, 403);
 
   const actions = (await db.query('SELECT action FROM audit_log')).rows.map((r) => r.action);
-  for (const a of ['accident_created', 'medical_submitted', 'dossier_viewed', 'export_csv', 'attachment_downloaded']) {
+  for (const a of ['accident_created', 'medical_submitted', 'dossier_viewed', 'export_csv', 'attachment_downloaded', 'pdf_downloaded']) {
     assert.ok(actions.includes(a), a);
   }
 });

@@ -9,6 +9,7 @@ const engine = require('../forms/engine');
 const accidentForm = require('../forms/accident');
 const medicalForm = require('../forms/medical');
 const reports = require('../services/reports');
+const { buildDossierPdf } = require('../lib/pdf');
 const { decryptJson, randomToken, hashToken } = require('../lib/crypto');
 const { requireRole } = require('../middleware/auth');
 
@@ -98,6 +99,24 @@ router.get('/back-office/dossiers/:id/pieces/:attachmentId', async (req, res, ne
     'Cache-Control': 'no-store',
   });
   res.send(file.content);
+});
+
+// Téléchargement PDF (modèle FFSA) : rapport d'accident, rapport(s) médical(aux) ou dossier complet
+const PDF_KINDS = { accident: 'rapport-accident', medical: 'rapport-medical', complet: 'dossier-complet' };
+router.get('/back-office/dossiers/:id/pdf/:kind', async (req, res, next) => {
+  const { id, kind } = req.params;
+  if (!UUID_RE.test(id) || !PDF_KINDS[kind]) return next();
+  const accident = await reports.getAccident(id);
+  if (!accident) return next();
+  const [medicalReports, attachments] = await Promise.all([reports.listMedical(id), reports.listAttachments(id)]);
+  const pdf = await buildDossierPdf(kind, { accident, medicalReports, attachments });
+  await audit(req, 'pdf_downloaded', { targetType: 'accident', targetId: id, details: { kind } });
+  res.set({
+    'Content-Type': 'application/pdf',
+    'Content-Disposition': `attachment; filename="${accident.reference}-${PDF_KINDS[kind]}.pdf"`,
+    'Cache-Control': 'no-store',
+  });
+  res.send(pdf);
 });
 
 router.post('/back-office/dossiers/:id/relance', async (req, res, next) => {
