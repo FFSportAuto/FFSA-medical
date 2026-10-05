@@ -3,8 +3,6 @@
 @font-face { font-family: Poppins; font-style: normal; font-weight: 500; font-display: swap; src: url(/static/fonts/poppins-latin-500-normal.woff2) format('woff2'); }
 @font-face { font-family: Poppins; font-style: normal; font-weight: 600; font-display: swap; src: url(/static/fonts/poppins-latin-600-normal.woff2) format('woff2'); }
 @font-face { font-family: Poppins; font-style: normal; font-weight: 700; font-display: swap; src: url(/static/fonts/poppins-latin-700-normal.woff2) format('woff2'); }
-@font-face { font-family: Poppins; font-style: italic; font-weight: 700; font-display: swap; src: url(/static/fonts/poppins-latin-700-italic.woff2) format('woff2'); }
-@font-face { font-family: Poppins; font-style: italic; font-weight: 800; font-display: swap; src: url(/static/fonts/poppins-latin-800-italic.woff2) format('woff2'); }
 
 :root {
   --navy: #070e47;
@@ -73,9 +71,7 @@ form.inline { display: inline; margin: 0; }
 
 /* ---------- Titres ---------- */
 h1, h2, h3, h4 { text-wrap: balance; }
-h1 { font-size: 28px; font-weight: 800; font-style: italic; text-transform: uppercase; color: var(--navy); margin: 0; line-height: 1.15; letter-spacing: -.2px; }
-h1::before { content: '[ '; color: var(--red); }
-h1::after { content: ' ]'; color: var(--red); }
+h1 { font-size: 24px; font-weight: 600; color: var(--navy); margin: 0; line-height: 1.25; letter-spacing: -.2px; }
 h2 { font-size: 22px; font-weight: 700; color: var(--navy); margin: 0 0 12px; }
 h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--red-dark); margin: 20px 0 8px; }
 .eyebrow { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--red-dark); }
@@ -86,13 +82,13 @@ h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacin
 .small { font-size: 12.5px; }
 .center { text-align: center; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-style: normal; letter-spacing: 0; }
-h1 .mono { font-weight: 700; color: var(--slate); text-transform: none; }
+h1 .mono { font-weight: 500; color: var(--slate); }
 
 /* ---------- Cartes ---------- */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-bottom: 18px; }
 .auth { max-width: 440px; margin: 40px auto; }
 .auth.wide { max-width: 560px; }
-.auth h1 { font-size: 24px; margin-bottom: 10px; }
+.auth h1 { font-size: 22px; margin-bottom: 10px; }
 
 /* ---------- Boutons ---------- */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1.5px solid var(--navy); background: transparent; color: var(--navy); padding: 11px 24px; border-radius: 999px; font: 700 12.5px/1.2 var(--font); text-transform: uppercase; letter-spacing: .4px; cursor: pointer; text-decoration: none; }
@@ -192,7 +188,7 @@ td.mono a { font-weight: 600; text-decoration: none; }
 /* ---------- Back office ---------- */
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; }
 .stat { display: flex; flex-direction: column; gap: 2px; padding: 18px 22px; margin: 0; }
-.stat-num { font-size: 34px; font-weight: 800; font-style: italic; color: var(--navy); line-height: 1.1; }
+.stat-num { font-size: 30px; font-weight: 600; color: var(--navy); line-height: 1.1; }
 .stat-num.warn { color: var(--amber); }
 .stat-num.ok { color: var(--success); }
 .stat span:last-child { color: var(--muted); font-size: 13px; font-weight: 500; }

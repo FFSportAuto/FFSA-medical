@@ -100,7 +100,7 @@ Génération sur le serveur (pdfkit), sans service externe ; chaque télécharge
 ## Charte graphique
 
 Charte FFSA « maquette bleue » : police Poppins (hébergée localement, aucun appel à Google Fonts),
-navy `#070E47`, rouge `#EF1D34`, boutons pilule bleus `#3685D9`, titres `[ EN CROCHETS ]`,
+navy `#070E47`, rouge `#EF1D34`, boutons pilule bleus `#3685D9`, titres sobres en bleu marine,
 pastilles de couleur par discipline. Logo et favicon dans `public/img/`.
 
 ## Lancer en local
