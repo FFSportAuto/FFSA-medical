@@ -30,7 +30,7 @@ router.get('/organisateur/rapports/nouveau', async (req, res) => {
   res.render('organizer/new', {
     title: accidentForm.title,
     form: accidentForm,
-    values: draft ? draft.values : {},
+    values: draft ? draft.values : { asa: req.user.organization || '' },
     errors: {},
     formError: null,
     ...draftLocals(draft),

@@ -99,8 +99,13 @@ test('connexion avec le compte licencié : compte créé automatiquement puis r�
   const user = await db.one("SELECT * FROM users WHERE email = 'camille.laurent@asa-demo.fr'");
   assert.strictEqual(user.auth_source, 'sso');
   assert.strictEqual(user.license_number, '201501');
+  assert.strictEqual(user.organization, 'ASA Démo Ouest', 'ASA reprise du compte licencié');
   assert.strictEqual(user.approval_status, 'approved');
-  assert.strictEqual((await c.get('/organisateur')).status, 200);
+  const home = await c.get('/organisateur');
+  assert.strictEqual(home.status, 200);
+  assert.match(home.text, /class="who-name">Camille Laurent</, 'nom dans le menu');
+  assert.match(home.text, /class="who-org">ASA Démo Ouest</, 'ASA dans le menu');
+  assert.match((await c.get('/organisateur/rapports/nouveau')).text, /id="f_asa" name="asa" type="text" value="ASA Démo Ouest"/, 'ASA pré-remplie');
 
   await ssoLogin(client(), 'lic-201501');
   assert.strictEqual((await db.one("SELECT count(*)::int AS n FROM users WHERE email = 'camille.laurent@asa-demo.fr'")).n, 1);

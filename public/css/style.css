@@ -55,6 +55,10 @@ main.wrap { padding-block: 28px 48px; min-height: 70vh; }
 .brand:hover { color: #fff; }
 .brand img { height: 30px; width: auto; display: block; }
 .brand-text { font-size: 13px; font-weight: 500; color: var(--tab-inactive); padding-left: 14px; border-left: 1px solid var(--navy-2); line-height: 1.25; }
+.topbar-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+.who { display: grid; text-align: right; line-height: 1.25; min-width: 0; max-width: 260px; }
+.who-name { color: #fff; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who-org { color: var(--tab-inactive); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; background: rgba(255, 255, 255, .07); border-radius: 999px; padding: 4px; }
 .nav a, .nav .linklike { color: var(--tab-inactive); text-decoration: none; padding: 7px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; }
 .nav a:hover, .nav .linklike:hover { color: #fff; }
@@ -231,6 +235,8 @@ ul.plain li { margin-bottom: 6px; }
 .mail .subject { font-weight: 700; color: var(--navy); font-size: 15px; }
 
 @media (max-width: 860px) {
+  .topbar-right { width: 100%; justify-content: space-between; }
+  .who { text-align: left; }
   .two-cols, .meta { grid-template-columns: minmax(0, 1fr); }
   .stats { grid-template-columns: minmax(0, 1fr); }
   .brand-text { display: none; }

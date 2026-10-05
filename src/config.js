@@ -65,6 +65,8 @@ const config = {
     label: process.env.OIDC_LABEL || 'Se connecter avec mon compte licencié FFSA',
     // Revendication contenant le n° de licence
     licenseClaim: process.env.OIDC_LICENSE_CLAIM || 'licence',
+    // Revendication contenant l'ASA / la structure du licencié (affichée dans le menu)
+    organizationClaim: process.env.OIDC_ORGANIZATION_CLAIM || 'asa',
     // Restriction facultative : revendication et valeurs autorisées (ex. roles = officiel,organisateur)
     requiredClaim: process.env.OIDC_REQUIRED_CLAIM || '',
     requiredValues: (process.env.OIDC_REQUIRED_VALUES || '').split(',').map((s) => s.trim()).filter(Boolean),

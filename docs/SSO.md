@@ -28,7 +28,9 @@ passerelle (par exemple Keycloak) peut l'exposer en OpenID Connect.
 3. S'assurer que le jeton d'identité (ou le point *userinfo*) contient :
    - `email` (obligatoire) et si possible `email_verified` ;
    - `given_name`, `family_name` ;
-   - le **numéro de licence** (nom de la revendication à indiquer dans `OIDC_LICENSE_CLAIM`, par défaut `licence`).
+   - le **numéro de licence** (nom de la revendication à indiquer dans `OIDC_LICENSE_CLAIM`, par défaut `licence`) ;
+   - si possible l'**ASA** du licencié (`OIDC_ORGANIZATION_CLAIM`, par défaut `asa`), affichée dans le menu
+     et reprise dans le formulaire d'accident.
 4. Facultatif : pour réserver l'accès à certains profils (officiels, dirigeants d'ASA…), fournir une
    revendication de rôle et la configurer :
    `OIDC_REQUIRED_CLAIM=roles` et `OIDC_REQUIRED_VALUES=officiel,organisateur`.

@@ -13,7 +13,7 @@ async function loadUser(req, res, next) {
       return s.regenerate(() => next());
     }
     const user = await db.one(
-      'SELECT id, email, full_name, role, totp_enabled, active FROM users WHERE id = $1',
+      'SELECT id, email, full_name, role, totp_enabled, active, organization, license_number FROM users WHERE id = $1',
       [s.userId],
     );
     if (user && user.active) req.user = user;

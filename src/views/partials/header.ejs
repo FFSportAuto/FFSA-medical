@@ -15,6 +15,11 @@
   <div class="wrap topbar-inner">
     <a class="brand" href="/"><img src="/static/img/logo-ffsa.png" alt="FFSA" width="178" height="30"><span class="brand-text">Rapports d'accident<br>&amp; rapports médicaux</span></a>
     <% if (user) { %>
+    <div class="topbar-right">
+    <div class="who" title="Connecté(e) en tant que <%= user.full_name %>">
+      <span class="who-name"><%= user.full_name %></span>
+      <span class="who-org"><%= user.role === 'organizer' ? (user.organization || 'ASA non renseignée') : (user.role === 'admin' ? 'Administrateur' : 'Service médical FFSA') %></span>
+    </div>
     <nav class="nav">
       <% if (user.role === 'organizer') { %>
         <a href="/organisateur" class="<%= path === '/organisateur' ? 'active' : '' %>">Mes déclarations</a>
@@ -33,6 +38,7 @@
         <button type="submit" class="linklike">Déconnexion</button>
       </form>
     </nav>
+    </div>
     <% } %>
   </div>
 </header>

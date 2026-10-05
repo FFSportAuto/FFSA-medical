@@ -68,6 +68,7 @@ async function handleCallback(req) {
     lastName: claims.family_name || '',
     fullName: claims.name || [claims.given_name, claims.family_name].filter(Boolean).join(' '),
     license: claims[config.oidc.licenseClaim] ? String(claims[config.oidc.licenseClaim]) : null,
+    organization: claims[config.oidc.organizationClaim] ? String(claims[config.oidc.organizationClaim]) : null,
   };
 }
 

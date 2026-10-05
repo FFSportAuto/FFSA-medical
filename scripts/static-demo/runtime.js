@@ -95,7 +95,7 @@
   function seed() {
     state = { seq: 0, users: [], accidents: [], requests: [], medical: [], attachments: [], mails: [], audit: [], notes: [], drafts: {}, session: {} };
     [['organisateur@demo.ffsa.fr', 'Organisateur Démo', 'organizer', false], ['medical@demo.ffsa.fr', 'Service médical Démo', 'medical', true], ['admin@demo.ffsa.fr', 'Administrateur Démo', 'admin', true]]
-      .forEach(function (u) { state.users.push({ id: uuid(), email: u[0], full_name: u[1], role: u[2], password: PASSWORD, totp_enabled: u[3], active: true, activated: true, auth_source: 'local', approval_status: 'approved', email_verified_at: now(), last_login_at: null, created_at: now() }); });
+      .forEach(function (u) { state.users.push({ id: uuid(), email: u[0], full_name: u[1], role: u[2], password: PASSWORD, totp_enabled: u[3], active: true, activated: true, auth_source: 'local', approval_status: 'approved', email_verified_at: now(), last_login_at: null, created_at: now(), organization: u[2] === 'organizer' ? 'ASA Démo (exemple)' : null }); });
     // Une demande d'accès en attente, pour montrer la validation
     state.users.push({ id: uuid(), email: 'julie.moreau@club-demo.fr', full_name: 'Julie Moreau', role: 'organizer', password: PASSWORD, totp_enabled: false, active: true, activated: true,
       auth_source: 'local', approval_status: 'pending', email_verified_at: now(), phone: '06 98 76 54 32', organization: 'Écurie du Val (exemple)', job_title: 'Organisateur / ASA',
@@ -226,7 +226,7 @@
       if (!lic) return notFound();
       var su = state.users.find(function (x) { return x.sso_subject === lic.sub; }) || state.users.find(function (x) { return x.email === lic.email; });
       if (su && su.role !== 'organizer') return view('errors/error', { title: 'Connexion impossible', message: 'Cette adresse correspond à un compte du service médical : connectez-vous avec votre mot de passe et votre code de double authentification.' }, 409);
-      if (su) { su.sso_subject = lic.sub; su.license_number = lic.licence; if (su.approval_status === 'pending') su.approval_status = 'approved'; }
+      if (su) { su.sso_subject = lic.sub; su.license_number = lic.licence; su.organization = lic.asa; if (su.approval_status === 'pending') su.approval_status = 'approved'; }
       else {
         su = { id: uuid(), email: lic.email, full_name: lic.given_name + ' ' + lic.family_name, role: 'organizer', password: null, totp_enabled: false, active: true, activated: true,
           auth_source: 'sso', sso_subject: lic.sub, license_number: lic.licence, organization: lic.asa, approval_status: 'approved', email_verified_at: now(), created_at: now() };
@@ -296,7 +296,7 @@
       if (path === '/organisateur/brouillon/supprimer' && method === 'POST') { delete state.drafts[okey]; return redirect('/organisateur/rapports/nouveau'); }
       if (path === '/organisateur/rapports/nouveau') {
         var od = state.drafts[okey];
-        return view('organizer/new', Object.assign({ title: accidentForm.title, form: accidentForm, values: od ? od.values : {}, errors: {}, formError: null }, draftLocals('/organisateur/brouillon', '/organisateur/brouillon/supprimer', okey)));
+        return view('organizer/new', Object.assign({ title: accidentForm.title, form: accidentForm, values: od ? od.values : { asa: u.organization || '' }, errors: {}, formError: null }, draftLocals('/organisateur/brouillon', '/organisateur/brouillon/supprimer', okey)));
       }
       if (path === '/organisateur/rapports' && method === 'POST') {
         var v = engine.validate(accidentForm, body, files);

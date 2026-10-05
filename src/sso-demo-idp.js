@@ -68,7 +68,7 @@ function createDemoIdp({ publicBase, internalIssuer, clientId, clientSecret }) {
     const p = entry.person;
     const idToken = await new jose.SignJWT({
       nonce: entry.nonce, email: p.email, email_verified: true, given_name: p.given_name, family_name: p.family_name,
-      name: `${p.given_name} ${p.family_name}`, licence: p.licence, roles: p.roles,
+      name: `${p.given_name} ${p.family_name}`, licence: p.licence, roles: p.roles, asa: p.asa,
     })
       .setProtectedHeader({ alg: 'RS256', kid: 'demo' })
       .setIssuer(internalIssuer()).setAudience(clientId).setSubject(p.sub)

@@ -12,7 +12,7 @@ const { encrypt, decryptText } = require('./lib/crypto');
 
 const PASSWORD = 'Demo-FFSA-2026!';
 const ACCOUNTS = [
-  { email: 'organisateur@demo.ffsa.fr', full_name: 'Organisateur Démo', role: 'organizer', label: 'Organisateur' },
+  { email: 'organisateur@demo.ffsa.fr', full_name: 'Organisateur Démo', role: 'organizer', label: 'Organisateur', organization: 'ASA Démo (exemple)' },
   { email: 'medical@demo.ffsa.fr', full_name: 'Service médical Démo', role: 'medical', label: 'Service médical', totp: true },
   { email: 'admin@demo.ffsa.fr', full_name: 'Administrateur Démo', role: 'admin', label: 'Administrateur', totp: true },
 ];
@@ -23,8 +23,8 @@ async function seed() {
     const exists = await db.one('SELECT id FROM users WHERE email = $1', [a.email]);
     if (exists) continue;
     await db.query(
-      'INSERT INTO users (email, full_name, role, password_hash, totp_enabled, totp_secret_enc) VALUES ($1, $2, $3, $4, $5, $6)',
-      [a.email, a.full_name, a.role, hash, Boolean(a.totp), a.totp ? encrypt(totp.generateSecret()) : null],
+      'INSERT INTO users (email, full_name, role, password_hash, totp_enabled, totp_secret_enc, organization) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [a.email, a.full_name, a.role, hash, Boolean(a.totp), a.totp ? encrypt(totp.generateSecret()) : null, a.organization || null],
     );
   }
   const { rows } = await db.query('SELECT count(*)::int AS n FROM accident_reports');

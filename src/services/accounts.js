@@ -84,7 +84,10 @@ async function review(userId, reviewer, decision, note) {
 async function findOrCreateSsoUser(identity) {
   let user = await db.one('SELECT * FROM users WHERE sso_subject = $1', [identity.subject]);
   if (user) {
-    await db.query('UPDATE users SET license_number = COALESCE($2, license_number) WHERE id = $1', [user.id, identity.license]);
+    user = await db.one(
+      'UPDATE users SET license_number = COALESCE($2, license_number), organization = COALESCE($3, organization) WHERE id = $1 RETURNING *',
+      [user.id, identity.license, identity.organization],
+    );
     return { user, created: false };
   }
   if (identity.email && identity.emailVerified) {
@@ -97,19 +100,20 @@ async function findOrCreateSsoUser(identity) {
     }
     if (user) {
       user = await db.one(
-        `UPDATE users SET sso_subject = $2, license_number = COALESCE($3, license_number), email_verified_at = COALESCE(email_verified_at, now()),
+        `UPDATE users SET sso_subject = $2, license_number = COALESCE($3, license_number), organization = COALESCE($4, organization),
+                email_verified_at = COALESCE(email_verified_at, now()),
                 approval_status = CASE WHEN approval_status = 'pending' THEN 'approved' ELSE approval_status END
           WHERE id = $1 RETURNING *`,
-        [user.id, identity.subject, identity.license],
+        [user.id, identity.subject, identity.license, identity.organization],
       );
       return { user, created: false, linked: true };
     }
   }
   if (!identity.email) throw new Error('Le compte licencié ne fournit pas d’adresse e-mail.');
   user = await db.one(
-    `INSERT INTO users (email, full_name, role, auth_source, sso_subject, license_number, email_verified_at, approval_status)
-     VALUES ($1, $2, 'organizer', 'sso', $3, $4, now(), 'approved') RETURNING *`,
-    [identity.email, identity.fullName || identity.email, identity.subject, identity.license],
+    `INSERT INTO users (email, full_name, role, auth_source, sso_subject, license_number, organization, email_verified_at, approval_status)
+     VALUES ($1, $2, 'organizer', 'sso', $3, $4, $5, now(), 'approved') RETURNING *`,
+    [identity.email, identity.fullName || identity.email, identity.subject, identity.license, identity.organization],
   );
   return { user, created: true };
 }
