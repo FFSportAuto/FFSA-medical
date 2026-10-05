@@ -9,7 +9,7 @@ const mailer = require('../lib/mailer');
 const totp = require('../lib/totp');
 const config = require('../config');
 const { verifyPassword, hashPassword, passwordPolicyError } = require('../lib/password');
-const { encrypt, decryptText, hashToken, randomToken } = require('../lib/crypto');
+const { encrypt, decryptText, hashToken, randomToken, randomDigits } = require('../lib/crypto');
 const { requireLogin, homeFor } = require('../middleware/auth');
 const sso = require('../lib/sso');
 const accounts = require('../services/accounts');
@@ -36,8 +36,56 @@ function startSession(req, user) {
 
 router.get('/', (req, res) => res.redirect(homeFor(req.user)));
 
+// Mentions d'information RGPD (publique : remise aussi aux personnes accidentées)
+router.get('/donnees-personnelles', (req, res) => {
+  res.render('legal/privacy', { title: 'Données personnelles', privacy: config.privacy, retentionYears: config.retentionYears });
+});
+
 const demoAccounts = async () => (config.demoMode ? require('../demo').accountsForDisplay() : []);
 const demoCode = async (userId) => (config.demoMode ? require('../demo').currentCode(userId) : null);
+
+// ---- Double authentification obligatoire pour tous ----
+// Application d'authentification (TOTP) si activée, sinon code à usage unique envoyé par e-mail
+// (organisateurs). Les comptes du back office doivent activer l'application.
+const EMAIL_CODE_MINUTES = 10;
+const EMAIL_CODE_ATTEMPTS = 5;
+const maskEmail = (e) => e.replace(/^(.)(.*)(@.*)$/, (m, a, b, c) => a + '•'.repeat(Math.min(b.length, 6)) + c);
+
+async function sendLoginCode(req, user) {
+  const code = randomDigits(6);
+  Object.assign(req.session, {
+    mfaCodeHash: hashToken(`${user.id}:${code}`),
+    mfaCodeExp: Date.now() + EMAIL_CODE_MINUTES * 60000,
+    mfaAttempts: 0,
+  });
+  await mailer.send('loginCode', user.email, { code, minutes: EMAIL_CODE_MINUTES });
+  if (config.demoMode) req.session.mfaDemoCode = code;
+}
+
+// Après le premier facteur (mot de passe ou compte licencié sans MFA) : étape du second facteur
+async function beginSecondFactor(req, res, user) {
+  // Comptes du back office sans application : connexion puis activation imposée (/compte/2fa)
+  if (!user.totp_enabled && user.role !== 'organizer') return null;
+  req.session.mfaUserId = user.id;
+  req.session.mfaAt = Date.now();
+  req.session.mfaMethod = user.totp_enabled ? 'totp' : 'email';
+  if (!user.totp_enabled) await sendLoginCode(req, user);
+  res.redirect('/connexion/2fa');
+  return true;
+}
+
+async function totpView(req, res, { error = null, status = 200, resent = false } = {}) {
+  const user = await db.one('SELECT id, email FROM users WHERE id = $1', [req.session.mfaUserId]);
+  const email = req.session.mfaMethod === 'email';
+  res.status(status).render('auth/totp', {
+    title: 'Double authentification',
+    error,
+    resent,
+    method: req.session.mfaMethod,
+    maskedEmail: email && user ? maskEmail(user.email) : null,
+    demoCode: email ? (config.demoMode ? req.session.mfaDemoCode : null) : await demoCode(req.session.mfaUserId),
+  });
+}
 
 router.get('/connexion', async (req, res) => {
   if (req.user) return res.redirect(homeFor(req.user));
@@ -80,11 +128,7 @@ router.post('/connexion', loginLimiter, async (req, res) => {
     return fail('Votre demande de compte est en cours de validation par la FFSA. Vous serez prévenu(e) par e-mail.');
   }
 
-  if (user.totp_enabled) {
-    req.session.mfaUserId = user.id;
-    req.session.mfaAt = Date.now();
-    return res.redirect('/connexion/2fa');
-  }
+  if (await beginSecondFactor(req, res, user)) return;
   await db.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
   const target = await startSession(req, user);
   req.user = user;
@@ -94,17 +138,40 @@ router.post('/connexion', loginLimiter, async (req, res) => {
 
 router.get('/connexion/2fa', async (req, res) => {
   if (!req.session.mfaUserId) return res.redirect('/connexion');
-  res.render('auth/totp', { title: 'Double authentification', error: null, demoCode: await demoCode(req.session.mfaUserId) });
+  await totpView(req, res, { resent: Boolean(req.query.renvoye) });
+});
+
+// Nouveau code par e-mail (organisateurs)
+router.post('/connexion/2fa/renvoyer', loginLimiter, async (req, res) => {
+  const { mfaUserId, mfaMethod } = req.session;
+  if (!mfaUserId || mfaMethod !== 'email') return res.redirect('/connexion');
+  const user = await db.one('SELECT id, email FROM users WHERE id = $1 AND active', [mfaUserId]);
+  if (!user) return res.redirect('/connexion');
+  req.session.mfaAt = Date.now();
+  await sendLoginCode(req, user);
+  res.redirect('/connexion/2fa?renvoye=1');
 });
 
 router.post('/connexion/2fa', loginLimiter, async (req, res) => {
-  const { mfaUserId, mfaAt } = req.session;
-  if (!mfaUserId || Date.now() - mfaAt > 5 * 60 * 1000) return res.redirect('/connexion');
+  const { mfaUserId, mfaAt, mfaMethod } = req.session;
+  const windowMs = (mfaMethod === 'email' ? EMAIL_CODE_MINUTES : 5) * 60 * 1000;
+  if (!mfaUserId || Date.now() - mfaAt > windowMs) return res.redirect('/connexion');
   const user = await db.one('SELECT * FROM users WHERE id = $1 AND active', [mfaUserId]);
-  if (!user || !totp.verify(decryptText(user.totp_secret_enc), req.body.code)) {
-    await audit(req, 'login_2fa_failed', { targetType: 'user', targetId: mfaUserId, actor: user ? user.email : 'anonyme' });
-    return res.status(401).render('auth/totp', { title: 'Double authentification', error: 'Code incorrect.', demoCode: await demoCode(mfaUserId) });
+  const code = String(req.body.code || '').replace(/\s/g, '');
+  let ok = false;
+  if (user && mfaMethod === 'email') {
+    req.session.mfaAttempts = (req.session.mfaAttempts || 0) + 1;
+    ok = req.session.mfaAttempts <= EMAIL_CODE_ATTEMPTS && Date.now() < req.session.mfaCodeExp
+      && req.session.mfaCodeHash === hashToken(`${user.id}:${code}`);
+  } else if (user && user.totp_enabled) {
+    ok = totp.verify(decryptText(user.totp_secret_enc), code);
   }
+  if (!ok) {
+    await audit(req, 'login_2fa_failed', { targetType: 'user', targetId: mfaUserId, actor: user ? user.email : 'anonyme' });
+    const exhausted = mfaMethod === 'email' && req.session.mfaAttempts >= EMAIL_CODE_ATTEMPTS;
+    return totpView(req, res, { status: 401, error: exhausted ? 'Trop d’essais : demandez un nouveau code.' : 'Code incorrect ou expiré.' });
+  }
+  for (const k of ['mfaCodeHash', 'mfaCodeExp', 'mfaAttempts', 'mfaMethod', 'mfaDemoCode']) delete req.session[k];
   await db.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
   const target = await startSession(req, user);
   req.user = user;
@@ -147,11 +214,8 @@ router.get('/connexion/sso/retour', loginLimiter, async (req, res, next) => {
   }
   const { user } = result;
   if (!user.active) return res.status(403).render('errors/error', { title: 'Compte désactivé', message: 'Votre compte a été désactivé. Contactez la FFSA.' });
-  if (user.totp_enabled) {
-    req.session.mfaUserId = user.id;
-    req.session.mfaAt = Date.now();
-    return res.redirect('/connexion/2fa');
-  }
+  // Second facteur, sauf si le portail licencié l'a déjà exigé (revendication « amr »)
+  if (!identity.mfa && (await beginSecondFactor(req, res, user))) return;
   await db.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
   const target = await startSession(req, user);
   req.user = user;

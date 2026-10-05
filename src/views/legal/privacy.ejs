@@ -1,0 +1,72 @@
+<%- include('../partials/header') %>
+<div class="legal">
+<div class="page-head"><h1>Données personnelles</h1></div>
+<% if (!privacy.validated) { %>
+  <div class="alert info">Texte provisoire, à valider par le délégué à la protection des données (DPO) de la FFSA avant la mise en service.</div>
+<% } %>
+<p class="lead">Cette page explique comment sont traitées les informations recueillies par l'application de déclaration des accidents et des rapports médicaux de la FFSA, et comment exercer vos droits. Elle s'adresse aux personnes accidentées, aux témoins, aux organisateurs et aux médecins.</p>
+
+<section class="card">
+  <h2>Responsable du traitement</h2>
+  <p><%= privacy.controller %>.</p>
+  <p>Délégué à la protection des données : <strong><%= privacy.dpoContact %></strong>.</p>
+</section>
+
+<section class="card">
+  <h2>Pourquoi ces données sont collectées</h2>
+  <ul>
+    <li>Recueillir les déclarations d'accident et les rapports médicaux établis lors des épreuves de sport automobile, et les transmettre au service médical de la FFSA.</li>
+    <li>Assurer le suivi médical des personnes accidentées : orientation, aptitude à la pratique, reprise de la compétition.</li>
+    <li>Améliorer la sécurité des épreuves, à partir de statistiques <strong>pseudonymisées</strong> (sans nom ni coordonnées).</li>
+    <li>Gérer les comptes des utilisateurs de l'application et la sécurité des accès.</li>
+  </ul>
+  <h3>Base légale</h3>
+  <p><%= privacy.legalBasis || '[À compléter par le DPO : fondement du traitement au regard de l’article 6 du RGPD et exception de l’article 9 permettant le traitement de données de santé, distinctement pour les licenciés et pour les personnes non licenciées (spectateurs, riverains…).]' %></p>
+</section>
+
+<section class="card" id="personnes-accidentees">
+  <h2>Quelles données, sur qui</h2>
+  <dl class="kv">
+    <dt>Personnes accidentées</dt><dd>Identité, n° de licence, coordonnées, circonstances de l'accident ; et, dans le rapport médical : bilan, lésions, soins, orientation, aptitude (données de santé).</dd>
+    <dt>Témoins</dt><dd>Identité, qualité, signature.</dd>
+    <dt>Organisateurs</dt><dd>Identité, coordonnées, ASA, fonction, n° de licence ; données de connexion.</dd>
+    <dt>Médecins</dt><dd>Identité, coordonnées, n° RPPS ou d'inscription à l'Ordre.</dd>
+  </dl>
+  <p class="muted small">Les informations concernant les personnes accidentées et les témoins sont saisies par l'organisateur de l'épreuve et par le médecin intervenant : elles ne sont pas collectées directement auprès d'eux. Cette page leur est destinée et peut leur être communiquée.</p>
+</section>
+
+<section class="card">
+  <h2>Qui y a accès</h2>
+  <ul>
+    <li><strong>Service médical de la FFSA</strong> : membres habilités, soumis au secret médical. Seuls eux accèdent aux données de santé.</li>
+    <li><strong>Organisateur</strong> : uniquement les déclarations qu'il a faites, jamais les rapports médicaux.</li>
+    <li><strong>Médecin intervenant</strong> : uniquement le dossier pour lequel il est sollicité.</li>
+    <li><strong>Administrateurs de l'application</strong> : gestion des comptes, sans accès aux données de santé.</li>
+    <li><strong>Hébergeur certifié « hébergeur de données de santé » (HDS)</strong>, en France ou dans l'Union européenne.</li>
+    <li>Prestataires d'envoi des e-mails et SMS : ils ne reçoivent ni donnée de santé ni identité des personnes accidentées.</li>
+  </ul>
+  <p>Aucune donnée n'est transférée hors de l'Union européenne ni utilisée à des fins commerciales.</p>
+</section>
+
+<section class="card">
+  <h2>Combien de temps</h2>
+  <ul>
+    <li>Dossiers (déclaration d'accident, rapports médicaux, pièces jointes, notes) : <strong><%= retentionYears %> ans</strong> après la déclaration, puis suppression définitive et automatique.</li>
+    <li>Brouillons non envoyés : 30 jours.</li>
+    <li>Comptes utilisateurs : pendant la durée d'utilisation, puis désactivation sur demande.</li>
+    <li>Journal des accès (traçabilité) : conservé pour la sécurité et les contrôles, sans donnée de santé.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Sécurité</h2>
+  <p>Hébergement certifié HDS, chiffrement des données de santé, double authentification obligatoire pour tous les comptes, accès limité au strict nécessaire, traçabilité de chaque consultation, analyse antivirus des fichiers déposés.</p>
+</section>
+
+<section class="card">
+  <h2>Vos droits</h2>
+  <p>Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et d'opposition dans les conditions prévues par le RGPD et la loi Informatique et Libertés. Pour les exercer, écrivez au délégué à la protection des données : <strong><%= privacy.dpoContact %></strong>, en justifiant de votre identité. Les informations médicales vous concernant peuvent vous être communiquées directement ou par l'intermédiaire d'un médecin de votre choix.</p>
+  <p>Si vous estimez que vos droits ne sont pas respectés, vous pouvez adresser une réclamation à la CNIL (cnil.fr).</p>
+</section>
+</div>
+<%- include('../partials/footer') %>

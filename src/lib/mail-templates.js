@@ -96,6 +96,13 @@ const templates = {
       `\n\nPour toute question, contactez le service médical de la FFSA.` +
       signature,
   }),
+  loginCode: ({ code, minutes }) => ({
+    subject: `[FFSA] Votre code de connexion : ${code}`,
+    text:
+      `Votre code de connexion à l'application de déclaration des accidents de la FFSA : ${code}\n\n` +
+      `Il est valable ${minutes} minutes. Si vous n'êtes pas à l'origine de cette connexion, changez votre mot de passe.` +
+      signature,
+  }),
   passwordReset: ({ link }) => ({
     subject: `[FFSA] Réinitialisation de votre mot de passe`,
     text:

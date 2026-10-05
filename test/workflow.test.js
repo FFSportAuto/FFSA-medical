@@ -82,6 +82,14 @@ async function login(c, email, secret) {
     assert.strictEqual(r2.status, 302);
     return r2;
   }
+  // Organisateur : double authentification obligatoire par code envoyé par e-mail
+  if (r.location === '/connexion/2fa') {
+    await c.get('/connexion/2fa');
+    const code = [...mailer.outbox].reverse().find((m) => /code de connexion/.test(m.subject)).text.match(/(\d{6})/)[1];
+    const r2 = await c.post('/connexion/2fa', { code });
+    assert.strictEqual(r2.status, 302, 'code de connexion');
+    return r2;
+  }
   return r;
 }
 
@@ -150,7 +158,7 @@ function medicalFormData(last, first, classification) {
 
 test.before(async () => {
   await migrate();
-  await db.query('TRUNCATE users, accident_reports, audit_log, session CASCADE');
+  await db.query("BEGIN; SET LOCAL ffsa.audit_maintenance = 'on'; TRUNCATE users, accident_reports, audit_log, session CASCADE; COMMIT;");
   server = createApp().listen(0);
   base = `http://127.0.0.1:${server.address().port}`;
 });

@@ -129,9 +129,25 @@
   }
 
   // ---------- Helpers « serveur » ----------
-  var ROLE_LABELS = { organizer: 'Organisateur', medical: 'Service médical', admin: 'Administrateur' };
+  var ROLE_LABELS = { organizer: 'Organisateur', medical: 'Service médical (accès aux données de santé)', admin: 'Administrateur (comptes et journal, sans données de santé)' };
   function currentUser() { var id = state.session.userId; return id ? state.users.find(function (u) { return u.id === id && u.active; }) || null : null; }
-  var homeFor = function (u) { return !u ? '/connexion' : u.role === 'organizer' ? '/organisateur' : '/back-office'; };
+  var homeFor = function (u) { return !u ? '/connexion' : u.role === 'organizer' ? '/organisateur' : u.role === 'admin' ? '/back-office/utilisateurs' : '/back-office'; };
+  var maskMail = function (e) { return e.replace(/^(.)(.*)(@.*)$/, function (m, a, b, c) { return a + '•'.repeat(Math.min(b.length, 6)) + c; }); };
+  // Second facteur : application (comptes du back office) ou code par e-mail (organisateurs)
+  function beginMfa(user) {
+    state.session = { mfaUserId: user.id, mfaMethod: user.totp_enabled ? 'totp' : 'email' };
+    if (!user.totp_enabled) {
+      state.session.mfaCode = digits(); state.session.mfaExp = Date.now() + 10 * 60000; state.session.mfaAttempts = 0;
+      mail('loginCode', user.email, { code: state.session.mfaCode, minutes: 10 });
+    }
+    return redirect('/connexion/2fa');
+  }
+  function mfaView(error, status, resent) {
+    var mu = state.users.find(function (x) { return x.id === state.session.mfaUserId; });
+    var email = state.session.mfaMethod === 'email';
+    return view('auth/totp', { title: 'Double authentification', error: error || null, resent: Boolean(resent), method: state.session.mfaMethod,
+      maskedEmail: email ? maskMail(mu.email) : null, demoCode: email ? state.session.mfaCode : demoCode() }, status);
+  }
   // Code de double authentification simulé : change chaque minute, affiché à l'écran
   var demoCode = function (offset) { var t = Math.floor(Date.now() / 60000) - (offset || 0); return String((t * 104729) % 900000 + 100000); };
   var view = function (name, locals, status) { return { view: name, locals: locals || {}, status: status || 200 }; };
@@ -205,21 +221,32 @@
         return loginErr('Confirmez d’abord votre adresse e-mail : un nouveau lien de confirmation vient de vous être envoyé.');
       }
       if (found.approval_status === 'pending') return loginErr('Votre demande de compte est en cours de validation par la FFSA. Vous serez prévenu(e) par e-mail.');
-      if (found.totp_enabled) { state.session.mfaUserId = found.id; return redirect('/connexion/2fa'); }
-      return login(found);
+      return beginMfa(found);
     }
     if (path === '/connexion/2fa') {
       if (!state.session.mfaUserId) return redirect('/connexion');
       if (method === 'POST') {
         var typed = String(body.code || '').replace(/\s/g, '');
-        if (typed !== demoCode() && typed !== demoCode(1)) return view('auth/totp', { title: 'Double authentification', error: 'Code incorrect.', demoCode: demoCode() }, 401);
+        var okCode;
+        if (state.session.mfaMethod === 'email') {
+          state.session.mfaAttempts += 1;
+          okCode = state.session.mfaAttempts <= 5 && Date.now() < state.session.mfaExp && typed === state.session.mfaCode;
+        } else okCode = typed === demoCode() || typed === demoCode(1);
+        if (!okCode) return mfaView(state.session.mfaMethod === 'email' && state.session.mfaAttempts >= 5 ? 'Trop d’essais : demandez un nouveau code.' : 'Code incorrect ou expiré.', 401);
         var mu = state.users.find(function (x) { return x.id === state.session.mfaUserId; });
-        delete state.session.mfaUserId;
         return login(mu);
       }
-      return view('auth/totp', { title: 'Double authentification', error: null, demoCode: demoCode() });
+      return mfaView(null, 200, query.renvoye);
     }
     // Connexion par compte licencié (portail simulé)
+    if (path === '/connexion/2fa/renvoyer' && method === 'POST') {
+      var ru2 = state.users.find(function (x) { return x.id === state.session.mfaUserId; });
+      if (!ru2 || state.session.mfaMethod !== 'email') return redirect('/connexion');
+      beginMfa(ru2);
+      return redirect('/connexion/2fa?renvoye=1');
+    }
+    if (path === '/donnees-personnelles') return view('legal/privacy', { title: 'Données personnelles', retentionYears: 10,
+      privacy: { controller: 'Fédération Française du Sport Automobile (FFSA) [adresse du siège à compléter]', dpoContact: '[adresse de contact du délégué à la protection des données à compléter]', legalBasis: '', validated: false } });
     if (path === '/connexion/sso') return view('demo/sso', { title: 'Portail licenciés FFSA (simulation)', licensees: LICENSEES, q: { client_id: 'demo', redirect_uri: '', state: '', nonce: '', code_challenge: '' } });
     if (path === '/demo/sso/authorize' && method === 'POST') {
       var lic = LICENSEES.find(function (l) { return l.sub === body.sub; });
@@ -233,7 +260,7 @@
         state.users.push(su);
         audit('sso_account_created', 'user', su.id);
       }
-      return login(su);
+      return beginMfa(su);
     }
     // Inscription libre
     if (path === '/inscription') {
@@ -390,6 +417,11 @@
     // Back office
     if (path.indexOf('/back-office') === 0) {
       var st = requireRole(['medical', 'admin']); if (st) return st;
+      // Données de santé : service médical uniquement ; l'administrateur gère les comptes et le journal
+      if (u.role === 'admin' && (path === '/back-office' || path.indexOf('/back-office/dossiers') === 0 || path.indexOf('/back-office/export') === 0)) {
+        return path === '/back-office' ? redirect('/back-office/utilisateurs') : denied();
+      }
+      if (path === '/back-office/export-pseudonymise.csv') return info('Export statistique pseudonymisé', "Dans l'application, ce bouton télécharge un tableur pour les statistiques : sans nom, coordonnées, texte libre ni signature, dates réduites au mois, âge calculé et identifiant de dossier non réversible. Le téléchargement de fichiers n'est pas possible dans cette démo en ligne.", '/back-office', 'Retour aux dossiers');
       if (path === '/back-office') {
         var list = filtered(query);
         var page = Math.max(1, Number(query.page) || 1);
@@ -441,7 +473,8 @@
           attachments: state.attachments.filter(function (x) { return x.accident_id === acc.id; }),
           requests: state.requests.filter(function (x) { return x.accident_id === acc.id; }).slice().reverse(),
           notes: state.notes.filter(function (x) { return x.accident_id === acc.id; }),
-          staff: state.users.filter(function (x) { return (x.role === 'medical' || x.role === 'admin') && x.active; }),
+          staff: state.users.filter(function (x) { return x.role === 'medical' && x.active; }),
+          retentionEnd: (function () { var d = new Date(acc.created_at); d.setFullYear(d.getFullYear() + 10); return d; })(), retentionYears: 10,
           processing: PROCESSING, overdue: isOverdue(acc),
           flash: query.relance ? 'Nouvelle invitation envoyée au médecin.' : query.suivi ? 'Suivi mis à jour.' : query.note ? 'Note ajoutée.' : null,
         });
@@ -504,7 +537,7 @@
     return redirect(homeFor(user));
   }
   function demoAccounts() {
-    return [['organisateur@demo.ffsa.fr', 'Organisateur'], ['medical@demo.ffsa.fr', 'Service médical'], ['admin@demo.ffsa.fr', 'Administrateur']]
+    return [['organisateur@demo.ffsa.fr', 'Organisateur'], ['medical@demo.ffsa.fr', 'Service médical'], ['admin@demo.ffsa.fr', 'Administrateur (sans accès aux données de santé)']]
       .map(function (a) { return { email: a[0], label: a[1], password: PASSWORD }; });
   }
   function usersView(flash, error, status) {

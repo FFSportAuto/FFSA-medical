@@ -1,6 +1,7 @@
 <%- include('../partials/header') %>
 <div class="page-head"><h1><%= form.title %> <span class="mono muted"><%= accident.reference %></span></h1></div>
 <p class="lead"><%= form.intro %></p>
+<p class="small muted">Données de santé couvertes par le secret médical, accessibles uniquement au service médical de la FFSA. <a href="/donnees-personnelles">Données personnelles</a></p>
 <p><a href="/medecin/<%= token %>">← Retour au dossier</a></p>
 <% if (person) { %>
   <div class="alert info">Patient déclaré par l'organisateur : <strong><%= person.name %></strong> (<%= person.detail %>). Les informations connues ont été reprises ; vérifiez-les et complétez le rapport.</div>

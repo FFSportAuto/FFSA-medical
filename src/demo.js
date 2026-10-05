@@ -14,7 +14,7 @@ const PASSWORD = 'Demo-FFSA-2026!';
 const ACCOUNTS = [
   { email: 'organisateur@demo.ffsa.fr', full_name: 'Organisateur Démo', role: 'organizer', label: 'Organisateur', organization: 'ASA Démo (exemple)' },
   { email: 'medical@demo.ffsa.fr', full_name: 'Service médical Démo', role: 'medical', label: 'Service médical', totp: true },
-  { email: 'admin@demo.ffsa.fr', full_name: 'Administrateur Démo', role: 'admin', label: 'Administrateur', totp: true },
+  { email: 'admin@demo.ffsa.fr', full_name: 'Administrateur Démo', role: 'admin', label: 'Administrateur (sans accès aux données de santé)', totp: true },
 ];
 
 async function seed() {

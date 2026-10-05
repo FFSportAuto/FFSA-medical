@@ -47,7 +47,8 @@ const requireRole = (...roles) => [
 
 function homeFor(user) {
   if (!user) return '/connexion';
-  return user.role === 'organizer' ? '/organisateur' : '/back-office';
+  if (user.role === 'organizer') return '/organisateur';
+  return user.role === 'admin' ? '/back-office/utilisateurs' : '/back-office';
 }
 
 module.exports = { loadUser, requireLogin, requireRole, homeFor, BACKOFFICE_ROLES };

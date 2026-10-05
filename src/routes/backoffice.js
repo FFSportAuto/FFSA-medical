@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const express = require('express');
 const db = require('../db');
 const audit = require('../lib/audit');
@@ -17,10 +18,14 @@ const { requireRole } = require('../middleware/auth');
 const router = express.Router();
 router.use('/back-office', requireRole('medical', 'admin'));
 const adminOnly = requireRole('admin');
+// Données de santé (dossiers, rapports, PDF, exports) : service médical uniquement.
+// L'administrateur gère les comptes et le journal, sans aucun accès aux dossiers.
+const medicalOnly = requireRole('medical');
+router.use(['/back-office/dossiers', '/back-office/export.csv', '/back-office/export-pseudonymise.csv'], medicalOnly);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PAGE_SIZE = 50;
-const ROLE_LABELS = { organizer: 'Organisateur', medical: 'Service médical', admin: 'Administrateur' };
+const ROLE_LABELS = { organizer: 'Organisateur', medical: 'Service médical (accès aux données de santé)', admin: 'Administrateur (comptes et journal, sans données de santé)' };
 
 // Filtres communs à la liste et à l'export
 const OVERDUE_SQL = `(ar.status = 'awaiting_medical' AND ar.created_at < now() - interval '${reports.OVERDUE_HOURS} hours')`;
@@ -44,7 +49,7 @@ function buildFilters(q, user) {
   return { where: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
 }
 
-router.get('/back-office', async (req, res) => {
+router.get('/back-office', (req, res, next) => (req.user.role === 'admin' ? res.redirect('/back-office/utilisateurs') : next()), async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const { where, params } = buildFilters(req.query, req.user);
   const { rows } = await db.query(
@@ -88,7 +93,7 @@ router.get('/back-office/dossiers/:id', async (req, res, next) => {
     reports.listRequests(accident.id),
     db.one('SELECT full_name, email FROM users WHERE id = $1', [accident.organizer_id]),
     reports.listNotes(accident.id),
-    db.query("SELECT id, full_name FROM users WHERE role IN ('medical', 'admin') AND active ORDER BY full_name").then((r) => r.rows),
+    db.query("SELECT id, full_name FROM users WHERE role = 'medical' AND active ORDER BY full_name").then((r) => r.rows),
   ]);
   await audit(req, 'dossier_viewed', { targetType: 'accident', targetId: accident.id });
   res.render('backoffice/show', {
@@ -101,6 +106,8 @@ router.get('/back-office/dossiers/:id', async (req, res, next) => {
     requests,
     notes,
     staff,
+    retentionEnd: reports.retentionEnd(accident.created_at),
+    retentionYears: config.retentionYears,
     processing: reports.PROCESSING,
     overdue: accident.status === 'awaiting_medical' && Date.now() - new Date(accident.created_at) > reports.OVERDUE_HOURS * 3600e3,
     flash: req.query.relance ? 'Nouvelle invitation envoyée au médecin.' : req.query.suivi ? 'Suivi mis à jour.' : req.query.note ? 'Note ajoutée.' : null,
@@ -128,7 +135,7 @@ router.post('/back-office/dossiers/:id/suivi', async (req, res, next) => {
   if (!reports.PROCESSING[status] || (assignedTo && !UUID_RE.test(assignedTo))) {
     return res.status(400).render('errors/error', { title: 'Requête invalide', message: 'Statut ou attribution invalide.' });
   }
-  if (assignedTo && !(await db.one("SELECT 1 FROM users WHERE id = $1 AND role IN ('medical', 'admin') AND active", [assignedTo]))) {
+  if (assignedTo && !(await db.one("SELECT 1 FROM users WHERE id = $1 AND role = 'medical' AND active", [assignedTo]))) {
     return res.status(400).render('errors/error', { title: 'Requête invalide', message: 'Cette personne ne fait pas partie du service médical.' });
   }
   await reports.updateCase(req.params.id, { status, assignedTo: assignedTo || null });
@@ -222,6 +229,42 @@ router.get('/back-office/export.csv', async (req, res) => {
     'Cache-Control': 'no-store',
   });
   res.send('﻿' + lines.join('\r\n'));
+});
+
+// Export statistique pseudonymisé : aucun nom, contact, texte libre ni signature ; dates au mois ;
+// identifiant de dossier remplacé par un pseudonyme non réversible (HMAC).
+router.get('/back-office/export-pseudonymise.csv', async (req, res) => {
+  const { where, params } = buildFilters(req.query, req.user);
+  const { rows } = await db.query(
+    `SELECT ar.id, ar.status, ar.data_enc AS accident_enc, mr.data_enc AS medical_enc
+       FROM accident_reports ar LEFT JOIN medical_reports mr ON mr.accident_id = ar.id
+       ${where} ORDER BY ar.created_at`,
+    params,
+  );
+  const aCols = engine.pseudonymizedColumns(accidentForm);
+  const mCols = engine.pseudonymizedColumns(medicalForm);
+  const pseudo = (id) => crypto.createHmac('sha256', config.sessionSecret).update(`dossier:${id}`).digest('hex').slice(0, 12);
+  const header = ['Pseudonyme dossier', 'Statut', 'Âge du patient',
+    ...aCols.map((c) => `Accident – ${c.label}`), ...mCols.map((c) => `Médical – ${c.label}`)];
+  const lines = [header.map(csvCell).join(';')];
+  for (const r of rows) {
+    const a = decryptJson(r.accident_enc);
+    const m = r.medical_enc ? decryptJson(r.medical_enc) : {};
+    lines.push([
+      pseudo(r.id),
+      r.status === 'complete' ? 'Complet' : 'En attente du rapport médical',
+      engine.ageAt(m.birthdate, m.date || a.accident_date),
+      ...aCols.map((c) => c.value(a)),
+      ...mCols.map((c) => c.value(m)),
+    ].map(csvCell).join(';'));
+  }
+  await audit(req, 'export_pseudonymized', { details: { count: rows.length } });
+  res.set({
+    'Content-Type': 'text/csv; charset=utf-8',
+    'Content-Disposition': `attachment; filename="ffsa-statistiques-pseudonymisees-${new Date().toISOString().slice(0, 10)}.csv"`,
+    'Cache-Control': 'no-store',
+  });
+  res.send('\ufeff' + lines.join('\r\n'));
 });
 
 // ---- Demandes d'accès des organisateurs (inscription libre) ----

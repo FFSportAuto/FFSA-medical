@@ -1,7 +1,10 @@
 <%- include('../partials/header') %>
 <div class="page-head">
   <h1>Dossiers</h1>
-  <a class="btn" href="/back-office/export.csv<%= exportQuery ? '?' + exportQuery : '' %>">Exporter (CSV)</a>
+  <div class="head-actions">
+    <a class="btn" href="/back-office/export-pseudonymise.csv<%= exportQuery ? '?' + exportQuery : '' %>" title="Sans nom, contact, texte libre ni signature : pour les statistiques">Export statistique (pseudonymisé)</a>
+    <a class="btn ghost" href="/back-office/export.csv<%= exportQuery ? '?' + exportQuery : '' %>" title="Toutes les données, identités comprises">Export complet (CSV)</a>
+  </div>
 </div>
 <div class="stats four">
   <a class="stat card <%= Number(stats.overdue) ? 'alert-tile' : '' %>" href="/back-office?retard=1"><span class="stat-num <%= Number(stats.overdue) ? 'danger' : '' %>"><%= stats.overdue %></span><span>en retard (rapport médical &gt; 48 h)</span></a>

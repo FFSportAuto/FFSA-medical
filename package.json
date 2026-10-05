@@ -11,7 +11,8 @@
     "create-user": "node scripts/create-user.js",
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "demo": "DEMO_MODE=true node src/server.js",
-    "build:demo": "node scripts/build-static-demo.js"
+    "build:demo": "node scripts/build-static-demo.js",
+    "rotate-key": "node scripts/rotate-key.js"
   },
   "engines": {
     "node": ">=20"

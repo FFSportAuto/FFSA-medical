@@ -16,6 +16,33 @@ const codespaceUrl = process.env.CODESPACE_NAME && process.env.GITHUB_CODESPACES
   ? `https://${process.env.CODESPACE_NAME}-3000.${process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}`
   : null;
 
+// Trousseau de clés : DATA_ENCRYPTION_KEYS="1:<base64>,2:<base64>" (rotation) ou DATA_ENCRYPTION_KEY
+// (clé n° 1), ou DATA_ENCRYPTION_KEY_FILE (fichier monté depuis le coffre de secrets de l'hébergeur).
+// La clé utilisée pour chiffrer est DATA_ENCRYPTION_KEY_ID (par défaut la plus récente).
+function loadKeyring() {
+  const fs = require('fs');
+  const keys = new Map();
+  const add = (id, b64) => {
+    const key = Buffer.from(String(b64).trim(), 'base64');
+    if (key.length !== 32) throw new Error(`Clé de chiffrement n° ${id} invalide : 32 octets encodés en base64 attendus`);
+    if (!Number.isInteger(id) || id < 1 || id > 255) throw new Error(`Numéro de clé invalide : ${id}`);
+    keys.set(id, key);
+  };
+  if (process.env.DATA_ENCRYPTION_KEYS) {
+    for (const part of process.env.DATA_ENCRYPTION_KEYS.split(',')) {
+      const [id, b64] = part.split(':');
+      add(Number(id), b64);
+    }
+  } else if (process.env.DATA_ENCRYPTION_KEY_FILE) {
+    add(1, fs.readFileSync(process.env.DATA_ENCRYPTION_KEY_FILE, 'utf8'));
+  } else {
+    add(1, required('DATA_ENCRYPTION_KEY', isProd ? undefined : Buffer.alloc(32, 7).toString('base64')));
+  }
+  const currentId = Number(process.env.DATA_ENCRYPTION_KEY_ID || Math.max(...keys.keys()));
+  if (!keys.has(currentId)) throw new Error(`Clé de chiffrement courante n° ${currentId} absente du trousseau`);
+  return { keys, currentId };
+}
+
 const config = {
   env,
   isProd,
@@ -26,15 +53,16 @@ const config = {
   demoMode: process.env.DEMO_MODE === 'true',
   databaseUrl: required('DATABASE_URL', isProd ? undefined : 'postgres://postgres@localhost:5432/ffsa'),
   sessionSecret: required('SESSION_SECRET', isProd ? undefined : 'dev-session-secret-a-changer'),
-  // Clé AES-256 (32 octets encodés en base64) pour le chiffrement applicatif des données de santé
-  encryptionKey: required(
-    'DATA_ENCRYPTION_KEY',
-    isProd ? undefined : Buffer.alloc(32, 7).toString('base64'),
-  ),
+  // Clés AES-256 de chiffrement applicatif des données de santé (voir loadKeyring ci-dessous)
+  encryption: loadKeyring(),
   trustProxy: process.env.TRUST_PROXY || (isProd ? '1' : '0'),
   sessionIdleMinutes: Number(process.env.SESSION_IDLE_MINUTES || 30),
+  // Durée de conservation des dossiers (années après la déclaration), puis suppression définitive
+  retentionYears: Number(process.env.RETENTION_YEARS || 10),
   doctorLinkValidityDays: Number(process.env.DOCTOR_LINK_VALIDITY_DAYS || 14),
   doctorReminderHours: Number(process.env.DOCTOR_REMINDER_HOURS || 48),
+  // Antivirus ClamAV (démon clamd) pour les pièces jointes ; vide = pas d'analyse (déconseillé en production)
+  antivirus: { host: process.env.CLAMAV_HOST || '', port: Number(process.env.CLAMAV_PORT || 3310) },
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB || 10),
   medicalServiceEmails: (process.env.MEDICAL_SERVICE_EMAILS || 'service.medical@example.org')
     .split(',')
@@ -76,6 +104,13 @@ const config = {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
+  // Mentions d'information (page « Données personnelles ») : à compléter et valider par le DPO
+  privacy: {
+    controller: process.env.PRIVACY_CONTROLLER || 'Fédération Française du Sport Automobile (FFSA) [adresse du siège à compléter]',
+    dpoContact: process.env.PRIVACY_DPO_CONTACT || '[adresse de contact du délégué à la protection des données à compléter]',
+    legalBasis: process.env.PRIVACY_LEGAL_BASIS || '',
+    validated: process.env.PRIVACY_VALIDATED === 'true',
+  },
   appName: 'FFSA – Rapports accident & médical',
 };
 

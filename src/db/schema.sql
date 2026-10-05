@@ -173,3 +173,19 @@ ALTER TABLE user_tokens DROP CONSTRAINT IF EXISTS user_tokens_purpose_check;
 DO $$ BEGIN
   ALTER TABLE user_tokens ADD CONSTRAINT user_tokens_purpose_chk CHECK (purpose IN ('invite', 'reset', 'verify'));
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ---------- Journal d'audit en ajout seul ----------
+-- Toute modification ou suppression est refusée par la base, y compris par l'application.
+-- Seule une opération de maintenance explicite (SET LOCAL ffsa.audit_maintenance = 'on') est possible.
+CREATE OR REPLACE FUNCTION audit_log_append_only() RETURNS trigger AS $$
+BEGIN
+  IF current_setting('ffsa.audit_maintenance', true) = 'on' THEN
+    RETURN COALESCE(OLD, NEW);
+  END IF;
+  RAISE EXCEPTION 'Le journal d''audit est en ajout seul (modification ou suppression interdite)';
+END
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS audit_log_no_update ON audit_log;
+CREATE TRIGGER audit_log_no_update BEFORE UPDATE OR DELETE ON audit_log FOR EACH ROW EXECUTE FUNCTION audit_log_append_only();
+DROP TRIGGER IF EXISTS audit_log_no_truncate ON audit_log;
+CREATE TRIGGER audit_log_no_truncate BEFORE TRUNCATE ON audit_log FOR EACH STATEMENT EXECUTE FUNCTION audit_log_append_only();

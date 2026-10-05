@@ -3,6 +3,7 @@
 const multer = require('multer');
 const config = require('../config');
 const { verifyCsrf } = require('./csrf');
+const antivirus = require('../lib/antivirus');
 
 const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp', 'application/pdf']);
 const MAGIC = [
@@ -38,11 +39,25 @@ function uploadFields(form) {
         next();
       }),
     verifyCsrf,
-    (req, res, next) => {
+    async (req, res, next) => {
       for (const list of Object.values(req.files || {})) {
         for (const file of list) {
           const ok = MAGIC.some((m) => m.mime === file.mimetype && m.test(file.buffer));
-          if (!ok) req.uploadError = `Le fichier « ${file.originalname} » n'est pas valide.`;
+          if (!ok) {
+            req.uploadError = `Le fichier « ${file.originalname} » n'est pas valide.`;
+            continue;
+          }
+          if (!antivirus.isEnabled()) continue;
+          try {
+            const result = await antivirus.scanBuffer(file.buffer);
+            if (!result.clean) {
+              req.uploadError = `Le fichier « ${file.originalname} » a été bloqué par l'antivirus.`;
+              console.warn(`Pièce jointe infectée refusée (${result.virus})`);
+            }
+          } catch (err) {
+            console.error('Antivirus indisponible :', err.message);
+            req.uploadError = "L'analyse antivirus des fichiers est momentanément indisponible. Réessayez dans quelques minutes, ou envoyez le formulaire sans pièce jointe.";
+          }
         }
       }
       next();

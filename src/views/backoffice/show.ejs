@@ -61,6 +61,7 @@
   <div><span class="muted">Déclaré par</span><strong><%= organizer.full_name %></strong> <span class="small muted"><%= organizer.email %></span></div>
   <div><span class="muted">Déclaré le</span><strong><%= fmt(accident.created_at) %></strong></div>
   <div><span class="muted">Rapport médical reçu le</span><strong><%= fmt(accident.completed_at) %></strong></div>
+  <div><span class="muted">Suppression prévue le</span><strong><%= retentionEnd.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' }) %></strong><span class="small muted">Durée de conservation : <%= retentionYears %> ans</span></div>
 </div>
 
 <div class="two-cols">

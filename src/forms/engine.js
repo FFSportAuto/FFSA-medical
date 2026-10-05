@@ -197,6 +197,38 @@ function exportColumns(form) {
   return cols;
 }
 
+// Colonnes de l'export pseudonymisé : uniquement les champs à choix, nombres et heures.
+// Exclus : textes libres (noms, adresses, récits pouvant identifier), e-mails, téléphones,
+// signatures, fichiers ; les dates sont réduites au mois.
+const PSEUDO_TYPES = new Set(['select', 'radio', 'checkboxes', 'number', 'time', 'date', 'matrix']);
+function pseudonymizedColumns(form) {
+  const cols = [];
+  for (const f of allFields(form)) {
+    if (!PSEUDO_TYPES.has(f.type) || (f.type === 'matrix' && f.cell.type === 'text') || f.name === 'birthdate') continue;
+    if (f.type === 'matrix') {
+      for (const row of f.rows) for (const col of f.columns) {
+        cols.push({ label: `${f.label} – ${row} – ${col}`, value: (v) => (v[f.name] && v[f.name][row] && v[f.name][row][col]) ?? '' });
+      }
+    } else if (f.type === 'date') {
+      cols.push({ label: `${f.label} (mois)`, value: (v) => (v[f.name] ? String(v[f.name]).slice(0, 7) : '') });
+    } else {
+      cols.push({ label: f.label, value: (v) => formatValue(f, v[f.name]) });
+    }
+  }
+  return cols;
+}
+
+// Âge en années révolues à une date donnée (dates AAAA-MM-JJ)
+function ageAt(birthdate, date) {
+  if (!birthdate || !date) return '';
+  const b = new Date(birthdate);
+  const d = new Date(date);
+  if (Number.isNaN(b) || Number.isNaN(d)) return '';
+  let age = d.getFullYear() - b.getFullYear();
+  if (d.getMonth() < b.getMonth() || (d.getMonth() === b.getMonth() && d.getDate() < b.getDate())) age--;
+  return age >= 0 && age < 120 ? age : '';
+}
+
 // Valeurs initiales d'un formulaire à partir d'un autre (ex. rapport d'accident -> rapport médical)
 function prefill(form, source) {
   const values = {};
@@ -216,4 +248,4 @@ const sectionHasValues = (section, values) =>
     return true;
   });
 
-module.exports = { validate, toDisplay, formatValue, exportColumns, allFields, isVisible, cellName, prefill, sectionHasValues };
+module.exports = { pseudonymizedColumns, ageAt, validate, toDisplay, formatValue, exportColumns, allFields, isVisible, cellName, prefill, sectionHasValues };

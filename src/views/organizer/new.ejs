@@ -1,5 +1,6 @@
 <%- include('../partials/header') %>
 <div class="page-head"><h1><%= form.title %></h1></div>
 <p class="lead"><%= form.intro %></p>
+<p class="small muted">Les informations saisies, notamment sur les personnes accidentées, sont traitées par la FFSA selon les règles décrites sur la page <a href="/donnees-personnelles">Données personnelles</a>, que vous pouvez communiquer aux personnes concernées.</p>
 <%- include('../partials/form', { action: '/organisateur/rapports', submitLabel: 'Envoyer le rapport d’accident' }) %>
 <%- include('../partials/footer') %>

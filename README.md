@@ -55,10 +55,11 @@ Configuration et informations à demander à la DSI : [`docs/SSO.md`](docs/SSO.m
 | Organisateur | Compte licencié (SSO) ou inscription validée par la FFSA ; déclarer un accident, suivre ses déclarations (sans accès au rapport médical) |
 | Médecin | Lien sécurisé + code e-mail, uniquement pour le dossier concerné, une seule soumission |
 | Service médical | Back office : dossiers, suivi, PDF, export CSV, relance du médecin, validation des demandes d'accès |
-| Administrateur | Idem + gestion des comptes et journal d'audit |
+| Administrateur | Gestion des comptes, demandes d'accès et journal d'audit, **sans accès aux données de santé** |
 
-La double authentification (TOTP : Google/Microsoft Authenticator, FreeOTP…) est **obligatoire**
-pour le back office et facultative pour les organisateurs.
+La double authentification est **obligatoire pour tous** : application d'authentification (TOTP) pour le
+back office ; code par e-mail ou application pour les organisateurs. L'administrateur n'a **aucun accès
+aux données de santé** (comptes, demandes d'accès et journal uniquement).
 
 ## Formulaires
 
@@ -130,7 +131,7 @@ docker compose up -d --build
 docker compose exec app node scripts/create-user.js admin@ffsa.org "Prénom Nom" admin
 ```
 
-Voir [`docs/HDS.md`](docs/HDS.md) pour les mesures de sécurité et la check-list d'hébergement.
+Voir [`docs/SECURITE-RGPD.md`](docs/SECURITE-RGPD.md) pour les mesures de sécurité et la check-list d'hébergement.
 
 ## Structure
 

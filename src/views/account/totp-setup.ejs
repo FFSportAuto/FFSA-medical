@@ -2,7 +2,9 @@
 <div class="auth card wide">
   <h1>Activer la double authentification</h1>
   <% if (user.role !== 'organizer') { %>
-    <div class="alert info">La double authentification est obligatoire pour accéder au back office.</div>
+    <div class="alert info">La double authentification par application est obligatoire pour accéder au back office.</div>
+  <% } else { %>
+    <div class="alert info">La double authentification est obligatoire. Par défaut, un code vous est envoyé par e-mail à chaque connexion ; vous pouvez le remplacer par une application d'authentification, plus pratique et plus sûre.</div>
   <% } %>
   <ol class="steps">
     <li>Installez une application d'authentification (Google Authenticator, Microsoft Authenticator, FreeOTP…).</li>

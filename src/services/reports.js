@@ -236,6 +236,30 @@ async function sendReminders() {
   return rows.length;
 }
 
+// ---- Durée de conservation ----
+
+const retentionEnd = (createdAt) => {
+  const d = new Date(createdAt);
+  d.setFullYear(d.getFullYear() + config.retentionYears);
+  return d;
+};
+
+// Suppression définitive des dossiers arrivés au terme de la durée de conservation
+// (rapports médicaux, pièces jointes, demandes, notes : suppression en cascade)
+async function purgeExpired() {
+  const { rows } = await db.query(
+    `DELETE FROM accident_reports WHERE created_at < now() - make_interval(years => $1) RETURNING reference`,
+    [config.retentionYears],
+  );
+  if (rows.length) {
+    await require('../lib/audit')(null, 'retention_purge', {
+      actor: 'système (durée de conservation)',
+      details: { count: rows.length, references: rows.map((r) => r.reference) },
+    });
+  }
+  return rows.length;
+}
+
 // ---- Brouillons (enregistrement automatique) ----
 
 const DRAFT_DAYS = 30;
@@ -303,6 +327,8 @@ module.exports = {
   transferRequest,
   sendReminders,
   saveDraft,
+  retentionEnd,
+  purgeExpired,
   getDraft,
   deleteDraft,
   purgeDrafts,

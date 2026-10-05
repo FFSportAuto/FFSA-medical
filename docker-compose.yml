@@ -10,6 +10,10 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     restart: unless-stopped
+  # Antivirus des pièces jointes (l'application s'y connecte via CLAMAV_HOST=clamav)
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
   db:
     image: postgres:16-alpine
     environment:

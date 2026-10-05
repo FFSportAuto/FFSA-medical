@@ -48,6 +48,14 @@ function client() {
 
 const lastMail = (re) => [...mailer.outbox].reverse().find((m) => re.test(m.subject));
 
+// Double authentification obligatoire : code de connexion envoyé par e-mail aux organisateurs
+async function completeEmailCode(c, r) {
+  if (r.location !== '/connexion/2fa') return r;
+  await c.get('/connexion/2fa');
+  const code = lastMail(/code de connexion/).text.match(/(\d{6})/)[1];
+  return c.post('/connexion/2fa', { code });
+}
+
 // Parcours complet de connexion par le portail licencié (simulé) ; renvoie la réponse finale de l'application
 async function ssoLogin(c, sub) {
   await c.get('/connexion');
@@ -63,12 +71,13 @@ async function ssoLogin(c, sub) {
     redirect: 'manual',
   });
   const back = new URL(consent.headers.get('location'));
-  return c.get(back.pathname + back.search);
+  const r = await c.get(back.pathname + back.search);
+  return r.status === 302 ? completeEmailCode(c, r) : r;
 }
 
 test.before(async () => {
   await migrate();
-  await db.query('TRUNCATE users, accident_reports, audit_log, session, drafts CASCADE');
+  await db.query("BEGIN; SET LOCAL ffsa.audit_maintenance = 'on'; TRUNCATE users, accident_reports, audit_log, session, drafts CASCADE; COMMIT;");
   app = createApp().listen(0);
   base = `http://127.0.0.1:${app.address().port}`;
   const idpApp = express();
@@ -184,7 +193,7 @@ test('inscription libre : confirmation e-mail, validation FFSA, puis connexion',
 
   const l3 = client();
   await l3.get('/connexion');
-  const ok = await l3.post('/connexion', { email: form.email, password: PASSWORD });
+  const ok = await completeEmailCode(l3, await l3.post('/connexion', { email: form.email, password: PASSWORD }));
   assert.strictEqual(ok.location, '/organisateur');
 
   // Refus d'une autre demande, avec motif
