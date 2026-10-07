@@ -569,7 +569,10 @@
       sectionHasValues: engine.sectionHasValues, disciplineClass: disciplineClass,
     }, locals);
     var html = ejs.render(TEMPLATES[name], data, { includer: includer });
-    var doc = new DOMParser().parseFromString(html.split('"/static/').join('"static/'), 'text/html');
+    // Ressources : fichiers publiés à côté de la page, ou intégrées (version autonome en un seul fichier)
+    var assets = window.DEMO_ASSETS || {};
+    html = html.replace(/"\/static\/([^"]+)"/g, function (m, p) { return '"' + (assets[p] || 'static/' + p) + '"'; });
+    var doc = new DOMParser().parseFromString(html, 'text/html');
     doc.querySelectorAll('script').forEach(function (s) { s.remove(); });
     root.innerHTML = doc.body.innerHTML;
     document.title = (locals.title || 'FFSA') + ' – Démo FFSA';
@@ -649,7 +652,11 @@
       var r = state.requests.find(function (x) { return x.token === dm[1]; });
       if (r) { var ps = declaredPersons(accidentById(r.accident_id).data); var p = u.searchParams.get('p'); key = 'medical:' + r.accident_id + ':' + (ps.some(function (x) { return x.key === p; }) ? p : 'autre'); form = medicalForm; }
     }
-    if (!key) return realFetch ? realFetch(url, opts) : Promise.reject(new Error('fetch'));
+    if (!key) {
+      // Brouillon demandé hors session (ex. après déconnexion) : refusé, comme le ferait le serveur
+      if (/\/brouillon$/.test(u.pathname)) return Promise.resolve(new Response('{}', { status: 401, headers: { 'content-type': 'application/json' } }));
+      return realFetch ? realFetch(url, opts) : Promise.reject(new Error('fetch'));
+    }
     var data = JSON.parse((opts && opts.body) || '{}');
     state.drafts[key] = { values: engine.validate(form, data).raw, updatedAt: now() };
     save();

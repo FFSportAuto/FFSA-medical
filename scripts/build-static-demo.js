@@ -90,3 +90,34 @@ for (const f of ['logo-ffsa.png', 'favicon.png']) {
   fs.copyFileSync(path.join(ROOT, 'public/img', f), path.join(OUT, 'static/img', f));
 }
 console.log(`Démo générée dans ${path.relative(ROOT, OUT)}/ (${Math.round(html.length / 1024)} Ko)`);
+
+// ---- Version autonome : un seul fichier HTML, sans dépendance ni connexion ----
+// À ouvrir d'un double-clic, envoyer par e-mail ou déposer sur n'importe quel hébergement statique.
+const dataUri = (file, mime) => `data:${mime};base64,${fs.readFileSync(file).toString('base64')}`;
+let standaloneCss = css;
+for (const f of fs.readdirSync(path.join(ROOT, 'public/fonts')).filter((x) => x.endsWith('.woff2'))) {
+  standaloneCss = standaloneCss.split(`url(static/fonts/${f})`).join(`url(${dataUri(path.join(ROOT, 'public/fonts', f), 'font/woff2')})`);
+}
+const assets = {
+  'img/logo-ffsa.png': dataUri(path.join(ROOT, 'public/img/logo-ffsa.png'), 'image/png'),
+  'img/favicon.png': dataUri(path.join(ROOT, 'public/img/favicon.png'), 'image/png'),
+};
+const ejsLib = fs.readFileSync(path.join(ROOT, 'node_modules/ejs/ejs.min.js'), 'utf8').replace(/<\/script/gi, '<\\/script');
+const standalone = `<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="${assets['img/favicon.png']}">
+${html
+  .replace(css, () => standaloneCss)
+  .replace('<script src="https://cdn.jsdelivr.net/npm/ejs@6.0.1/ejs.min.js"></script>', () => `<script>/* EJS 6.0.1 – Apache-2.0 – https://ejs.co */\n${ejsLib}</script>\n<script>var DEMO_ASSETS = ${JSON.stringify(assets)};</script>`)
+  .replace('<div id="app"></div>', () => '</head>\n<body>\n<div id="app"></div>')}
+</body>
+</html>
+`;
+if (standalone.includes('cdn.jsdelivr') || standalone.includes('url(static/')) throw new Error('Ressource externe restante dans la version autonome');
+const STANDALONE = path.join(OUT, 'FFSA-demo-interactive.html');
+fs.writeFileSync(STANDALONE, standalone);
+console.log(`Version autonome : ${path.relative(ROOT, STANDALONE)} (${Math.round(standalone.length / 1024)} Ko)`);

@@ -76,6 +76,11 @@ au niveau d'un champ ou d'une section.
 
 ## Tester l'application (démonstration)
 
+**Démo en un seul fichier** : `npm run build:demo` produit aussi `dist-demo/FFSA-demo-interactive.html`,
+un fichier HTML **entièrement autonome** (logo, polices et moteur intégrés, aucune connexion requise).
+Il s'ouvre d'un double-clic dans n'importe quel navigateur, s'envoie par e-mail ou se dépose sur
+n'importe quel hébergement web (site de la FFSA, intranet…), sans compte ni installation.
+
 **Démo interactive en ligne** : `npm run build:demo` génère dans `dist-demo/` une version autonome
 qui s'ouvre dans un navigateur (sans serveur). Elle réutilise les vrais gabarits, formulaires, règles
 de validation et styles ; seules la base de données et l'envoi d'e-mails sont simulés (données
