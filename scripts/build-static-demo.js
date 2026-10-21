@@ -88,6 +88,9 @@ body.dn-picking #app, body.dn-picking #app * { cursor: crosshair !important; }
 .dn-hover { outline: 2px solid var(--red) !important; outline-offset: 2px; }
 body.dn-picking #demo-bar::after { content: "Cliquez sur l'élément concerné · Échap pour annuler"; position: absolute; right: 0; bottom: calc(100% + 8px); white-space: nowrap; background: var(--red); color: #fff; border-radius: 999px; padding: 8px 14px; }
 main.wrap { padding-bottom: 110px; }
+/* La barre « Précédent / Suivant » des formulaires occupe le bas de l'écran : le bandeau démo passe au-dessus */
+body:has(.step-nav) #demo-bar { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+body:has(.step-nav) #demo-guide, body:has(.step-nav) #demo-notes { bottom: calc(142px + env(safe-area-inset-bottom, 0px)); max-height: calc(100vh - 170px); }
 [data-print] { display: none !important; }
 @media (max-width: 600px) { #demo-bar span { display: none; } }
 </style>

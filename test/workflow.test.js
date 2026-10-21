@@ -19,7 +19,6 @@ const { encrypt, decryptText } = require('../src/lib/crypto');
 
 const PASSWORD = 'Motdepasse-Solide-2026';
 const PNG = Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex');
-const SIGNATURE = 'data:image/png;base64,iVBORw0KGgo=';
 
 let server;
 let base;
@@ -124,7 +123,7 @@ function accidentFormData() {
     person1_first_name: 'Jean',
     author_first_name: 'Jean',
     author_last_name: 'Directeur',
-    author_signature: SIGNATURE,
+    author_certified: '1',
     [cellName(casualties, 0, 0)]: '1',
     [cellName(casualties, 5, 0)]: '1',
   };

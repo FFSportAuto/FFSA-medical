@@ -34,7 +34,7 @@ async function seed() {
   const orga = await db.one('SELECT * FROM users WHERE email = $1', [ACCOUNTS[0].email]);
   const base = {
     doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78',
-    author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course',
+    author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_certified: true,
   };
   const done = await reports.createAccidentReport(orga, {
     ...base,

@@ -24,11 +24,13 @@ function vehicleSection(n) {
     title: n === 1 ? 'Pilote / copilote accidenté' : `Autre pilote / copilote accidenté (${n})`,
     optional: n > 1,
     shareWithDoctor: true,
+    step: 'Personnes accidentées',
+    repeat: { group: 'vehicle', addLabel: 'Ajouter un autre pilote / copilote' },
     fields: [
       { name: `${p}driver_role`, label: 'Qualité', type: 'radio', options: ['Pilote', 'Copilote'] },
       { name: `${p}driver_last_name`, label: 'Nom du pilote / copilote', type: 'text', width: 'half' },
       { name: `${p}driver_first_name`, label: 'Prénom du pilote / copilote', type: 'text', width: 'half' },
-      { name: `${p}license`, label: 'Licence n°', type: 'text', width: 'half' },
+      { name: `${p}license`, label: 'Licence n°', type: 'text', width: 'half', inputmode: 'numeric' },
       { name: `${p}number`, label: 'Concurrent n°', type: 'text', width: 'half' },
       { name: `${p}group`, label: 'Groupe', type: 'text', width: 'half' },
       { name: `${p}kart_category`, label: 'Catégorie (karting)', type: 'text', width: 'half' },
@@ -36,7 +38,7 @@ function vehicleSection(n) {
       { name: `${p}dragster_category`, label: 'Catégorie de dragster', type: 'text', width: 'half', showIf: { field: `${p}vehicle_type`, equals: 'Dragster' } },
       { name: `${p}make`, label: 'Marque', type: 'text', width: 'half' },
       { name: `${p}model`, label: 'Modèle', type: 'text', width: 'half' },
-      { name: `${p}year`, label: 'Année de construction', type: 'text', width: 'half' },
+      { name: `${p}year`, label: 'Année de construction', type: 'text', width: 'half', inputmode: 'numeric' },
     ],
   };
 }
@@ -47,10 +49,12 @@ function otherPersonSection(n) {
     title: `Autre personne accidentée (${n}) – spectateur, officiel…`,
     optional: true,
     shareWithDoctor: true,
+    step: 'Personnes accidentées',
+    repeat: { group: 'person', addLabel: 'Ajouter une autre personne accidentée (spectateur, officiel…)' },
     fields: [
       { name: `${p}last_name`, label: 'Nom', type: 'text', width: 'half' },
       { name: `${p}first_name`, label: 'Prénom', type: 'text', width: 'half' },
-      { name: `${p}license`, label: 'Licence n°', type: 'text', width: 'half' },
+      { name: `${p}license`, label: 'Licence n°', type: 'text', width: 'half', inputmode: 'numeric' },
       { name: `${p}role`, label: 'Qualité', type: 'text', width: 'half' },
       { name: `${p}address`, label: 'Adresse (si non licencié)', type: 'text', width: 'half' },
     ],
@@ -62,6 +66,8 @@ function witnessSection(n) {
   return {
     title: n === 1 ? "Témoin de l'accident" : `Autre témoin (${n})`,
     optional: n > 1,
+    step: 'Témoins',
+    repeat: { group: 'witness', addLabel: 'Ajouter un autre témoin' },
     intro:
       n === 1
         ? "À compléter OBLIGATOIREMENT si la classification médicale est de 3 à 4 et/ou en cas d'incendie. " +
@@ -71,7 +77,7 @@ function witnessSection(n) {
       { name: `${p}first_name`, label: 'Prénom', type: 'text', width: 'half' },
       { name: `${p}last_name`, label: 'Nom', type: 'text', width: 'half' },
       { name: `${p}role`, label: 'Qualité', type: 'text' },
-      { name: `${p}signature`, label: 'Signature', type: 'signature' },
+      { name: `${p}confirmed`, label: 'Le témoin a relu et confirme cette déclaration (vaut signature).', shortLabel: 'Confirmation du témoin', type: 'consent' },
     ],
   };
 }
@@ -83,7 +89,7 @@ const withOther = (name, label, options) => [
 
 module.exports = {
   id: 'accident',
-  version: 3,
+  version: 4,
   title: "Rapport d'accident",
   intro:
     "À remplir dans les 48 heures après l'accident par le directeur de course, " +
@@ -91,37 +97,8 @@ module.exports = {
     'Le rapport d’accident et le rapport médical sont transmis directement au service médical de la FFSA.',
   sections: [
     {
-      title: "Médecin de l'épreuve",
-      intro:
-        'Le rapport médical doit être rempli par le médecin de l’épreuve. ' +
-        'Renseignez ses coordonnées : le formulaire en ligne lui sera directement envoyé par e-mail.',
-      fields: [
-        { name: 'doctor_first_name', label: 'Prénom du médecin', type: 'text', required: true, width: 'half' },
-        { name: 'doctor_last_name', label: 'Nom du médecin', type: 'text', required: true, width: 'half' },
-        { name: 'doctor_email', label: 'Adresse e-mail du médecin', type: 'email', required: true, width: 'half' },
-        { name: 'doctor_phone', label: 'Téléphone portable du médecin', type: 'tel', required: true, width: 'half', help: 'Le lien lui est aussi envoyé par SMS.' },
-      ],
-    },
-    {
-      title: 'Synthèse – accident avec blessé (évacué par ambulance) ou plus grave',
-      intro: 'À remplir impérativement en cas d’accident avec blessé évacué par ambulance, ou plus grave.',
-      shareWithDoctor: true,
-      fields: [
-        { name: 'summary_victim_last_name', label: 'Nom de la personne accidentée', type: 'text', width: 'half' },
-        { name: 'summary_victim_first_name', label: 'Prénom de la personne accidentée', type: 'text', width: 'half' },
-        { name: 'summary_victim_license', label: 'N° de licence', type: 'text', width: 'half' },
-        { name: 'accident_date', label: "Date de l'accident", type: 'date', required: true, width: 'half' },
-        { name: 'accident_time', label: "Heure de l'accident", type: 'time', width: 'half' },
-        { name: 'circumstances', label: "Circonstances de l'accident", type: 'textarea', rows: 5 },
-        { name: 'heading_monday', label: "Personne de l'organisation joignable par téléphone le lundi matin", type: 'heading' },
-        { name: 'monday_contact_name', label: 'Nom et prénom', type: 'text', width: 'half' },
-        { name: 'monday_contact_phone', label: 'N° de téléphone', type: 'tel', width: 'half' },
-        { name: 'hospitalised_count', label: 'Nombre de blessés hospitalisés', type: 'number', min: 0, max: 999, width: 'half' },
-        { name: 'deaths_count', label: 'Nombre de décès éventuels', type: 'number', min: 0, max: 999, width: 'half' },
-      ],
-    },
-    {
       title: "L'épreuve",
+      step: 'Épreuve et médecin',
       shareWithDoctor: true,
       fields: [
         { name: 'league', label: 'Ligue', type: 'text', width: 'half' },
@@ -182,6 +159,38 @@ module.exports = {
         },
       ],
     },
+    {
+      title: "Médecin de l'épreuve",
+      step: 'Épreuve et médecin',
+      intro:
+        'Le rapport médical doit être rempli par le médecin de l’épreuve. ' +
+        'Renseignez ses coordonnées : le formulaire en ligne lui sera directement envoyé par e-mail.',
+      fields: [
+        { name: 'doctor_first_name', label: 'Prénom du médecin', type: 'text', required: true, width: 'half' },
+        { name: 'doctor_last_name', label: 'Nom du médecin', type: 'text', required: true, width: 'half' },
+        { name: 'doctor_email', label: 'Adresse e-mail du médecin', type: 'email', required: true, width: 'half' },
+        { name: 'doctor_phone', label: 'Téléphone portable du médecin', type: 'tel', required: true, width: 'half', help: 'Le lien lui est aussi envoyé par SMS.' },
+      ],
+    },
+    {
+      title: 'Synthèse – accident avec blessé (évacué par ambulance) ou plus grave',
+      step: "L'accident",
+      intro: 'À remplir impérativement en cas d’accident avec blessé évacué par ambulance, ou plus grave.',
+      shareWithDoctor: true,
+      fields: [
+        { name: 'summary_victim_last_name', label: 'Nom de la personne accidentée', type: 'text', width: 'half' },
+        { name: 'summary_victim_first_name', label: 'Prénom de la personne accidentée', type: 'text', width: 'half' },
+        { name: 'summary_victim_license', label: 'N° de licence', type: 'text', width: 'half', inputmode: 'numeric' },
+        { name: 'accident_date', label: "Date de l'accident", type: 'date', required: true, width: 'half', sameAs: { field: 'event_date', label: "Jour de l'épreuve" } },
+        { name: 'accident_time', label: "Heure de l'accident", type: 'time', width: 'half' },
+        { name: 'circumstances', label: "Circonstances de l'accident", type: 'textarea', rows: 5 },
+        { name: 'heading_monday', label: "Personne de l'organisation joignable par téléphone le lundi matin", type: 'heading' },
+        { name: 'monday_contact_name', label: 'Nom et prénom', type: 'text', width: 'half' },
+        { name: 'monday_contact_phone', label: 'N° de téléphone', type: 'tel', width: 'half' },
+        { name: 'hospitalised_count', label: 'Nombre de blessés hospitalisés', type: 'number', min: 0, max: 999, width: 'half' },
+        { name: 'deaths_count', label: 'Nombre de décès éventuels', type: 'number', min: 0, max: 999, width: 'half' },
+      ],
+    },
     vehicleSection(1),
     vehicleSection(2),
     vehicleSection(3),
@@ -191,6 +200,7 @@ module.exports = {
     otherPersonSection(4),
     {
       title: 'Conditions météo',
+      step: 'Conditions et équipement',
       fields: [
         ...withOther('weather', 'Conditions atmosphériques', ['Temps clair', 'Nuageux', 'Brouillard', 'Précipitations', 'Neige / Verglas', 'Grêle']),
         { name: 'temperature', label: 'Température', type: 'text', width: 'half' },
@@ -199,6 +209,7 @@ module.exports = {
     },
     {
       title: 'Type de revêtement',
+      step: 'Conditions et équipement',
       fields: [
         ...withOther('surface', 'Revêtement', ['Asphalte', 'Gravier / Terre']),
         ...withOther('track_layout', 'Configuration du tracé', ['Plat', 'En montée', 'Sommet de côte / Crête', 'En descente']),
@@ -207,6 +218,7 @@ module.exports = {
     },
     {
       title: "Étude de l'équipement",
+      step: 'Conditions et équipement',
       fields: [
         {
           name: 'equipment',
@@ -231,6 +243,7 @@ module.exports = {
     },
     {
       title: "Schéma de l'accident",
+      step: 'Schéma, secours et pièces',
       intro:
         'À compléter pour toute classification médicale. Indiquez : numéro de poste et emplacement ; numéro de licence des officiels ' +
         'présents dans la zone de l’accident ; la protection du bord de la piste ; les drapeaux et/ou signaux lumineux utilisés ' +
@@ -241,6 +254,7 @@ module.exports = {
     },
     {
       title: 'Intervention des secours',
+      step: 'Schéma, secours et pièces',
       intro:
         'À compléter OBLIGATOIREMENT si la classification médicale est de 3 à 4 et/ou en cas d’incendie. ' +
         'Joindre une copie de la main courante de la direction de course. Indiquez les personnes intervenues ' +
@@ -250,28 +264,36 @@ module.exports = {
         { name: 'rescue_observations', label: 'Observations', type: 'textarea', rows: 5 },
       ],
     },
+    {
+      title: 'Pièces à joindre',
+      step: 'Schéma, secours et pièces',
+      intro:
+        'Témoignages visuels, rapports des commissaires, du directeur de la spéciale, des responsables du service incendie ; ' +
+        'rapport des vérifications techniques effectuées sur toutes les voitures accidentées ; tout autre rapport d’expert ' +
+        'présentant un intérêt ; photos ou vidéos.',
+      fields: [{ name: 'attachments', label: 'Fichiers complémentaires', type: 'file', multiple: true }],
+    },
     witnessSection(1),
     witnessSection(2),
     witnessSection(3),
     witnessSection(4),
     {
       title: 'Rapport établi par',
+      step: 'Vérification et envoi',
       fields: [
         { name: 'author_first_name', label: 'Prénom', type: 'text', required: true, width: 'half' },
         { name: 'author_last_name', label: 'Nom', type: 'text', required: true, width: 'half' },
         { name: 'author_role', label: 'Qualité', type: 'text' },
-        { name: 'author_date', label: 'Le', type: 'date', width: 'half' },
-        { name: 'author_time', label: 'À', type: 'time', width: 'half' },
-        { name: 'author_signature', label: 'Signature', type: 'signature' },
+        { name: 'author_date', label: 'Le', type: 'date', width: 'half', autoNow: true },
+        { name: 'author_time', label: 'À', type: 'time', width: 'half', autoNow: true },
+        {
+          name: 'author_certified',
+          label: "Je certifie l'exactitude des informations de ce rapport. Cette case vaut signature : l'envoi est enregistré avec mon identité de connexion, la date et l'heure.",
+          shortLabel: 'Certification du rapport (vaut signature)',
+          type: 'consent',
+          required: true,
+        },
       ],
-    },
-    {
-      title: 'Pièces à joindre',
-      intro:
-        'Témoignages visuels, rapports des commissaires, du directeur de la spéciale, des responsables du service incendie ; ' +
-        'rapport des vérifications techniques effectuées sur toutes les voitures accidentées ; tout autre rapport d’expert ' +
-        'présentant un intérêt ; photos ou vidéos.',
-      fields: [{ name: 'attachments', label: 'Fichiers complémentaires', type: 'file', multiple: true }],
     },
   ],
 };

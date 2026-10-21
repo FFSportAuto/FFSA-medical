@@ -13,15 +13,15 @@
     <% } %>
   </div>
 <% } %>
-<form method="post" action="<%= action %>" enctype="multipart/form-data" class="dyn-form" novalidate<% if (hasDraft) { %> data-draft-url="<%= draftUrl %>"<% } %>>
+<form method="post" action="<%= action %>" enctype="multipart/form-data" class="dyn-form" novalidate<% if (form.sections.some(function (s) { return s.step; })) { %> data-stepper<% } %><% if (hasDraft) { %> data-draft-url="<%= draftUrl %>"<% } %>>
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <% form.sections.forEach(function (section, i) { %>
     <% const showIf = section.showIf ? JSON.stringify(section.showIf) : ''; %>
     <% if (section.optional) { %>
-      <details class="card section optional" <%= sectionHasValues(section, values) ? 'open' : '' %> <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
+      <details class="card section optional" <%= sectionHasValues(section, values) ? 'open' : '' %><%- include('section-attrs', { section }) %> <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
         <summary><span><span class="eyebrow">Section <%= i + 1 %> · facultatif</span><span class="legend-title"><%= section.title %></span></span></summary>
     <% } else { %>
-      <fieldset class="card section" <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
+      <fieldset class="card section"<%- include('section-attrs', { section }) %> <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
         <legend><span class="eyebrow">Section <%= i + 1 %></span><span class="legend-title"><%= section.title %></span></legend>
     <% } %>
       <% if (section.intro) { %><p class="muted section-intro"><%= section.intro %></p><% } %>

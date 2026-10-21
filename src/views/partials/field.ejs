@@ -3,11 +3,14 @@
   const err = errors[field.name];
   const id = 'f_' + field.name;
   const showIf = field.showIf ? JSON.stringify(field.showIf) : '';
+  // Listes courtes affichées en pastilles (choix unique), plus rapides au doigt qu'une liste déroulante
+  const asPills = field.type === 'select' && field.options.length <= 5;
+  const isName = /(^|_)(first_name|last_name|name)$/.test(field.name);
 %>
 <% if (field.type === 'heading') { %>
 <h4 class="subheading"><%= field.label %></h4>
 <% } else { %>
-<div class="field <%= field.width || '' %> <%= err ? 'has-error' : '' %>" <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
+<div class="field <%= field.width || '' %> <%= err ? 'has-error' : '' %>" data-field="<%= field.name %>" data-type="<%= asPills ? 'radio' : field.type %>"<% if (field.shortLabel) { %> data-label="<%= field.shortLabel %>"<% } %><% if (field.required) { %> data-required<% } %><% if (field.pattern) { %> data-pattern="<%= field.pattern %>" data-pattern-message="<%= field.patternMessage || 'Format invalide.' %>"<% } %> <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
   <% if (field.type === 'matrix') { %>
     <span class="label"><%= field.label %><% if (field.required) { %> <abbr title="obligatoire">*</abbr><% } %></span>
     <div class="matrix-wrap">
@@ -26,7 +29,7 @@
                   <% field.cell.options.forEach(function (o) { %><option <%= cv === o ? 'selected' : '' %>><%= o %></option><% }) %>
                 </select>
               <% } else { %>
-                <input type="<%= field.cell.type === 'number' ? 'number' : 'text' %>" name="<%= name %>" value="<%= cv %>" aria-label="<%= row %> – <%= col %>" <% if (field.cell.type === 'number') { %>min="<%= field.cell.min %>" max="<%= field.cell.max %>"<% } %>>
+                <input type="<%= field.cell.type === 'number' ? 'number' : 'text' %>" name="<%= name %>" value="<%= cv %>" aria-label="<%= row %> – <%= col %>" <% if (field.cell.type === 'number') { %>min="<%= field.cell.min %>" max="<%= field.cell.max %>" inputmode="numeric"<% } %> enterkeyhint="next">
               <% } %>
             </td>
           <% }) %>
@@ -38,7 +41,7 @@
   <% } else if (field.type === 'consent') { %>
     <label class="check consent"><input type="checkbox" name="<%= field.name %>" value="1" <%= v ? 'checked' : '' %>> <span><%= field.label %><% if (field.required) { %> <abbr title="obligatoire">*</abbr><% } %></span></label>
   <% } else { %>
-    <% if (['radio', 'checkboxes'].includes(field.type)) { %>
+    <% if (['radio', 'checkboxes'].includes(field.type) || asPills) { %>
       <span class="label" id="<%= id %>_label"><%= field.label %><% if (field.required) { %> <abbr title="obligatoire">*</abbr><% } %></span>
     <% } else { %>
       <label class="label" for="<%= id %>"><%= field.label %><% if (field.required) { %> <abbr title="obligatoire">*</abbr><% } %></label>
@@ -49,11 +52,20 @@
         <% if (field.placeholder) { %>placeholder="<%= field.placeholder %>"<% } %>
         <% if (field.min !== undefined) { %>min="<%= field.min %>"<% } %>
         <% if (field.max !== undefined) { %>max="<%= field.max %>"<% } %>
-        <% if (field.type === 'number') { %>step="any"<% } %>
-        <% if (field.type === 'email') { %>autocomplete="off"<% } %>
+        <% if (field.type === 'number') { %>step="any" inputmode="<%= field.inputmode || 'numeric' %>"<% } else if (field.inputmode) { %>inputmode="<%= field.inputmode %>"<% } %>
+        <% if (['email', 'tel'].includes(field.type) || field.inputmode) { %>autocapitalize="off" spellcheck="false"<% } else if (isName) { %>autocapitalize="words" spellcheck="false"<% } %>
+        <% if (field.sameAs) { %>data-same-as="<%= field.sameAs.field %>" data-same-as-label="<%= field.sameAs.label %>"<% } %>
+        <% if (field.autoNow) { %>data-auto-now<% } %>
+        autocomplete="off" enterkeyhint="next"
         data-required="<%= field.required ? 1 : 0 %>">
     <% } else if (field.type === 'textarea') { %>
       <textarea id="<%= id %>" name="<%= field.name %>" rows="<%= field.rows || 4 %>" data-required="<%= field.required ? 1 : 0 %>"><%= v ?? '' %></textarea>
+    <% } else if (asPills) { %>
+      <div class="choices" role="radiogroup" aria-labelledby="<%= id %>_label">
+        <% field.options.forEach(function (o) { %>
+          <label class="check"><input type="radio" name="<%= field.name %>" value="<%= o %>" <%= v === o ? 'checked' : '' %>> <span><%= o %></span></label>
+        <% }) %>
+      </div>
     <% } else if (field.type === 'select') { %>
       <select id="<%= id %>" name="<%= field.name %>" data-required="<%= field.required ? 1 : 0 %>">
         <option value="">— Choisir —</option>

@@ -28,6 +28,22 @@ test('champs obligatoires et conditions', () => {
   assert.ok(m.errors.patient_last_name);
 });
 
+test('signature par case à cocher et formulaires en étapes', () => {
+  assert.strictEqual(engine.validate(accidentForm, {}).errors.author_certified, 'Champ obligatoire.');
+  const { values, errors } = engine.validate(accidentForm, { author_certified: '1', witness1_confirmed: '1' });
+  assert.strictEqual(errors.author_certified, undefined);
+  assert.strictEqual(values.author_certified, true);
+  assert.strictEqual(values.witness1_confirmed, true);
+  assert.ok(!engine.allFields(accidentForm).some((f) => f.type === 'signature'));
+  // Chaque section appartient à une étape, et les étapes se suivent sans se mélanger
+  for (const form of [accidentForm, medicalForm]) {
+    const steps = form.sections.map((s) => s.step);
+    assert.ok(steps.every(Boolean), form.id);
+    const order = steps.filter((s, i) => s !== steps[i - 1]);
+    assert.strictEqual(new Set(order).size, order.length, form.id);
+  }
+});
+
 test('les valeurs des champs masqués sont ignorées', () => {
   const { values } = engine.validate(medicalForm, {
     unfit: 'Oui (suspension de licence)',

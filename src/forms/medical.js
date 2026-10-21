@@ -9,12 +9,13 @@ const injuryCell = { type: 'select', options: INJURY_CODES };
 
 module.exports = {
   id: 'medical',
-  version: 2,
+  version: 3,
   title: "Rapport médical d'épreuve",
   intro: 'À remplir dans les 48 heures après l’accident par le médecin. Merci de remplir un formulaire par patient consulté.',
   sections: [
     {
       title: "L'épreuve",
+      step: 'Épreuve et patient',
       fields: [
         { name: 'date', label: 'Date', type: 'date', width: 'half', prefill: (a) => a.accident_date },
         { name: 'time', label: 'Heure', type: 'time', width: 'half', prefill: (a) => a.accident_time },
@@ -27,11 +28,12 @@ module.exports = {
     },
     {
       title: 'Patient',
+      step: 'Épreuve et patient',
       fields: [
         { name: 'patient_type', label: 'Type', type: 'checkboxes', options: ['Pilote', 'Copilote', 'Officiel', 'Spectateur'] },
         { name: 'patient_last_name', label: 'Nom', type: 'text', required: true, width: 'half' },
         { name: 'patient_first_name', label: 'Prénom', type: 'text', required: true, width: 'half' },
-        { name: 'license', label: 'N° de licence', type: 'text', width: 'half' },
+        { name: 'license', label: 'N° de licence', type: 'text', width: 'half', inputmode: 'numeric' },
         { name: 'crew_number', label: "N° d'équipage", type: 'text', width: 'half' },
         { name: 'birthdate', label: 'Date de naissance', type: 'date', width: 'half' },
         { name: 'nationality', label: 'Nationalité', type: 'text', width: 'half' },
@@ -41,6 +43,7 @@ module.exports = {
     },
     {
       title: 'Circonstances et bilan',
+      step: 'Circonstances et bilan',
       fields: [
         {
           name: 'conditions',
@@ -50,22 +53,23 @@ module.exports = {
         },
         { name: 'heading_hemo', label: 'Bilan hémodynamique', type: 'heading' },
         { name: 'bp', label: 'TA', type: 'text', width: 'third' },
-        { name: 'pulse', label: 'Pouls', type: 'text', width: 'third' },
+        { name: 'pulse', label: 'Pouls', type: 'text', width: 'third', inputmode: 'numeric' },
         { name: 'hemo_other', label: 'Autre', type: 'text', width: 'third' },
         { name: 'heading_resp', label: 'Bilan respiratoire', type: 'heading' },
-        { name: 'resp_rate', label: 'Fréquence', type: 'text', width: 'half' },
-        { name: 'sao2', label: 'SaO2', type: 'text', width: 'half' },
+        { name: 'resp_rate', label: 'Fréquence', type: 'text', width: 'half', inputmode: 'numeric' },
+        { name: 'sao2', label: 'SaO2', type: 'text', width: 'half', inputmode: 'numeric' },
         { name: 'coloration', label: 'Coloration', type: 'select', width: 'half', options: ['Normal', 'Cyanose', 'Pâleur'] },
         { name: 'rib_injury', label: 'Lésions costales', type: 'select', width: 'half', options: YES_NO },
         { name: 'heading_neuro', label: 'Bilan neurologique', type: 'heading' },
         { name: 'tc', label: 'TC', type: 'text', width: 'half' },
         { name: 'pci', label: 'PCI', type: 'select', width: 'half', options: YES_NO },
-        { name: 'glasgow', label: 'Glasgow', type: 'text', width: 'half' },
+        { name: 'glasgow', label: 'Glasgow', type: 'text', width: 'half', inputmode: 'numeric' },
         { name: 'neuro_other', label: 'Autre', type: 'text', width: 'half' },
       ],
     },
     {
       title: 'Localisation(s) apparente(s) et type(s) de blessure(s)',
+      step: 'Blessures',
       intro:
         'Indiquer par une lettre le type de blessure dans la ou les cases correspondantes : C : contusion · D : dermabrasion · ' +
         'E : entorse · F : fracture · H : hématome · L : luxation · P : plaie · B : brûlure.',
@@ -92,6 +96,7 @@ module.exports = {
     },
     {
       title: 'Conduite à tenir',
+      step: 'Conduite à tenir',
       fields: [
         { name: 'decision', label: 'Décision prise', type: 'checkboxes', options: ['Traitement sur place', 'Évacuation urgente', 'Évacuation non urgente', 'Imagerie'] },
         { name: 'heading_onsite', label: 'Sur place', type: 'heading' },
@@ -112,6 +117,7 @@ module.exports = {
     },
     {
       title: 'Conclusion',
+      step: 'Conclusion',
       fields: [
         {
           name: 'classification',
@@ -139,10 +145,16 @@ module.exports = {
           options: ['Apte à reprendre', 'Inapte à reprendre'],
           showIf: { field: 'unfit', equals: 'Non (pas de suspension de licence)' },
         },
+        { name: 'comments', label: 'Commentaires libres', type: 'textarea', rows: 4 },
+      ],
+    },
+    {
+      title: 'Médecin',
+      step: 'Vérification et envoi',
+      fields: [
         { name: 'doctor_name', label: 'Nom du médecin', type: 'text', required: true, width: 'half', prefill: (a) => [a.doctor_first_name, a.doctor_last_name].filter(Boolean).join(' ') },
         { name: 'doctor_phone', label: 'Téléphone', type: 'tel', width: 'half' },
-        { name: 'rpps', label: "N° Conseil de l'Ordre ou RPPS", type: 'text', width: 'half' },
-        { name: 'comments', label: 'Commentaires libres', type: 'textarea', rows: 4 },
+        { name: 'rpps', label: "N° Conseil de l'Ordre ou RPPS", type: 'text', width: 'half', inputmode: 'numeric' },
       ],
     },
   ],

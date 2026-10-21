@@ -1,30 +1,6 @@
 'use strict';
 
 // Dossier fictif complet, utilisé par les tests et pour produire des PDF d'exemple.
-// Signature : petit tracé PNG généré (aucune donnée réelle).
-const zlib = require('zlib');
-
-function signaturePng() {
-  const w = 160, h = 50;
-  const raw = Buffer.alloc((w * 3 + 1) * h, 255);
-  for (let x = 10; x < 150; x++) {
-    const y = Math.round(25 + 12 * Math.sin(x / 9));
-    for (const dy of [0, 1]) {
-      const o = (y + dy) * (w * 3 + 1) + 1 + x * 3;
-      raw[o] = 20; raw[o + 1] = 30; raw[o + 2] = 80;
-    }
-  }
-  for (let r = 0; r < h; r++) raw[r * (w * 3 + 1)] = 0;
-  const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
-  const crc = (b) => { let c = 0xffffffff; for (const x of b) c = crcTable[(c ^ x) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
-  const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([len, td, c]); };
-  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
-  const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
-  return 'data:image/png;base64,' + png.toString('base64');
-}
-
-const SIG = signaturePng();
-
 const accident = {
   id: '00000000-0000-4000-8000-000000000001',
   reference: 'ACC-2026-00042',
@@ -49,9 +25,9 @@ const accident = {
     },
     equipment_comments: 'Harnais à vérifier par les commissaires techniques.',
     rescue_observations: '11:20 accident – 11:21 drapeau rouge – 11:23 arrivée VIR et médecin – 11:31 extraction – 11:48 départ ambulance.',
-    witness1_first_name: 'Paul', witness1_last_name: 'Lefèvre', witness1_role: 'Commissaire poste 4', witness1_signature: SIG,
+    witness1_first_name: 'Paul', witness1_last_name: 'Lefèvre', witness1_role: 'Commissaire poste 4', witness1_confirmed: true,
     witness2_first_name: 'Anne', witness2_last_name: 'Roux', witness2_role: 'Spectatrice',
-    author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_date: '2026-10-04', author_time: '13:05', author_signature: SIG,
+    author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_date: '2026-10-04', author_time: '13:05', author_certified: true,
   },
 };
 

@@ -38,7 +38,7 @@ function createApp() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          imgSrc: ["'self'", 'data:'],
+          imgSrc: ["'self'", 'data:', 'blob:'], // blob: aperçu local des photos avant envoi
           scriptSrc: ["'self'"],
           styleSrc: ["'self'"],
           formAction: ["'self'"],

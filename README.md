@@ -69,10 +69,19 @@ la validation (serveur), les champs conditionnels, l'affichage back office et l'
 découlent automatiquement : **pour ajouter, retirer ou renommer un champ, il suffit de modifier ces fichiers.**
 
 Types disponibles : `text`, `textarea`, `email`, `tel`, `date`, `time`, `number`, `select`, `radio`,
-`checkboxes`, `consent`, `file`, `signature`, `matrix` (tableau lignes × colonnes), `heading` (sous-titre).
+`checkboxes`, `consent`, `file`, `signature` (tracé, non utilisé actuellement), `matrix` (tableau lignes × colonnes), `heading` (sous-titre).
 Une section peut être `optional` (repliée par défaut) ou `shareWithDoctor` (montrée au médecin). Conditions d'affichage :
 `showIf: { field, equals }`, `{ field, in: [...] }`, `{ field, includes }` (cases à cocher),
 au niveau d'un champ ou d'une section.
+
+Saisie (web et mobile) :
+- `step: 'Libellé'` sur chaque section regroupe les sections consécutives en étapes. On obtient une barre de progression, un sommaire cliquable, des boutons « Précédent / Suivant » fixés en bas de l'écran et un récapitulatif avant l'envoi.
+- `repeat: { group, addLabel }` affiche un bloc facultatif (pilote, personne, témoin) seulement après un clic sur « + Ajouter… ».
+- Champs : `inputmode` (clavier adapté), `sameAs: { field, label }` (bouton « Jour de l'épreuve »…), `autoNow` (date ou heure remplie à la dernière étape), `shortLabel` (libellé court dans le récapitulatif).
+- Un `select` d'au plus 5 choix s'affiche en pastilles.
+- La signature est une case `consent` (« vaut signature »), associée au compte connecté et à l'horodatage de l'envoi.
+- Sur mobile, les photos se prennent directement avec l'appareil. Au-delà de 1,5 Mo, elles sont réduites dans le navigateur avant l'envoi.
+- Sans JavaScript, le formulaire reste une page unique validée par le serveur.
 
 ## Tester l'application (démonstration)
 
@@ -99,7 +108,7 @@ En local : `npm run demo`. Le mode démo (`DEMO_MODE=true`) ne doit **jamais** �
 Dans le back office, chaque dossier se télécharge en PDF : **dossier complet**, **rapport d'accident**
 ou **rapport(s) médical(aux)** (un patient par page). La mise en page reprend le modèle FFSA issu de
 Jotform : en-tête logo + date, titres bleu marine, rubriques soulignées, filets bleus entre pilotes,
-personnes et témoins, signatures, pied de page FFSA (`src/lib/pdf.js`, ressources dans `assets/pdf/`).
+personnes et témoins, certifications (cases « vaut signature »), pied de page FFSA (`src/lib/pdf.js`, ressources dans `assets/pdf/`).
 Génération sur le serveur (pdfkit), sans service externe ; chaque téléchargement est tracé dans l'audit.
 
 ## Charte graphique
@@ -148,5 +157,5 @@ src/
   lib/          chiffrement, mots de passe, TOTP, e-mails, audit
   db/           schéma SQL et migration
   views/        gabarits EJS
-public/         CSS et JS (champs conditionnels, signature)
+public/         CSS et JS (champs conditionnels, étapes, vérification en direct, photos)
 ```
