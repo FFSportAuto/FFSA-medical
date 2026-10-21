@@ -52,6 +52,41 @@ ${css}
 #demo-guide ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
 #demo-guide li::marker { color: var(--red); font-weight: 700; }
 #demo-guide b { color: var(--navy); }
+#demo-bar .notes-btn { position: relative; }
+#demo-notes-count { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #fff; color: var(--navy); font-size: 10px; line-height: 18px; text-align: center; }
+#demo-notes { position: fixed; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); z-index: 50; width: min(400px, calc(100vw - 32px)); max-height: calc(100vh - 110px); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 12px 40px rgba(7, 14, 71, .22); font-size: 13.5px; }
+#demo-notes[hidden] { display: none; }
+#demo-notes .dn-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 0; }
+#demo-notes h2 { font-size: 17px; margin: 0; }
+#demo-notes .dn-close { background: none; border: 0; font-size: 22px; line-height: 1; color: var(--muted); cursor: pointer; padding: 4px; }
+#demo-notes .dn-form { padding: 10px 20px 14px; border-bottom: 1px solid var(--border); display: grid; gap: 8px; }
+#demo-notes .dn-screen { color: var(--muted); font-size: 12.5px; }
+#demo-notes .dn-screen b { color: var(--navy); }
+#demo-notes textarea, #demo-notes input { width: 100%; box-sizing: border-box; font: inherit; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--surface); color: inherit; }
+#demo-notes textarea { min-height: 76px; resize: vertical; }
+#demo-notes .dn-target { display: flex; gap: 8px; align-items: center; background: rgba(229, 0, 30, .07); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; }
+#demo-notes .dn-target span { flex: 1; }
+#demo-notes .dn-target[hidden] { display: none; }
+#demo-notes .dn-target button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 16px; }
+#demo-notes .dn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+#demo-notes .dn-row button { font: 600 12px/1 var(--font); border-radius: 999px; padding: 9px 14px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--navy); }
+#demo-notes .dn-row button.dn-primary { background: var(--red); border-color: var(--red); color: #fff; }
+#demo-notes .dn-row button.dn-confirm { background: var(--navy); border-color: var(--navy); color: #fff; }
+#demo-notes .dn-hint { color: var(--muted); font-size: 11.5px; }
+#demo-notes-list { list-style: none; margin: 0; padding: 6px 20px; overflow: auto; flex: 1; min-height: 60px; }
+#demo-notes-list li { padding: 10px 0; border-bottom: 1px solid var(--border); }
+#demo-notes-list li:last-child { border-bottom: 0; }
+#demo-notes-list .dn-meta { font-size: 12px; color: var(--muted); }
+#demo-notes-list .dn-meta b { color: var(--navy); }
+#demo-notes-list .dn-el { font-size: 12px; color: var(--red); margin-top: 2px; }
+#demo-notes-list .dn-text { white-space: pre-wrap; margin-top: 4px; }
+#demo-notes-list .dn-actions { display: flex; gap: 14px; margin-top: 4px; font-size: 12px; }
+#demo-notes-list .dn-empty { color: var(--muted); border: 0; }
+#demo-notes .dn-foot { padding: 12px 20px 16px; border-top: 1px solid var(--border); }
+#demo-notes-status { color: var(--muted); font-size: 12px; }
+body.dn-picking #app, body.dn-picking #app * { cursor: crosshair !important; }
+.dn-hover { outline: 2px solid var(--red) !important; outline-offset: 2px; }
+body.dn-picking #demo-bar::after { content: "Cliquez sur l'élément concerné · Échap pour annuler"; position: absolute; right: 0; bottom: calc(100% + 8px); white-space: nowrap; background: var(--red); color: #fff; border-radius: 999px; padding: 8px 14px; }
 main.wrap { padding-bottom: 110px; }
 [data-print] { display: none !important; }
 @media (max-width: 600px) { #demo-bar span { display: none; } }
@@ -67,7 +102,23 @@ main.wrap { padding-bottom: 110px; }
     <li>Déconnectez-vous et entrez avec le compte <b>Service médical</b> (le code de double authentification est affiché) pour consulter le dossier.</li>
   </ol>
 </aside>
-<div id="demo-bar"><span>Démo interactive · données fictives</span><button type="button" class="ghost-btn" id="demo-help" aria-expanded="false" aria-controls="demo-guide">Comment tester</button><button type="button" id="demo-reset">Réinitialiser</button></div>
+<section id="demo-notes" hidden aria-labelledby="demo-notes-title">
+  <div class="dn-head"><h2 id="demo-notes-title">Notes de réunion</h2><button type="button" class="dn-close" id="demo-notes-close" aria-label="Fermer">×</button></div>
+  <div class="dn-form">
+    <div class="dn-screen">Écran : <b id="demo-note-screen"></b></div>
+    <div class="dn-target" id="demo-note-target" hidden>Élément : <span></span><button type="button" aria-label="Retirer l'élément">×</button></div>
+    <textarea id="demo-note-text" placeholder="Votre remarque sur cet écran (modification, question, idée…)"></textarea>
+    <input id="demo-note-author" placeholder="Votre nom (facultatif)" autocomplete="name">
+    <div class="dn-row"><button type="button" class="dn-primary" id="demo-note-add">Ajouter la note</button><button type="button" id="demo-note-pick">Désigner un élément</button></div>
+    <div class="dn-hint">Ctrl + Entrée pour ajouter. Les notes sont gardées dans ce navigateur, même après « Réinitialiser ».</div>
+  </div>
+  <ol id="demo-notes-list"></ol>
+  <div class="dn-foot">
+    <div class="dn-row"><button type="button" class="dn-primary" id="demo-notes-download">Télécharger (.txt)</button><button type="button" id="demo-notes-copy">Copier</button><button type="button" id="demo-notes-clear">Tout effacer</button></div>
+    <div id="demo-notes-status" role="status" aria-live="polite"></div>
+  </div>
+</section>
+<div id="demo-bar"><span>Démo interactive · données fictives</span><button type="button" class="ghost-btn notes-btn" id="demo-notes-btn" aria-expanded="false" aria-controls="demo-notes">Notes<b id="demo-notes-count" hidden></b></button><button type="button" class="ghost-btn" id="demo-help" aria-expanded="false" aria-controls="demo-guide">Comment tester</button><button type="button" id="demo-reset">Réinitialiser</button></div>
 <script src="https://cdn.jsdelivr.net/npm/ejs@6.0.1/ejs.min.js"></script>
 <script>
 var TEMPLATES = ${safeJson(templates)};

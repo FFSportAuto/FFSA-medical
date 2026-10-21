@@ -684,6 +684,159 @@
     go('GET', '/connexion');
   });
 
+  // ---------- Notes de réunion : remarques rattachées à l'écran affiché, exportables ----------
+  // Conservées à part des données de démo : « Réinitialiser » ne les efface pas.
+  var NOTES_KEY = KEY + '-notes';
+  var notes = [];
+  try { notes = JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); } catch (e) { notes = []; }
+  var notesPanel = document.getElementById('demo-notes');
+  var notesBtn = document.getElementById('demo-notes-btn');
+  var notesCount = document.getElementById('demo-notes-count');
+  var noteText = document.getElementById('demo-note-text');
+  var noteAuthor = document.getElementById('demo-note-author');
+  var noteScreen = document.getElementById('demo-note-screen');
+  var noteTarget = document.getElementById('demo-note-target');
+  var notesList = document.getElementById('demo-notes-list');
+  var notesStatus = document.getElementById('demo-notes-status');
+  var pickedElement = '';
+  try { noteAuthor.value = localStorage.getItem(NOTES_KEY + '-author') || ''; } catch (e) { /* ignore */ }
+  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var ROLES = { organizer: 'Organisateur', medical: 'Service médical', admin: 'Administrateur' };
+  function screenInfo() {
+    var h = root.querySelector('h1');
+    var u = currentUser();
+    return {
+      screen: (h ? h.textContent : document.title.replace(/ – Démo FFSA$/, '')).replace(/\s+/g, ' ').trim(),
+      path: state.lastUrl || currentPath,
+      role: /^\/medecin\//.test(currentPath) ? 'Médecin' : u ? ROLES[u.role] || u.role : 'Non connecté',
+    };
+  }
+  function saveNotes() { try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); } catch (e) { /* ignore */ } }
+  function refreshNotes() {
+    var si = screenInfo();
+    noteScreen.textContent = si.screen + ' · ' + si.role;
+    noteTarget.hidden = !pickedElement;
+    noteTarget.querySelector('span').textContent = pickedElement;
+    notesCount.textContent = notes.length ? String(notes.length) : '';
+    notesCount.hidden = !notes.length;
+    notesList.innerHTML = notes.length ? notes.map(function (n, i) {
+      return '<li><div class="dn-meta"><b>' + (i + 1) + '. ' + esc(n.screen) + '</b> · ' + esc(n.role) + (n.author ? ' · ' + esc(n.author) : '') + '</div>'
+        + (n.element ? '<div class="dn-el">Élément : ' + esc(n.element) + '</div>' : '')
+        + '<div class="dn-text">' + esc(n.text) + '</div>'
+        + '<div class="dn-actions"><a href="#" data-note-go="' + i + '">Revoir l\'écran</a><a href="#" data-note-del="' + i + '">Supprimer</a></div></li>';
+    }).join('') : '<li class="dn-empty">Aucune note pour l\'instant.</li>';
+  }
+  function toggleNotes(open) {
+    notesPanel.hidden = !open;
+    notesBtn.setAttribute('aria-expanded', String(open));
+    if (open) { toggleGuide(false); refreshNotes(); noteText.focus(); }
+  }
+  notesBtn.addEventListener('click', function () { toggleNotes(notesPanel.hidden); });
+  document.getElementById('demo-notes-close').addEventListener('click', function () { toggleNotes(false); });
+  help.addEventListener('click', function () { if (!guide.hidden) toggleNotes(false); });
+  function addNote() {
+    var text = noteText.value.trim();
+    if (!text) { noteText.focus(); return; }
+    var si = screenInfo();
+    notes.push({ at: now(), screen: si.screen, path: si.path, role: si.role, element: pickedElement, author: noteAuthor.value.trim(), text: text });
+    saveNotes();
+    noteText.value = ''; pickedElement = '';
+    refreshNotes();
+    notesList.lastElementChild.scrollIntoView({ block: 'nearest' });
+    flash('Note ajoutée.');
+  }
+  document.getElementById('demo-note-add').addEventListener('click', addNote);
+  noteText.addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addNote(); } });
+  noteAuthor.addEventListener('change', function () { try { localStorage.setItem(NOTES_KEY + '-author', noteAuthor.value.trim()); } catch (e) { /* ignore */ } });
+  noteTarget.querySelector('button').addEventListener('click', function () { pickedElement = ''; refreshNotes(); });
+  notesList.addEventListener('click', function (e) {
+    var a = e.target.closest('a');
+    if (!a) return;
+    e.preventDefault();
+    if (a.hasAttribute('data-note-del')) { notes.splice(+a.getAttribute('data-note-del'), 1); saveNotes(); refreshNotes(); }
+    if (a.hasAttribute('data-note-go')) { go('GET', notes[+a.getAttribute('data-note-go')].path); refreshNotes(); }
+  });
+  var flashTimer;
+  function flash(msg) { notesStatus.textContent = msg; clearTimeout(flashTimer); flashTimer = setTimeout(function () { notesStatus.textContent = ''; }, 3000); }
+
+  // Désigner un élément de l'écran (bouton, champ, titre…) auquel rattacher la note
+  var picking = false, hovered = null;
+  function describe(el) {
+    var field = el.closest('.field, label, fieldset');
+    var lab = field && (field.querySelector('label, legend') || field);
+    var txt = (lab && lab !== root ? lab.textContent : '') || el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.textContent || el.getAttribute('value') || '';
+    txt = txt.replace(/\s+/g, ' ').trim();
+    if (!txt) txt = el.tagName.toLowerCase();
+    return txt.length > 90 ? txt.slice(0, 87) + '…' : txt;
+  }
+  function setHover(el) { if (hovered) hovered.classList.remove('dn-hover'); hovered = el; if (el) el.classList.add('dn-hover'); }
+  function stopPicking() { picking = false; setHover(null); document.body.classList.remove('dn-picking'); }
+  document.getElementById('demo-note-pick').addEventListener('click', function () {
+    picking = true;
+    document.body.classList.add('dn-picking');
+    notesPanel.hidden = true;
+    flash('');
+  });
+  root.addEventListener('mouseover', function (e) { if (picking) setHover(e.target.closest('button, a, input, select, textarea, label, h1, h2, h3, th, td, p, li, .card, .field') || e.target); });
+  document.addEventListener('click', function (e) {
+    if (!picking || !root.contains(e.target)) return;
+    e.preventDefault(); e.stopPropagation();
+    pickedElement = describe(e.target.closest('button, a, input, select, textarea, label, h1, h2, h3, th, td, p, li, .card, .field') || e.target);
+    stopPicking();
+    toggleNotes(true);
+  }, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && picking) { stopPicking(); toggleNotes(true); } });
+
+  // Export : texte lisible, à coller dans un e-mail ou à transmettre pour les modifications
+  function exportText() {
+    var d = new Date();
+    var lines = ['Notes sur la démo FFSA Médical', 'Exportées le ' + d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' · ' + notes.length + ' note(s)', ''];
+    notes.forEach(function (n, i) {
+      lines.push((i + 1) + '. ' + n.screen + ' (' + n.role + ')');
+      lines.push('   Écran : ' + n.path);
+      if (n.element) lines.push('   Élément : ' + n.element);
+      if (n.author) lines.push('   Par : ' + n.author);
+      lines.push('   Le ' + new Date(n.at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }));
+      n.text.split('\n').forEach(function (l) { lines.push('   ' + l); });
+      lines.push('');
+    });
+    return lines.join('\n');
+  }
+  document.getElementById('demo-notes-download').addEventListener('click', function () {
+    if (!notes.length) return flash('Aucune note à exporter.');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + exportText()], { type: 'text/plain;charset=utf-8' }));
+    a.download = 'notes-demo-ffsa-' + new Date().toISOString().slice(0, 10) + '.txt';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    flash('Fichier téléchargé.');
+  });
+  document.getElementById('demo-notes-copy').addEventListener('click', function () {
+    if (!notes.length) return flash('Aucune note à copier.');
+    var text = exportText();
+    var fallback = function () {
+      var t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select();
+      try { document.execCommand('copy'); flash('Notes copiées.'); } catch (e) { flash('Copie impossible : utilisez Télécharger.'); }
+      t.remove();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { flash('Notes copiées.'); }, fallback);
+    else fallback();
+  });
+  // Effacement en deux clics (les fenêtres natives peuvent être bloquées selon l'hébergement)
+  var clearBtn = document.getElementById('demo-notes-clear'), clearTimer;
+  clearBtn.addEventListener('click', function () {
+    if (!notes.length) return;
+    if (!clearBtn.classList.contains('dn-confirm')) {
+      clearBtn.classList.add('dn-confirm'); clearBtn.textContent = 'Confirmer ?';
+      clearTimer = setTimeout(function () { clearBtn.classList.remove('dn-confirm'); clearBtn.textContent = 'Tout effacer'; }, 4000);
+      return;
+    }
+    clearTimeout(clearTimer); clearBtn.classList.remove('dn-confirm'); clearBtn.textContent = 'Tout effacer';
+    notes = []; saveNotes(); refreshNotes(); flash('Notes effacées.');
+  });
+  var renderBase = render;
+  render = function (name, locals) { renderBase(name, locals); if (!notesPanel.hidden || notes.length) refreshNotes(); };
+
   state = load();
   if (!state || !state.users || !state.drafts || !state.users.some(function (x) { return x.approval_status; })) seed(); // données d'une ancienne version : on repart à zéro
   go('GET', state.lastUrl || '/connexion');
