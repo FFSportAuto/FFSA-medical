@@ -6,14 +6,14 @@ Fédération Française du Sport Automobile, conçue pour être hébergée sur u
 ## Workflow
 
 ```
-Organisateur ──(1) rapport d'accident──▶ Application ──(2) e-mail lien sécurisé──▶ Médecin
-                                           │                                          │
-                                           │◀──────(3) rapport médical (code e-mail)──┘
-                                           │
-                                           └──(e-mails)──▶ Service médical FFSA ──▶ Back office
+Directeur de course ──(1) rapport d'accident──▶ Application ──(2) e-mail lien sécurisé──▶ Médecin
+                                                  │                                          │
+                                                  │◀──────(3) rapport médical (code e-mail)──┘
+                                                  │
+                                                  └──(e-mails)──▶ Service médical FFSA ──▶ Back office
 ```
 
-1. L'**organisateur** / directeur de course (compte créé par la FFSA) remplit le rapport d'accident
+1. Le **directeur de course** (compte licencié FFSA ou inscription validée par la FFSA) remplit le rapport d'accident
    (jusqu'à 3 pilotes/copilotes, 4 autres personnes et 4 témoins), dont les coordonnées du médecin de l'épreuve.
 2. Le **médecin** reçoit un e-mail contenant un lien personnel (valable 14 jours, relance automatique
    après 48 h). À l'ouverture, un code à usage unique lui est envoyé par e-mail ; il n'a pas besoin de compte.
@@ -52,7 +52,7 @@ Configuration et informations à demander à la DSI : [`docs/SSO.md`](docs/SSO.m
 
 | Rôle | Accès |
 |---|---|
-| Organisateur | Compte licencié (SSO) ou inscription validée par la FFSA ; déclarer un accident, suivre ses déclarations (sans accès au rapport médical) |
+| Directeur de course | Compte licencié (SSO) ou inscription validée par la FFSA ; déclarer un accident, suivre ses déclarations (sans accès au rapport médical) |
 | Médecin | Lien sécurisé + code e-mail, uniquement pour le dossier concerné, une seule soumission |
 | Service médical | Back office : dossiers, suivi, PDF, export CSV, relance du médecin, validation des demandes d'accès |
 | Administrateur | Gestion des comptes, demandes d'accès et journal d'audit, **sans accès aux données de santé** |

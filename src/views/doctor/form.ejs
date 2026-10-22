@@ -4,7 +4,7 @@
 <p class="small muted">Données de santé couvertes par le secret médical, accessibles uniquement au service médical de la FFSA. <a href="/donnees-personnelles">Données personnelles</a></p>
 <p><a href="/medecin/<%= token %>">← Retour au dossier</a></p>
 <% if (person) { %>
-  <div class="alert info">Patient déclaré par l'organisateur : <strong><%= person.name %></strong> (<%= person.detail %>). Les informations connues ont été reprises ; vérifiez-les et complétez le rapport.</div>
+  <div class="alert info">Patient déclaré par le directeur de course : <strong><%= person.name %></strong> (<%= person.detail %>). Les informations connues ont été reprises ; vérifiez-les et complétez le rapport.</div>
 <% } %>
 <%- include('../partials/form', { submitLabel: 'Enregistrer ce rapport patient' }) %>
 <%- include('../partials/footer') %>

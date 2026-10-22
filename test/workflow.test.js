@@ -111,7 +111,6 @@ function accidentFormData() {
     accident_date: '2026-09-20',
     accident_time: '14:35',
     circumstances: 'Sortie de route dans un virage à droite.',
-    hospitalised_count: '2',
     event_name: 'Rallye Test des Vosges',
     event_location: 'Gérardmer',
     discipline: 'Rallye',
@@ -123,7 +122,7 @@ function accidentFormData() {
     person1_first_name: 'Jean',
     author_first_name: 'Jean',
     author_last_name: 'Directeur',
-    author_certified: '1',
+    author_license: '123456',
     [cellName(casualties, 0, 0)]: '1',
     [cellName(casualties, 5, 0)]: '1',
   };
@@ -144,11 +143,11 @@ function medicalFormData(last, first, classification) {
     glasgow: '15',
     diagnosis: 'Entorse cervicale probable.',
     classification,
-    unfit: 'Non (pas de suspension de licence)',
+    fit: 'Oui (pas de suspension de licence)',
     current_event: 'Inapte à reprendre',
     doctor_name: 'Marie Docteur',
     hospital: 'CHU de Nancy',
-    [cellName(upperLimbs, 1, 0)]: 'L',
+    [cellName(upperLimbs, 1, 0)]: 'Luxation',
   };
   for (const [k, v] of Object.entries(fields)) fd.set(k, v);
   fd.append('spine', 'Cervical');
@@ -238,7 +237,7 @@ test('workflow complet accident -> médical -> back office', async () => {
   assert.match(medPage.text, /value="Marie Docteur"/, 'pré-remplissage médecin');
   assert.match(medPage.text, /value="Rallye Test des Vosges"/, 'pré-remplissage épreuve');
   assert.match(medPage.text, /id="f_patient_last_name" name="patient_last_name" type="text" value="Pilote"/, 'pré-remplissage patient');
-  assert.match(medPage.text, /Patient déclaré par l'organisateur|Patient déclaré par l&#39;organisateur/);
+  assert.match(medPage.text, /Patient déclaré par le directeur de course/);
 
   // Brouillon du médecin, propre à chaque patient
   assert.strictEqual((await doc.json(`/medecin/${token}/brouillon?p=vehicle1`, { patient_last_name: 'Pilote', diagnosis: 'Brouillon diagnostic' })).status, 200);

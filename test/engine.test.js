@@ -28,12 +28,12 @@ test('champs obligatoires et conditions', () => {
   assert.ok(m.errors.patient_last_name);
 });
 
-test('signature par case à cocher et formulaires en étapes', () => {
-  assert.strictEqual(engine.validate(accidentForm, {}).errors.author_certified, 'Champ obligatoire.');
-  const { values, errors } = engine.validate(accidentForm, { author_certified: '1', witness1_confirmed: '1' });
-  assert.strictEqual(errors.author_certified, undefined);
-  assert.strictEqual(values.author_certified, true);
+test('rédacteur identifié par sa licence, confirmation des témoins, formulaires en étapes', () => {
+  assert.strictEqual(engine.validate(accidentForm, {}).errors.author_license, 'Champ obligatoire.');
+  const { values, errors } = engine.validate(accidentForm, { author_license: '201501', witness1_confirmed: '1' });
+  assert.strictEqual(errors.author_license, undefined);
   assert.strictEqual(values.witness1_confirmed, true);
+  assert.ok(!engine.allFields(accidentForm).some((f) => f.name === 'author_certified'));
   assert.ok(!engine.allFields(accidentForm).some((f) => f.type === 'signature'));
   // Chaque section appartient à une étape, et les étapes se suivent sans se mélanger
   for (const form of [accidentForm, medicalForm]) {
@@ -46,20 +46,27 @@ test('signature par case à cocher et formulaires en étapes', () => {
 
 test('les valeurs des champs masqués sont ignorées', () => {
   const { values } = engine.validate(medicalForm, {
-    unfit: 'Oui (suspension de licence)',
+    fit: 'Non (suspension de licence)',
     current_event: 'Apte à reprendre',
   });
   assert.strictEqual(values.current_event, undefined);
-  const r = engine.validate(medicalForm, { unfit: 'Non (pas de suspension de licence)', current_event: 'Apte à reprendre' });
+  const r = engine.validate(medicalForm, { fit: 'Oui (pas de suspension de licence)', current_event: 'Apte à reprendre' });
   assert.strictEqual(r.values.current_event, 'Apte à reprendre');
 });
 
 test('matrices', () => {
   const upper = medicalForm.sections.flatMap((s) => s.fields).find((f) => f.name === 'upper_limbs');
   const casualties = accidentForm.sections.flatMap((s) => s.fields).find((f) => f.name === 'casualties');
-  const m = engine.validate(medicalForm, { [engine.cellName(upper, 0, 1)]: 'F', [engine.cellName(upper, 5, 0)]: 'P' });
-  assert.deepStrictEqual(m.values.upper_limbs, { Clavicule: { Gauche: 'F' }, 'Main / Doigts': { Droite: 'P' } });
-  assert.ok(engine.validate(medicalForm, { [engine.cellName(upper, 0, 0)]: 'Z' }).errors.upper_limbs);
+  const m = engine.validate(medicalForm, { [engine.cellName(upper, 0, 1)]: 'Fracture', [engine.cellName(upper, 5, 0)]: 'Plaie' });
+  assert.deepStrictEqual(m.values.upper_limbs, { Clavicule: { Gauche: 'Fracture' }, 'Main / Doigts': { Droite: 'Plaie' } });
+  assert.ok(engine.validate(medicalForm, { [engine.cellName(upper, 0, 0)]: 'F' }).errors.upper_limbs);
+
+  // Équipement : une colonne par concurrent ; les colonnes des concurrents non déclarés sont ignorées
+  const equip = accidentForm.sections.flatMap((s) => s.fields).find((f) => f.name === 'equipment');
+  const e = engine.validate(accidentForm, { vehicle1_driver_last_name: 'Durand', [engine.cellName(equip, 2, 0)]: 'Conforme', [engine.cellName(equip, 2, 1)]: 'Orphelin' });
+  assert.deepStrictEqual(e.values.equipment, { Casque: { 'Concurrent 1': 'Conforme' } });
+  const e2 = engine.validate(accidentForm, { vehicle2_driver_last_name: 'Martin', [engine.cellName(equip, 2, 1)]: 'Conforme' });
+  assert.deepStrictEqual(e2.values.equipment, { Casque: { 'Concurrent 2': 'Conforme' } });
 
   const a = engine.validate(accidentForm, { [engine.cellName(casualties, 0, 0)]: '2' });
   assert.deepStrictEqual(a.values.casualties, { Pilotes: { 'Nombre de blessés': 2 } });
@@ -67,7 +74,7 @@ test('matrices', () => {
 
   const cols = engine.exportColumns(medicalForm);
   const col = cols.find((c) => c.label === 'Membres supérieurs – Clavicule – Gauche');
-  assert.strictEqual(col.value(m.values), 'F');
+  assert.strictEqual(col.value(m.values), 'Fracture');
 });
 
 test('validation des formats', () => {
@@ -76,13 +83,11 @@ test('validation des formats', () => {
     event_date: '2026-13-45',
     discipline: 'Inconnue',
     weather: ['Nuageux', 'Piratage'],
-    deaths_count: '-3',
   });
   assert.ok(errors.doctor_email);
   assert.ok(errors.event_date);
   assert.ok(errors.discipline);
   assert.ok(errors.weather);
-  assert.ok(errors.deaths_count);
 });
 
 test('pré-remplissage du rapport médical', () => {

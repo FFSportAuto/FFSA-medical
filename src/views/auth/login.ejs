@@ -1,7 +1,7 @@
 <%- include('../partials/header') %>
 <div class="auth card">
   <h1>Connexion</h1>
-  <p class="muted">Espace réservé aux organisateurs et au service médical de la FFSA.</p>
+  <p class="muted">Espace réservé aux directeurs de course et au service médical de la FFSA.</p>
   <% if (error) { %><div class="alert error" role="alert"><%= error %></div><% } %>
   <% if (ssoLabel) { %>
     <a class="btn sso full" href="/connexion/sso"><img src="/static/img/favicon.png" alt="" width="20" height="20"><%= ssoLabel %></a>
@@ -15,7 +15,7 @@
   </form>
   <p class="center"><a href="/mot-de-passe-oublie">Mot de passe oublié ?</a></p>
   <div class="signup-cta">
-    <span>Organisateur sans compte ?</span>
+    <span>Directeur de course sans compte ?</span>
     <a class="btn small" href="/inscription">Créer un compte</a>
   </div>
   <p class="muted small center">Médecins : utilisez le lien sécurisé reçu par e-mail, aucun compte n'est nécessaire.</p>

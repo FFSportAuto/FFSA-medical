@@ -94,18 +94,18 @@
 
   function seed() {
     state = { seq: 0, users: [], accidents: [], requests: [], medical: [], attachments: [], mails: [], audit: [], notes: [], drafts: {}, session: {} };
-    [['organisateur@demo.ffsa.fr', 'Organisateur Démo', 'organizer', false], ['medical@demo.ffsa.fr', 'Service médical Démo', 'medical', true], ['admin@demo.ffsa.fr', 'Administrateur Démo', 'admin', true]]
+    [['directeur@demo.ffsa.fr', 'Directeur de course Démo', 'organizer', false], ['medical@demo.ffsa.fr', 'Service médical Démo', 'medical', true], ['admin@demo.ffsa.fr', 'Administrateur Démo', 'admin', true]]
       .forEach(function (u) { state.users.push({ id: uuid(), email: u[0], full_name: u[1], role: u[2], password: PASSWORD, totp_enabled: u[3], active: true, activated: true, auth_source: 'local', approval_status: 'approved', email_verified_at: now(), last_login_at: null, created_at: now(), organization: u[2] === 'organizer' ? 'ASA Démo (exemple)' : null }); });
     // Une demande d'accès en attente, pour montrer la validation
     state.users.push({ id: uuid(), email: 'julie.moreau@club-demo.fr', full_name: 'Julie Moreau', role: 'organizer', password: PASSWORD, totp_enabled: false, active: true, activated: true,
       auth_source: 'local', approval_status: 'pending', email_verified_at: now(), phone: '06 98 76 54 32', organization: 'Écurie du Val (exemple)', job_title: 'Organisateur / ASA',
       license_number: null, signup_message: 'Organisation du slalom du Val en juin.', created_at: now() });
     var orga = state.users[0];
-    var base = { doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78', author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_certified: true };
+    var base = { doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78', author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_license: '178842' };
     var a1 = createAccident(orga, Object.assign({}, base, {
       event_name: 'Rallye des Vosges (exemple)', event_location: 'Gérardmer', discipline: 'Rallye', event_level: 'Épreuve nationale',
       event_date: '2026-09-20', accident_date: '2026-09-20', accident_time: '14:35', summary_victim_last_name: 'Exemple', summary_victim_first_name: 'Paul',
-      circumstances: 'Sortie de route en ES3, tonneau. Pilote extrait par l’équipe d’intervention.', hospitalised_count: 1, deaths_count: 0,
+      circumstances: 'Sortie de route en ES3, tonneau. Pilote extrait par l’équipe d’intervention.',
       casualties: { Pilotes: { 'Nombre de blessés': 1 } }, vehicle1_driver_role: 'Pilote', vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Paul', vehicle1_number: '27', vehicle1_license: '254781', vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
       weather: ['Nuageux'], surface: ['Asphalte'], track_condition: ['Mouillé'],
     }));
@@ -117,9 +117,9 @@
     state.medical.push({ id: uuid(), accident_id: a1.id, patient_ref: 'vehicle1', created_at: now(), data: {
       date: '2026-09-20', time: '14:35', place: 'Gérardmer', event: 'Rallye des Vosges (exemple)',
       patient_last_name: 'Exemple', patient_first_name: 'Paul', patient_type: ['Pilote'], bp: '130/80', pulse: '92', glasgow: '15',
-      upper_limbs: { Clavicule: { Droite: 'F' } }, spine: ['Cervical'], decision: ['Évacuation non urgente', 'Imagerie'],
+      upper_limbs: { Clavicule: { Droite: 'Fracture' } }, spine: ['Cervical'], decision: ['Évacuation non urgente', 'Imagerie'],
       hospital: 'CHU de Nancy', diagnosis: 'Fracture de la clavicule droite suspectée.', classification: "2 : transfert à l'hôpital",
-      unfit: 'Non (pas de suspension de licence)', current_event: 'Inapte à reprendre', doctor_name: 'Claire Moreau' } });
+      fit: 'Oui (pas de suspension de licence)', current_event: 'Inapte à reprendre', doctor_name: 'Claire Moreau' } });
     finish(a1);
     // Le second dossier date de 3 jours : il apparaît « en retard » dans le back office
     state.accidents.forEach(function (a) { if (a.status === 'awaiting_medical') a.created_at = new Date(Date.now() - 3 * 864e5).toISOString(); });
@@ -129,7 +129,7 @@
   }
 
   // ---------- Helpers « serveur » ----------
-  var ROLE_LABELS = { organizer: 'Organisateur', medical: 'Service médical (accès aux données de santé)', admin: 'Administrateur (comptes et journal, sans données de santé)' };
+  var ROLE_LABELS = { organizer: 'Directeur de course', medical: 'Service médical (accès aux données de santé)', admin: 'Administrateur (comptes et journal, sans données de santé)' };
   function currentUser() { var id = state.session.userId; return id ? state.users.find(function (u) { return u.id === id && u.active; }) || null : null; }
   var homeFor = function (u) { return !u ? '/connexion' : u.role === 'organizer' ? '/organisateur' : u.role === 'admin' ? '/back-office/utilisateurs' : '/back-office'; };
   var maskMail = function (e) { return e.replace(/^(.)(.*)(@.*)$/, function (m, a, b, c) { return a + '•'.repeat(Math.min(b.length, 6)) + c; }); };
@@ -264,7 +264,7 @@
     }
     // Inscription libre
     if (path === '/inscription') {
-      var signupLocals = function (extra) { return Object.assign({ title: 'Créer un compte organisateur', values: {}, errors: {}, formError: null, jobTitles: signupRules.JOB_TITLES, ssoLabel: SSO_LABEL }, extra); };
+      var signupLocals = function (extra) { return Object.assign({ title: 'Créer un compte directeur de course', values: {}, errors: {}, formError: null, jobTitles: signupRules.JOB_TITLES, ssoLabel: SSO_LABEL }, extra); };
       if (method === 'GET') return u ? redirect(homeFor(u)) : view('auth/signup', signupLocals());
       if (body.website) return view('auth/signup-done', { title: 'Vérifiez votre boîte mail' });
       var sv = signupRules.validateSignup(body);
@@ -289,7 +289,7 @@
       if (!vu) return view('errors/error', { title: 'Lien invalide', message: 'Ce lien de confirmation est invalide ou a expiré. Connectez-vous pour en recevoir un nouveau.' }, 410);
       vu.email_verified_at = now(); delete vu.verifyToken;
       mail('signupToReview', 'service.medical@ffsa.fr', { name: vu.full_name, organization: vu.organization || '—', link: '/back-office/demandes' });
-      return info('Adresse confirmée', 'Merci. Votre demande de compte organisateur est maintenant transmise à la FFSA pour validation. Vous recevrez un e-mail dès qu’elle sera acceptée.');
+      return info('Adresse confirmée', 'Merci. Votre demande de compte directeur de course est maintenant transmise à la FFSA pour validation. Vous recevrez un e-mail dès qu’elle sera acceptée.');
     }
     if (path === '/deconnexion' && method === 'POST') { audit('logout'); state.session = {}; return redirect('/connexion'); }
     if (path === '/mot-de-passe-oublie') return view('auth/forgot', { title: 'Mot de passe oublié', sent: method === 'POST' });
@@ -537,7 +537,7 @@
     return redirect(homeFor(user));
   }
   function demoAccounts() {
-    return [['organisateur@demo.ffsa.fr', 'Organisateur'], ['medical@demo.ffsa.fr', 'Service médical'], ['admin@demo.ffsa.fr', 'Administrateur (sans accès aux données de santé)']]
+    return [['directeur@demo.ffsa.fr', 'Directeur de course'], ['medical@demo.ffsa.fr', 'Service médical'], ['admin@demo.ffsa.fr', 'Administrateur (sans accès aux données de santé)']]
       .map(function (a) { return { email: a[0], label: a[1], password: PASSWORD }; });
   }
   function usersView(flash, error, status) {
@@ -701,7 +701,7 @@
   var pickedElement = '';
   try { noteAuthor.value = localStorage.getItem(NOTES_KEY + '-author') || ''; } catch (e) { /* ignore */ }
   var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
-  var ROLES = { organizer: 'Organisateur', medical: 'Service médical', admin: 'Administrateur' };
+  var ROLES = { organizer: 'Directeur de course', medical: 'Service médical', admin: 'Administrateur' };
   function screenInfo() {
     var h = root.querySelector('h1');
     var u = currentUser();

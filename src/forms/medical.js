@@ -3,13 +3,13 @@
 // Formulaire « Rapport médical d'épreuve » rempli par le médecin, un par patient consulté.
 // Reprend le formulaire Jotform FFSA 260263404021340.
 
-const INJURY_CODES = ['C', 'D', 'E', 'F', 'H', 'L', 'P', 'B'];
+const INJURY_TYPES = ['Contusion', 'Dermabrasion', 'Entorse', 'Fracture', 'Hématome', 'Luxation', 'Plaie', 'Brûlure'];
 const YES_NO = ['Oui', 'Non'];
-const injuryCell = { type: 'select', options: INJURY_CODES };
+const injuryCell = { type: 'select', options: INJURY_TYPES };
 
 module.exports = {
   id: 'medical',
-  version: 3,
+  version: 4,
   title: "Rapport médical d'épreuve",
   intro: 'À remplir dans les 48 heures après l’accident par le médecin. Merci de remplir un formulaire par patient consulté.',
   sections: [
@@ -70,9 +70,7 @@ module.exports = {
     {
       title: 'Localisation(s) apparente(s) et type(s) de blessure(s)',
       step: 'Blessures',
-      intro:
-        'Indiquer par une lettre le type de blessure dans la ou les cases correspondantes : C : contusion · D : dermabrasion · ' +
-        'E : entorse · F : fracture · H : hématome · L : luxation · P : plaie · B : brûlure.',
+      intro: 'Choisissez le type de blessure dans la ou les cases correspondantes.',
       fields: [
         {
           name: 'upper_limbs',
@@ -133,17 +131,17 @@ module.exports = {
           ],
         },
         {
-          name: 'unfit',
-          label: 'Inapte à la pratique du sport automobile',
+          name: 'fit',
+          label: 'Apte à la pratique du sport automobile',
           type: 'radio',
-          options: ['Oui (suspension de licence)', 'Non (pas de suspension de licence)'],
+          options: ['Oui (pas de suspension de licence)', 'Non (suspension de licence)'],
         },
         {
           name: 'current_event',
           label: 'Épreuve en cours',
           type: 'radio',
           options: ['Apte à reprendre', 'Inapte à reprendre'],
-          showIf: { field: 'unfit', equals: 'Non (pas de suspension de licence)' },
+          showIf: { field: 'fit', equals: 'Oui (pas de suspension de licence)' },
         },
         { name: 'comments', label: 'Commentaires libres', type: 'textarea', rows: 4 },
       ],

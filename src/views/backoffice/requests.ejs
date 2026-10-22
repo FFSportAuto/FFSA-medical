@@ -1,7 +1,7 @@
 <%- include('../partials/header') %>
 <% const fmt = (d) => d ? new Date(d).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }) : '—'; %>
 <div class="page-head"><h1>Demandes d'accès</h1></div>
-<p class="lead">Organisateurs sans compte licencié FFSA ayant demandé un accès. Les licenciés qui se connectent avec leur compte FFSA n'ont pas besoin de validation.</p>
+<p class="lead">Directeurs de course sans compte licencié FFSA ayant demandé un accès. Les licenciés qui se connectent avec leur compte FFSA n'ont pas besoin de validation.</p>
 <% if (flash) { %><div class="alert success"><%= flash %></div><% } %>
 
 <h2>À valider (<%= pending.length %>)</h2>

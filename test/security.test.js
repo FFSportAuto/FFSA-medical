@@ -199,7 +199,7 @@ test('antivirus : fichier infecté bloqué, antivirus injoignable = refus', asyn
     await c.post('/connexion/2fa', { code: lastCode() });
     await c.get('/organisateur/rapports/nouveau');
     const fd = new FormData();
-    for (const [k, v] of Object.entries({ doctor_first_name: 'A', doctor_last_name: 'B', doctor_email: 'a@b.test', doctor_phone: '0601020304', accident_date: '2026-10-01', event_name: 'Test', event_date: '2026-10-01', author_first_name: 'J', author_last_name: 'M', author_certified: '1' })) fd.set(k, v);
+    for (const [k, v] of Object.entries({ doctor_first_name: 'A', doctor_last_name: 'B', doctor_email: 'a@b.test', doctor_phone: '0601020304', accident_date: '2026-10-01', event_name: 'Test', event_date: '2026-10-01', author_first_name: 'J', author_last_name: 'M', author_license: '123456' })) fd.set(k, v);
     fd.append('diagram', file, 'photo.png');
     return c.request('/organisateur/rapports', { method: 'POST', body: fd });
   }

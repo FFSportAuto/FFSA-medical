@@ -12,7 +12,7 @@ const { encrypt, decryptText } = require('./lib/crypto');
 
 const PASSWORD = 'Demo-FFSA-2026!';
 const ACCOUNTS = [
-  { email: 'organisateur@demo.ffsa.fr', full_name: 'Organisateur Démo', role: 'organizer', label: 'Organisateur', organization: 'ASA Démo (exemple)' },
+  { email: 'directeur@demo.ffsa.fr', full_name: 'Directeur de course Démo', role: 'organizer', label: 'Directeur de course', organization: 'ASA Démo (exemple)' },
   { email: 'medical@demo.ffsa.fr', full_name: 'Service médical Démo', role: 'medical', label: 'Service médical', totp: true },
   { email: 'admin@demo.ffsa.fr', full_name: 'Administrateur Démo', role: 'admin', label: 'Administrateur (sans accès aux données de santé)', totp: true },
 ];
@@ -34,14 +34,14 @@ async function seed() {
   const orga = await db.one('SELECT * FROM users WHERE email = $1', [ACCOUNTS[0].email]);
   const base = {
     doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78',
-    author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_certified: true,
+    author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_license: '178842',
   };
   const done = await reports.createAccidentReport(orga, {
     ...base,
     event_name: 'Rallye des Vosges (exemple)', event_location: 'Gérardmer', discipline: 'Rallye', event_level: 'Épreuve nationale',
     event_date: '2026-09-20', accident_date: '2026-09-20', accident_time: '14:35',
     summary_victim_last_name: 'Exemple', summary_victim_first_name: 'Paul', circumstances: 'Sortie de route en ES3, tonneau. Pilote extrait par l’équipe d’intervention.',
-    hospitalised_count: 1, deaths_count: 0, casualties: { Pilotes: { 'Nombre de blessés': 1 } },
+    casualties: { Pilotes: { 'Nombre de blessés': 1 } },
     vehicle1_driver_role: 'Pilote', vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Paul', vehicle1_number: '27', vehicle1_license: '254781', vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
     weather: ['Nuageux'], surface: ['Asphalte'], track_condition: ['Mouillé'],
   }, {});
@@ -58,9 +58,9 @@ async function seed() {
   );
   await reports.addMedicalReport(request, {
     patient_last_name: 'Exemple', patient_first_name: 'Paul', patient_type: ['Pilote'], bp: '130/80', pulse: '92', glasgow: '15',
-    upper_limbs: { Clavicule: { Droite: 'F' } }, spine: ['Cervical'], decision: ['Évacuation non urgente', 'Imagerie'],
+    upper_limbs: { Clavicule: { Droite: 'Fracture' } }, spine: ['Cervical'], decision: ['Évacuation non urgente', 'Imagerie'],
     hospital: 'CHU de Nancy', diagnosis: 'Fracture de la clavicule droite suspectée.',
-    classification: "2 : transfert à l'hôpital", unfit: 'Non (pas de suspension de licence)', current_event: 'Inapte à reprendre',
+    classification: "2 : transfert à l'hôpital", fit: 'Oui (pas de suspension de licence)', current_event: 'Inapte à reprendre',
     doctor_name: 'Claire Moreau',
   }, {});
   await reports.finishMedical(request);

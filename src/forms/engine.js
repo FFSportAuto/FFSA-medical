@@ -79,6 +79,22 @@ function validate(form, body, files = {}) {
     else if (f.type !== 'file') raw[f.name] = typeof body[f.name] === 'string' ? body[f.name].trim() : '';
   }
 
+  // Matrice dont les colonnes suivent des blocs répétés (ex. une colonne par concurrent déclaré) :
+  // les colonnes des blocs facultatifs non remplis sont ignorées
+  for (const f of allFields(form)) {
+    if (f.type !== 'matrix' || !f.columnsFollow) continue;
+    const blocks = form.sections.filter((s) => s.repeat && s.repeat.group === f.columnsFollow);
+    f.columns.forEach((col, ci) => {
+      const block = blocks[ci];
+      if (!block || !block.optional || sectionHasValues(block, raw)) return;
+      for (const row of Object.keys(raw[f.name])) {
+        delete raw[f.name][row][col];
+        if (!Object.keys(raw[f.name][row]).length) delete raw[f.name][row];
+      }
+      if (matrixErrors[f.name] && matrixErrors[f.name].includes(`/ ${col} :`)) delete matrixErrors[f.name];
+    });
+  }
+
   const values = {};
   const errors = {};
   for (const f of allFields(form)) {

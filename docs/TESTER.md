@@ -12,7 +12,7 @@ Mot de passe commun : `Demo-FFSA-2026!`
 
 | Compte | Rôle |
 |---|---|
-| organisateur@demo.ffsa.fr | Organisateur : déclare les accidents |
+| directeur@demo.ffsa.fr | Directeur de course : déclare les accidents |
 | medical@demo.ffsa.fr | Service médical : back office |
 | admin@demo.ffsa.fr | Administrateur : back office + utilisateurs + audit |
 
@@ -21,7 +21,7 @@ est affiché à l'écran (en réel, il est lu dans une application sur télépho
 
 ## Scénario conseillé
 
-1. Connectez-vous en **organisateur** et déclarez un accident (menu « Déclarer un accident »).
+1. Connectez-vous en **directeur de course** et déclarez un accident (menu « Déclarer un accident »).
    Indiquez n'importe quelle adresse e-mail pour le médecin.
 2. Aucun e-mail ne part réellement : ouvrez **« Voir les e-mails envoyés »** (bandeau jaune en haut).
 3. Ouvrez le lien du message « Rapport médical à compléter » : vous êtes le **médecin**.

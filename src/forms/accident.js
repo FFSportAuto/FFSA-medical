@@ -89,7 +89,7 @@ const withOther = (name, label, options) => [
 
 module.exports = {
   id: 'accident',
-  version: 4,
+  version: 5,
   title: "Rapport d'accident",
   intro:
     "À remplir dans les 48 heures après l'accident par le directeur de course, " +
@@ -187,8 +187,6 @@ module.exports = {
         { name: 'heading_monday', label: "Personne de l'organisation joignable par téléphone le lundi matin", type: 'heading' },
         { name: 'monday_contact_name', label: 'Nom et prénom', type: 'text', width: 'half' },
         { name: 'monday_contact_phone', label: 'N° de téléphone', type: 'tel', width: 'half' },
-        { name: 'hospitalised_count', label: 'Nombre de blessés hospitalisés', type: 'number', min: 0, max: 999, width: 'half' },
-        { name: 'deaths_count', label: 'Nombre de décès éventuels', type: 'number', min: 0, max: 999, width: 'half' },
       ],
     },
     vehicleSection(1),
@@ -235,7 +233,9 @@ module.exports = {
             'Extincteur à bord',
             'Extincteur utilisé ? (oui / non)',
           ],
-          columns: ['Véhicule 1', 'Véhicule 2', 'Véhicule 3'],
+          // Une colonne par pilote / copilote déclaré à l'étape « Personnes accidentées »
+          columns: ['Concurrent 1', 'Concurrent 2', 'Concurrent 3'],
+          columnsFollow: 'vehicle',
           cell: { type: 'text' },
         },
         { name: 'equipment_comments', label: 'Commentaires spécifiques (exemple : problème avec système Hans / Simpson)', type: 'textarea', rows: 3 },
@@ -283,16 +283,10 @@ module.exports = {
       fields: [
         { name: 'author_first_name', label: 'Prénom', type: 'text', required: true, width: 'half' },
         { name: 'author_last_name', label: 'Nom', type: 'text', required: true, width: 'half' },
-        { name: 'author_role', label: 'Qualité', type: 'text' },
+        { name: 'author_license', label: 'N° de licence', type: 'text', required: true, width: 'half', inputmode: 'numeric' },
+        { name: 'author_role', label: 'Qualité', type: 'text', width: 'half' },
         { name: 'author_date', label: 'Le', type: 'date', width: 'half', autoNow: true },
         { name: 'author_time', label: 'À', type: 'time', width: 'half', autoNow: true },
-        {
-          name: 'author_certified',
-          label: "Je certifie l'exactitude des informations de ce rapport. Cette case vaut signature : l'envoi est enregistré avec mon identité de connexion, la date et l'heure.",
-          shortLabel: 'Certification du rapport (vaut signature)',
-          type: 'consent',
-          required: true,
-        },
       ],
     },
   ],

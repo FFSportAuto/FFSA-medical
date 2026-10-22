@@ -199,7 +199,7 @@ router.get('/connexion/sso/retour', loginLimiter, async (req, res, next) => {
   } catch (err) {
     await audit(req, 'sso_failed', { details: { reason: err.code || err.message } });
     const message = err.code === 'NOT_ALLOWED'
-      ? "Votre profil licencié ne permet pas d'accéder à l'application. Créez un compte organisateur avec le formulaire d'inscription."
+      ? "Votre profil licencié ne permet pas d'accéder à l'application. Créez un compte directeur de course avec le formulaire d'inscription."
       : 'La connexion avec votre compte licencié a échoué. Réessayez.';
     return res.status(401).render('errors/error', { title: 'Connexion impossible', message });
   }
@@ -227,7 +227,7 @@ router.get('/connexion/sso/retour', loginLimiter, async (req, res, next) => {
 
 const signupView = (res, locals = {}, status = 200) =>
   res.status(status).render('auth/signup', {
-    title: 'Créer un compte organisateur', values: {}, errors: {}, formError: null, jobTitles: accounts.JOB_TITLES,
+    title: 'Créer un compte directeur de course', values: {}, errors: {}, formError: null, jobTitles: accounts.JOB_TITLES,
     ssoLabel: sso.isEnabled() ? config.oidc.label : null, ...locals,
   });
 
@@ -257,7 +257,7 @@ router.get('/inscription/confirmer/:token', async (req, res) => {
   await audit(req, 'signup_email_verified', { targetType: 'user', targetId: t.user_id, actor: t.full_name });
   res.render('errors/info', {
     title: 'Adresse confirmée',
-    message: 'Merci. Votre demande de compte organisateur est maintenant transmise à la FFSA pour validation. Vous recevrez un e-mail dès qu’elle sera acceptée.',
+    message: 'Merci. Votre demande de compte directeur de course est maintenant transmise à la FFSA pour validation. Vous recevrez un e-mail dès qu’elle sera acceptée.',
   });
 });
 

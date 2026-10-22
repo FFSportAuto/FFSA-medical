@@ -99,7 +99,7 @@ body:has(.step-nav) #demo-guide, body:has(.step-nav) #demo-notes { bottom: calc(
   <h2 id="demo-guide-title">Comment tester</h2>
   <p>Démo avec des données fictives, enregistrées uniquement dans votre navigateur.</p>
   <ol>
-    <li>Sur la page de connexion, cliquez sur <b>Utiliser</b> à côté du compte <b>Organisateur</b>, puis <b>Déclarer un accident</b>.</li>
+    <li>Sur la page de connexion, cliquez sur <b>Utiliser</b> à côté du compte <b>Directeur de course</b>, puis <b>Déclarer un accident</b>.</li>
     <li>Ouvrez <b>Voir les e-mails envoyés</b> (bandeau jaune) et cliquez sur le lien reçu par le médecin.</li>
     <li>Demandez le code, retrouvez-le dans les e-mails, puis saisissez un <b>rapport par patient</b> et cliquez sur <b>J'ai terminé</b>.</li>
     <li>Déconnectez-vous et entrez avec le compte <b>Service médical</b> (le code de double authentification est affiché) pour consulter le dossier.</li>

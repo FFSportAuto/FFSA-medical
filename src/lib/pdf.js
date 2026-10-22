@@ -146,6 +146,8 @@ function signatureRow(doc, label, dataUrl) {
 
 function matrixTable(doc, field, value) {
   const rows = field.rows.filter((r) => value[r]);
+  // Colonnes qui suivent les blocs ajoutés (concurrents) : seules celles renseignées sont imprimées
+  if (field.columnsFollow) field = { ...field, columns: field.columns.filter((c) => rows.some((r) => value[r][c] !== undefined && value[r][c] !== '')) };
   const firstW = Math.min(170, CONTENT_W * 0.36);
   const colW = (CONTENT_W - firstW) / field.columns.length;
   const rowH = 19;

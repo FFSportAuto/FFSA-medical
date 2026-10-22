@@ -10,19 +10,19 @@
 <% if (field.type === 'heading') { %>
 <h4 class="subheading"><%= field.label %></h4>
 <% } else { %>
-<div class="field <%= field.width || '' %> <%= err ? 'has-error' : '' %>" data-field="<%= field.name %>" data-type="<%= asPills ? 'radio' : field.type %>"<% if (field.shortLabel) { %> data-label="<%= field.shortLabel %>"<% } %><% if (field.required) { %> data-required<% } %><% if (field.pattern) { %> data-pattern="<%= field.pattern %>" data-pattern-message="<%= field.patternMessage || 'Format invalide.' %>"<% } %> <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
+<div class="field <%= field.width || '' %> <%= err ? 'has-error' : '' %>" data-field="<%= field.name %>" data-type="<%= asPills ? 'radio' : field.type %>"<% if (field.shortLabel) { %> data-label="<%= field.shortLabel %>"<% } %><% if (field.required) { %> data-required<% } %><% if (field.columnsFollow) { %> data-columns-follow="<%= field.columnsFollow %>"<% } %><% if (field.pattern) { %> data-pattern="<%= field.pattern %>" data-pattern-message="<%= field.patternMessage || 'Format invalide.' %>"<% } %> <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
   <% if (field.type === 'matrix') { %>
     <span class="label"><%= field.label %><% if (field.required) { %> <abbr title="obligatoire">*</abbr><% } %></span>
     <div class="matrix-wrap">
       <table class="matrix">
-        <thead><tr><th></th><% field.columns.forEach(function (c) { %><th><%= c %></th><% }) %></tr></thead>
+        <thead><tr><th></th><% field.columns.forEach(function (c, ci) { %><th data-col="<%= ci %>"><%= c %></th><% }) %></tr></thead>
         <tbody>
         <% field.rows.forEach(function (row, ri) { %>
           <tr><th scope="row"><%= row %></th>
           <% field.columns.forEach(function (col, ci) {
                const name = field.name + '__' + ri + '__' + ci;
                const cv = (v && v[row] && v[row][col] !== undefined) ? v[row][col] : ''; %>
-            <td>
+            <td data-col="<%= ci %>" data-col-label="<%= col %>">
               <% if (field.cell.type === 'select') { %>
                 <select name="<%= name %>" aria-label="<%= row %> – <%= col %>">
                   <option value=""></option>

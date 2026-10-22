@@ -222,11 +222,43 @@
         next.classList.remove('repeat-off');
         next.open = true;
         place();
+        form.dispatchEvent(new Event('change', { bubbles: true }));
         var first = next.querySelector('input:not([type=hidden]), select, textarea');
         if (first) first.focus();
         next.scrollIntoView({ block: 'start', behavior: 'smooth' });
       });
       place();
+    });
+  }
+
+  // ---- Tableau dont les colonnes suivent les blocs ajoutés (ex. une colonne par concurrent) ----
+  function syncColumns(form) {
+    toArray(form.querySelectorAll('[data-columns-follow]')).forEach(function (f) {
+      var secs = toArray(form.querySelectorAll('[data-repeat="' + f.getAttribute('data-columns-follow') + '"]'));
+      toArray(f.querySelectorAll('thead th[data-col]')).forEach(function (th) {
+        var ci = Number(th.getAttribute('data-col'));
+        var sec = secs[ci];
+        var on = Boolean(sec) && !sec.classList.contains('repeat-off');
+        var base = th.getAttribute('data-base') || th.textContent;
+        th.setAttribute('data-base', base);
+        // En-tête : « Concurrent 1 – Durand (n° 27) » d'après le bloc correspondant
+        var name = sec && sec.querySelector('[name$="driver_last_name"]');
+        var num = sec && sec.querySelector('[name$="_number"]');
+        var label = base + (name && name.value.trim() ? ' – ' + name.value.trim() : '') + (num && num.value.trim() ? ' (n° ' + num.value.trim() + ')' : '');
+        th.textContent = label;
+        th.classList.toggle('col-off', !on);
+        toArray(f.querySelectorAll('td[data-col="' + ci + '"]')).forEach(function (td) {
+          td.classList.toggle('col-off', !on);
+          td.setAttribute('data-col-label', label);
+          var i = td.querySelector('[name]');
+          if (!i) return;
+          if (!on) i.value = '';
+          i.disabled = !on;
+          // Ligne « Numéro » : reprend le numéro du concurrent s'il est vide
+          if (on && !i.value && num && num.value.trim() && /^Num/.test(td.parentNode.querySelector('th').textContent)) i.value = num.value.trim();
+        });
+      });
+      f.hidden = !secs.some(function (s) { return !s.classList.contains('repeat-off'); });
     });
   }
 
@@ -539,6 +571,8 @@
 
   function enhanceForm(form) {
     setupRepeats(form);
+    syncColumns(form);
+    form.addEventListener('change', function () { syncColumns(form); });
     setupQuickDates(form);
     setupRadioToggle(form);
     setupFiles(form);

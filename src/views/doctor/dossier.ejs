@@ -6,9 +6,9 @@
 <% if (error) { %><div class="alert error"><%= error %></div><% } %>
 
 <section class="card">
-  <h2>Personnes déclarées par l'organisateur</h2>
+  <h2>Personnes déclarées par le directeur de course</h2>
   <% if (!persons.length) { %>
-    <p class="muted">L'organisateur n'a déclaré aucune personne nominativement. Utilisez « Autre patient » ci-dessous.</p>
+    <p class="muted">Le directeur de course n'a déclaré aucune personne nominativement. Utilisez « Autre patient » ci-dessous.</p>
   <% } else { %>
     <p class="muted small">Choisissez un patient : son identité et les informations connues seront reprises dans le formulaire.</p>
     <ul class="patients">

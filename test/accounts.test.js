@@ -171,7 +171,7 @@ test('inscription libre : confirmation e-mail, validation FFSA, puis connexion',
   assert.match((await l1.post('/connexion', { email: form.email, password: PASSWORD })).text, /Confirmez d’abord votre adresse/);
   const link = lastMail(/Confirmez votre adresse/).text.match(/\/inscription\/confirmer\/\S+/)[0];
   assert.match((await client().get(link)).text, /Adresse confirmée/);
-  assert.deepStrictEqual([].concat(lastMail(/demande d'accès organisateur/).to), ['validation@ffsa.test']);
+  assert.deepStrictEqual([].concat(lastMail(/demande d'accès directeur de course/).to), ['validation@ffsa.test']);
 
   // En attente de validation
   const l2 = client();
@@ -189,7 +189,7 @@ test('inscription libre : confirmation e-mail, validation FFSA, puis connexion',
   assert.match(list.text, /Slalom du Lac en mai/);
   assert.match((await v.get('/back-office')).text, /class="count">1</, 'compteur dans le menu');
   assert.strictEqual((await v.post(`/back-office/demandes/${user.id}/valider`, {})).status, 302);
-  assert.ok(lastMail(/compte organisateur est activé/));
+  assert.ok(lastMail(/compte directeur de course est activé/));
 
   const l3 = client();
   await l3.get('/connexion');
@@ -204,7 +204,7 @@ test('inscription libre : confirmation e-mail, validation FFSA, puis connexion',
   const refused = await db.one("SELECT id FROM users WHERE email = 'refus@club.test'");
   await v.get('/back-office/demandes');
   await v.post(`/back-office/demandes/${refused.id}/refuser`, { note: 'Structure inconnue' });
-  assert.match(lastMail(/Votre demande de compte organisateur/).text, /Structure inconnue/);
+  assert.match(lastMail(/Votre demande de compte directeur de course/).text, /Structure inconnue/);
   const l4 = client();
   await l4.get('/connexion');
   assert.match((await l4.post('/connexion', { email: 'refus@club.test', password: PASSWORD })).text, /pas été acceptée/);

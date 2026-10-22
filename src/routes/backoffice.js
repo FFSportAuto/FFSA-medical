@@ -25,7 +25,7 @@ router.use(['/back-office/dossiers', '/back-office/export.csv', '/back-office/ex
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PAGE_SIZE = 50;
-const ROLE_LABELS = { organizer: 'Organisateur', medical: 'Service médical (accès aux données de santé)', admin: 'Administrateur (comptes et journal, sans données de santé)' };
+const ROLE_LABELS = { organizer: 'Directeur de course', medical: 'Service médical (accès aux données de santé)', admin: 'Administrateur (comptes et journal, sans données de santé)' };
 
 // Filtres communs à la liste et à l'export
 const OVERDUE_SQL = `(ar.status = 'awaiting_medical' AND ar.created_at < now() - interval '${reports.OVERDUE_HOURS} hours')`;

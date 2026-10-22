@@ -68,7 +68,7 @@ const templates = {
   signupVerify: ({ name, link }) => ({
     subject: `[FFSA] Confirmez votre adresse e-mail`,
     text:
-      `Bonjour ${name},\n\nMerci pour votre demande de compte organisateur sur l'application de déclaration des accidents de la FFSA.\n\n` +
+      `Bonjour ${name},\n\nMerci pour votre demande de compte directeur de course sur l'application de déclaration des accidents de la FFSA.\n\n` +
       `Confirmez votre adresse e-mail via ce lien (valable 48 h) :\n${link}\n\n` +
       `Votre demande sera ensuite examinée par la FFSA ; vous serez prévenu(e) par e-mail.` +
       signature,
@@ -81,17 +81,17 @@ const templates = {
       signature,
   }),
   signupToReview: ({ name, organization, link }) => ({
-    subject: `[FFSA] Nouvelle demande d'accès organisateur à valider`,
-    text: `${name} (${organization}) demande un compte organisateur.\n\nExaminer la demande : ${link}` + signature,
+    subject: `[FFSA] Nouvelle demande d'accès directeur de course à valider`,
+    text: `${name} (${organization}) demande un compte directeur de course.\n\nExaminer la demande : ${link}` + signature,
   }),
   signupApproved: ({ name, link }) => ({
-    subject: `[FFSA] Votre compte organisateur est activé`,
-    text: `Bonjour ${name},\n\nVotre compte organisateur a été validé par la FFSA. Vous pouvez vous connecter :\n${link}` + signature,
+    subject: `[FFSA] Votre compte directeur de course est activé`,
+    text: `Bonjour ${name},\n\nVotre compte directeur de course a été validé par la FFSA. Vous pouvez vous connecter :\n${link}` + signature,
   }),
   signupRejected: ({ name, reason }) => ({
-    subject: `[FFSA] Votre demande de compte organisateur`,
+    subject: `[FFSA] Votre demande de compte directeur de course`,
     text:
-      `Bonjour ${name},\n\nVotre demande de compte organisateur n'a pas été acceptée.` +
+      `Bonjour ${name},\n\nVotre demande de compte directeur de course n'a pas été acceptée.` +
       (reason ? `\n\nMotif : ${reason}` : '') +
       `\n\nPour toute question, contactez le service médical de la FFSA.` +
       signature,
