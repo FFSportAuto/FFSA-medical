@@ -106,12 +106,12 @@
       event_name: 'Rallye des Vosges (exemple)', event_location: 'Gérardmer', discipline: 'Rallye', event_level: 'Épreuve nationale',
       event_date: '2026-09-20', accident_date: '2026-09-20', accident_time: '14:35', summary_victim_last_name: 'Exemple', summary_victim_first_name: 'Paul',
       circumstances: 'Sortie de route en ES3, tonneau. Pilote extrait par l’équipe d’intervention.',
-      casualties: { Pilotes: { 'Nombre de blessés': 1 } }, vehicle1_driver_role: 'Pilote', vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Paul', vehicle1_number: '27', vehicle1_license: '254781', vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
+      casualties: { Pilotes: { 'Nombre de blessés': 1 } }, vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Paul', vehicle1_number: '27', vehicle1_license: '254781', vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
       weather: ['Nuageux'], surface: ['Asphalte'], track_condition: ['Mouillé'],
     }));
     createAccident(orga, Object.assign({}, base, {
       event_name: 'Course de côte du Mont-Dore (exemple)', event_location: 'Le Mont-Dore', discipline: 'Course de côte',
-      event_date: '2026-09-27', accident_date: '2026-09-27', accident_time: '10:05', summary_victim_last_name: 'Exemple', summary_victim_first_name: 'Léa', vehicle1_driver_role: 'Pilote', vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Léa', vehicle1_number: '112', vehicle1_license: '287654',
+      event_date: '2026-09-27', accident_date: '2026-09-27', accident_time: '10:05', summary_victim_last_name: 'Exemple', summary_victim_first_name: 'Léa', vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Léa', vehicle1_number: '112', vehicle1_license: '287654',
       circumstances: 'Choc latéral contre le rail au virage 7.',
     }));
     state.medical.push({ id: uuid(), accident_id: a1.id, patient_ref: 'vehicle1', created_at: now(), data: {
