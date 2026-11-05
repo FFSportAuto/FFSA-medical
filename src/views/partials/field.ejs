@@ -4,7 +4,7 @@
   const id = 'f_' + field.name;
   const showIf = field.showIf ? JSON.stringify(field.showIf) : '';
   // Listes courtes affichées en pastilles (choix unique), plus rapides au doigt qu'une liste déroulante
-  const asPills = field.type === 'select' && field.options.length <= 5;
+  const asPills = field.type === 'select' && field.options.length <= 5 && !field.dropdown;
   const isName = /(^|_)(first_name|last_name|name)$/.test(field.name);
 %>
 <% if (field.type === 'heading') { %>

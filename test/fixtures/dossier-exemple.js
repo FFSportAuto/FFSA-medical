@@ -14,8 +14,8 @@ const accident = {
     league: 'Nouvelle-Aquitaine', asa: 'ASA Vienne', as_code: '0412', visa_number: 'R-2026-118', event_name: 'Trophée de l’Ouest',
     event_location: 'Circuit du Val de Vienne', discipline: 'Circuit asphalte', event_level: 'Épreuve régionale', event_date: '2026-10-04',
     casualties: { Pilotes: { 'Nombre de blessés': 1 }, Officiels: { 'Nombre de blessés': 1 } },
-    vehicle1_driver_role: 'Pilote', vehicle1_driver_last_name: 'Girard', vehicle1_driver_first_name: 'Thomas', vehicle1_license: '254781', vehicle1_number: '27', vehicle1_group: 'GT4', vehicle1_vehicle_type: 'GT', vehicle1_make: 'Alpine', vehicle1_model: 'A110 GT4', vehicle1_year: '2022',
-    vehicle2_driver_role: 'Pilote', vehicle2_driver_last_name: 'Petit', vehicle2_driver_first_name: 'Marc', vehicle2_license: '198442', vehicle2_number: '12', vehicle2_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)', vehicle2_make: 'Peugeot', vehicle2_model: '308 Racing Cup',
+    vehicle1_driver_last_name: 'Girard', vehicle1_driver_first_name: 'Thomas', vehicle1_license: '254781', vehicle1_number: '27', vehicle1_group: 'GT4', vehicle1_adr: 'Oui', vehicle1_adr_reference: 'ADR-2024-0457', vehicle1_adr_data: 'Oui', vehicle1_cockpit: 'Fermé', vehicle1_driving_position: 'Gauche', vehicle1_engine_type: 'Moteur thermique', vehicle1_fuel_type: 'Essence', vehicle1_specification: 'Moderne (Annexe J)', vehicle1_vehicle_type: 'GT', vehicle1_make: 'Alpine', vehicle1_model: 'A110 GT4', vehicle1_year: '2022',
+    vehicle2_driver_last_name: 'Petit', vehicle2_driver_first_name: 'Marc', vehicle2_license: '198442', vehicle2_number: '12', vehicle2_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)', vehicle2_make: 'Peugeot', vehicle2_model: '308 Racing Cup',
     person1_last_name: 'Bernard', person1_first_name: 'Julien', person1_license: '301122', person1_role: 'Commissaire de piste',
     weather: ['Nuageux'], temperature: '14 °C', visibility: ['Bonne'], surface: ['Asphalte'], track_layout: ['En descente'], track_condition: ['Mouillé', 'Autre'], track_condition_other: 'Traces d’huile',
     equipment: {

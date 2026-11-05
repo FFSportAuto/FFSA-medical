@@ -78,7 +78,7 @@ Saisie (web et mobile) :
 - `step: 'Libellé'` sur chaque section regroupe les sections consécutives en étapes. On obtient une barre de progression, un sommaire cliquable, des boutons « Précédent / Suivant » fixés en bas de l'écran et un récapitulatif avant l'envoi.
 - `repeat: { group, addLabel }` affiche un bloc facultatif (pilote, personne, témoin) seulement après un clic sur « + Ajouter… ».
 - Champs : `inputmode` (clavier adapté), `sameAs: { field, label }` (bouton « Jour de l'épreuve »…), `autoNow` (date ou heure remplie à la dernière étape), `shortLabel` (libellé court dans le récapitulatif).
-- Un `select` d'au plus 5 choix s'affiche en pastilles.
+- Un `select` d'au plus 5 choix s'affiche en pastilles, sauf avec `dropdown: true` (liste déroulante imposée, comme les listes du tableur FFSA pour les pilotes / copilotes).
 - La signature est une case `consent` (« vaut signature »), associée au compte connecté et à l'horodatage de l'envoi.
 - Sur mobile, les photos se prennent directement avec l'appareil. Au-delà de 1,5 Mo, elles sont réduites dans le navigateur avant l'envoi.
 - Sans JavaScript, le formulaire reste une page unique validée par le serveur.

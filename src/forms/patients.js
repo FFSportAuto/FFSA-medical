@@ -36,7 +36,7 @@ function declaredPersons(a) {
 
   for (let n = 1; n <= 3; n++) {
     const p = `vehicle${n}_`;
-    const role = a[`${p}driver_role`];
+    const role = a[`${p}driver_role`]; // champ « Qualité » des anciens rapports (absent du tableur 2027)
     add(`vehicle${n}`, a[`${p}driver_last_name`], a[`${p}driver_first_name`],
       [role || 'Pilote / copilote', a[`${p}number`] && `n° ${a[`${p}number`]}`, [a[`${p}make`], a[`${p}model`]].filter(Boolean).join(' ')].filter(Boolean).join(' · '),
       {

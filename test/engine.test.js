@@ -120,16 +120,45 @@ test('mots de passe', async () => {
   assert.ok(!(await verifyPassword('mauvais', h)));
 });
 
+test('pilotes / copilotes : champs et listes du tableur FFSA 2027, dans le même ordre', () => {
+  const fields = accidentForm.sections.find((s) => s.title === 'Pilote / copilote accidenté').fields;
+  assert.deepStrictEqual(fields.map((f) => f.label), [
+    'Concurrent n°', 'Groupe', 'Catégorie (karting)', 'Marque', 'Modèle', 'Type de véhicule', "Si c'est un Dragster, catégorie",
+    'Année de construction', "Véhicule équipé d'un ADR émis par la FIA ?", 'N° de série / référence ADR', 'Données récupérées / disponibles ?',
+    'Habitacle', 'Position du poste de conduite', 'Type de moteur', 'Type de carburant', 'Spécification du véhicule',
+    'Nom du pilote / copilote', 'Prénom du pilote / copilote', 'Licence n°',
+  ]);
+  const lists = Object.fromEntries(fields.filter((f) => f.type === 'select').map((f) => [f.name.replace('vehicle1_', ''), f.options]));
+  assert.deepStrictEqual(lists, {
+    vehicle_type: ['Monoplace', 'Kart', 'Voiture de tourisme (y compris SUV et 4x4)', 'GT', 'Voiture de sport deux places', 'Prototype Le Mans (LMP)', 'Silhouette', 'Camion', 'Buggy', 'Dragster', 'Autre'],
+    adr: ['Inconnu', 'Non', 'Oui'],
+    adr_data: ['Oui', 'Non'],
+    cockpit: ['Inconnu', 'Ouvert', 'Fermé'],
+    driving_position: ['N/A', 'Gauche', 'Droite'],
+    engine_type: ['Moteur thermique', 'Hybride', 'Electrique', 'Autre'],
+    fuel_type: ['Essence', 'Diesel', 'Gaz', 'Methanol', 'Essence/hybride', 'Diesel/hybride', 'Electrique', 'Autre'],
+    specification: ['Inconnue', 'Moderne (Annexe J)', 'Historique (Annexe K)', 'Autre'],
+  });
+  assert.ok(fields.filter((f) => f.type === 'select').every((f) => f.dropdown), 'affichées en listes déroulantes');
+  // Référence et données ADR demandées seulement si le véhicule est équipé d'un ADR
+  const v = engine.validate(accidentForm, { vehicle1_adr: 'Non', vehicle1_adr_reference: 'X', vehicle1_adr_data: 'Oui' }).values;
+  assert.strictEqual(v.vehicle1_adr_reference, undefined);
+  assert.strictEqual(v.vehicle1_adr_data, undefined);
+  const w = engine.validate(accidentForm, { vehicle1_adr: 'Oui', vehicle1_adr_reference: 'X', vehicle1_adr_data: 'Oui' }).values;
+  assert.strictEqual(w.vehicle1_adr_reference, 'X');
+  assert.ok(engine.validate(accidentForm, { vehicle1_fuel_type: 'Kérosène' }).errors.vehicle1_fuel_type);
+});
+
 test('personnes déclarées reprises dans le rapport médical (sans doublon)', () => {
   const { declaredPersons } = require('../src/forms/patients');
   const list = declaredPersons({
     summary_victim_last_name: 'Girard', summary_victim_first_name: 'Thomas', summary_victim_license: '254781',
-    vehicle1_driver_role: 'Pilote', vehicle1_driver_last_name: 'Girard', vehicle1_driver_first_name: 'Thomas', vehicle1_number: '27', vehicle1_group: 'GT4',
+    vehicle1_driver_last_name: 'Girard', vehicle1_driver_first_name: 'Thomas', vehicle1_number: '27', vehicle1_group: 'GT4',
     person1_last_name: 'Bernard', person1_first_name: 'Julien', person1_role: 'Commissaire de piste',
   });
   assert.strictEqual(list.length, 2);
   assert.deepStrictEqual(list[0].prefill, {
-    patient_last_name: 'Girard', patient_first_name: 'Thomas', patient_type: ['Pilote'], crew_number: '27', category: 'GT4', license: '254781',
+    patient_last_name: 'Girard', patient_first_name: 'Thomas', crew_number: '27', category: 'GT4', license: '254781',
   });
   assert.deepStrictEqual(list[1].prefill.patient_type, ['Officiel']);
 });
