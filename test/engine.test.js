@@ -163,6 +163,9 @@ test('pilotes / copilotes : identité puis sous-partie « Véhicule », listes d
   const w = engine.validate(accidentForm, { vehicle1_adr: 'Oui', vehicle1_adr_reference: 'X', vehicle1_adr_data: 'Non' }).values;
   assert.strictEqual(w.vehicle1_adr_reference, 'X');
   assert.strictEqual(w.vehicle1_adr_data, 'Non');
+  // Catégorie karting seulement pour un kart
+  assert.strictEqual(engine.validate(accidentForm, { vehicle1_vehicle_type: 'GT', vehicle1_kart_category: 'OK' }).values.vehicle1_kart_category, undefined);
+  assert.strictEqual(engine.validate(accidentForm, { vehicle1_vehicle_type: 'Kart', vehicle1_kart_category: 'OK' }).values.vehicle1_kart_category, 'OK');
   assert.ok(engine.validate(accidentForm, { vehicle1_fuel_type: 'Kérosène' }).errors.vehicle1_fuel_type);
 });
 

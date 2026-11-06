@@ -49,7 +49,7 @@ function vehicleSection(n) {
       { name: `${p}model`, label: 'Modèle', type: 'text', width: 'half' },
       { name: `${p}year`, label: 'Année de construction', type: 'text', width: 'half', inputmode: 'numeric' },
       { name: `${p}group`, label: 'Groupe', type: 'text', width: 'half' },
-      { name: `${p}kart_category`, label: 'Catégorie (karting)', type: 'text', width: 'half' },
+      { name: `${p}kart_category`, label: 'Catégorie (karting)', type: 'text', width: 'half', showIf: { field: `${p}vehicle_type`, equals: 'Kart' } },
       { name: `${p}dragster_category`, label: "Si c'est un Dragster, catégorie", type: 'text', width: 'half', showIf: { field: `${p}vehicle_type`, equals: 'Dragster' } },
       { name: `${p}heading_technical`, label: 'Caractéristiques techniques', type: 'heading' },
       list('cockpit', 'Habitacle', COCKPIT),
