@@ -149,6 +149,9 @@ textarea { resize: vertical; }
 .grid .field { grid-column: 1 / -1; }
 .grid .field.half { grid-column: span 3; }
 .grid .field.third { grid-column: span 2; }
+/* Demi-largeur seule sur sa ligne (question suivie de champs qui en dépendent) */
+.grid .field.half-alone { grid-column: 1 / -1; }
+.grid .field.half-alone > select, .grid .field.half-alone > input { width: calc(50% - 9px); }
 .subheading { grid-column: 1 / -1; margin: 12px 0 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--red-dark); border-bottom: 1px solid var(--border); padding-bottom: 6px; }
 .section-intro { white-space: pre-line; font-size: 13.5px; margin: 8px 0 0; }
 details.section.optional { padding-block: 16px; }
@@ -324,6 +327,7 @@ ul.plain li { margin-bottom: 6px; }
   .step-nav [data-prev] { margin-right: 0; flex: 0 1 auto; }
   .stepper { padding: 14px 16px; }
   .grid .field.half, .grid .field.third { grid-column: 1 / -1; }
+  .grid .field.half-alone > select, .grid .field.half-alone > input { width: 100%; }
   .kv { grid-template-columns: minmax(0, 1fr); }
   .kv dd { margin-bottom: 8px; }
   h1 { font-size: 22px; }

@@ -134,13 +134,16 @@ test('mots de passe', async () => {
 test('pilotes / copilotes : identité puis sous-partie « Véhicule », listes du tableur FFSA 2027', () => {
   const fields = accidentForm.sections.find((s) => s.title === 'Pilote / copilote accidenté').fields;
   assert.deepStrictEqual(fields.map((f) => f.label), [
-    'Concurrent n°', 'Prénom du pilote / copilote', 'Nom du pilote / copilote', 'Licence n°',
+    'Concurrent n°', 'Licence n°', 'Prénom du pilote / copilote', 'Nom du pilote / copilote',
     'Véhicule',
-    'Groupe', 'Catégorie (karting)', 'Marque', 'Modèle', 'Type de véhicule', "Si c'est un Dragster, catégorie",
-    'Année de construction', "Véhicule équipé d'un ADR émis par la FIA ?", 'N° de série / référence ADR', 'Données récupérées / disponibles ?',
-    'Habitacle', 'Position du poste de conduite', 'Type de moteur', 'Type de carburant', 'Spécification du véhicule',
+    'Type de véhicule', 'Spécification du véhicule', 'Marque', 'Modèle', 'Année de construction', 'Groupe',
+    'Catégorie (karting)', "Si c'est un Dragster, catégorie",
+    'Caractéristiques techniques',
+    'Habitacle', 'Position du poste de conduite', 'Type de moteur', 'Type de carburant',
+    'Enregistreur de données accident (ADR)',
+    "Véhicule équipé d'un ADR émis par la FIA ?", 'N° de série / référence ADR', 'Données récupérées / disponibles ?',
   ]);
-  assert.strictEqual(fields[4].type, 'heading');
+  assert.deepStrictEqual(fields.filter((f) => f.type === 'heading').map((f) => f.label), ['Véhicule', 'Caractéristiques techniques', 'Enregistreur de données accident (ADR)']);
   const lists = Object.fromEntries(fields.filter((f) => f.type === 'select').map((f) => [f.name.replace('vehicle1_', ''), f.options]));
   assert.deepStrictEqual(lists, {
     vehicle_type: ['Monoplace', 'Kart', 'Voiture de tourisme (y compris SUV et 4x4)', 'GT', 'Voiture de sport deux places', 'Prototype Le Mans (LMP)', 'Silhouette', 'Camion', 'Buggy', 'Dragster', 'Autre'],
@@ -153,11 +156,13 @@ test('pilotes / copilotes : identité puis sous-partie « Véhicule », listes d
     specification: ['Inconnue', 'Moderne (Annexe J)', 'Historique (Annexe K)', 'Autre'],
   });
   assert.ok(fields.filter((f) => f.type === 'select').every((f) => f.dropdown), 'affichées en listes déroulantes');
-  // Référence et données ADR toujours proposées (sans condition sur la réponse ADR)
-  assert.ok(!fields.some((f) => /adr/.test(f.name) && f.showIf));
-  const v = engine.validate(accidentForm, { vehicle1_adr: 'Inconnu', vehicle1_adr_reference: 'X', vehicle1_adr_data: 'Non' }).values;
-  assert.strictEqual(v.vehicle1_adr_reference, 'X');
-  assert.strictEqual(v.vehicle1_adr_data, 'Non');
+  // Référence et données ADR demandées seulement si le véhicule est équipé d'un ADR
+  const v = engine.validate(accidentForm, { vehicle1_adr: 'Non', vehicle1_adr_reference: 'X', vehicle1_adr_data: 'Oui' }).values;
+  assert.strictEqual(v.vehicle1_adr_reference, undefined);
+  assert.strictEqual(v.vehicle1_adr_data, undefined);
+  const w = engine.validate(accidentForm, { vehicle1_adr: 'Oui', vehicle1_adr_reference: 'X', vehicle1_adr_data: 'Non' }).values;
+  assert.strictEqual(w.vehicle1_adr_reference, 'X');
+  assert.strictEqual(w.vehicle1_adr_data, 'Non');
   assert.ok(engine.validate(accidentForm, { vehicle1_fuel_type: 'Kérosène' }).errors.vehicle1_fuel_type);
 });
 
