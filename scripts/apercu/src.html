@@ -1,0 +1,292 @@
+<title>FFSA Médical – aperçu</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--FONTS-->
+<style>
+/* Charte FFSA : bandeau navy avec logo et filet rouge, titres sobres en Poppins, une section par acteur du parcours */
+:root {
+  --bg: #f5f6fa; --surface: #ffffff; --ink: #1a2233; --muted: #626882; --line: #e2e5ee;
+  --navy: #070e47; --navy-2: #2c2c6f; --title: #070e47;
+  --red: #ef1d34; --red-dark: #c21729;
+  --blue: #3685d9; --blue-dark: #1f5fa8; --blue-tint: #eaf3fc;
+  --shadow: 0 1px 2px rgba(7, 14, 71, .06), 0 10px 28px rgba(7, 14, 71, .08);
+  --font: Poppins, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #060b2e; --surface: #0f1640; --ink: #e8ebf7; --muted: #a3aacb; --line: #222a5e; --title: #ffffff;
+    --red: #ff3d52; --red-dark: #ff7d8b; --blue: #5ea2ea; --blue-dark: #8cbcf0; --blue-tint: #15214f;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #060b2e; --surface: #0f1640; --ink: #e8ebf7; --muted: #a3aacb; --line: #222a5e; --title: #ffffff;
+  --red: #ff3d52; --red-dark: #ff7d8b; --blue: #5ea2ea; --blue-dark: #8cbcf0; --blue-tint: #15214f;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body { background: var(--bg); color: var(--ink); font: 400 15.5px/1.6 var(--font); margin: 0; }
+.band { background: var(--navy); border-bottom: 4px solid var(--red); }
+.band-inner { max-width: 1120px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); padding-block: 18px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.band img { height: 34px; width: auto; display: block; }
+.band span { color: #b6bcdd; font-size: 13px; font-weight: 500; padding-left: 16px; border-left: 1px solid var(--navy-2); line-height: 1.3; }
+.page { max-width: 1120px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); padding-block: 40px 64px; display: grid; gap: 64px; }
+h1, h2, h3 { font-family: var(--font); line-height: 1.2; margin: 0; text-wrap: balance; color: var(--title); }
+h1 { font-size: clamp(28px, 4.4vw, 40px); font-weight: 600; letter-spacing: -.3px; }
+h2 { font-size: clamp(22px, 3vw, 28px); font-weight: 600; letter-spacing: -.2px; }
+p { margin: 0; }
+.mono { font-family: var(--mono); font-size: .9em; }
+.eyebrow { font: 600 11px/1.2 var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--red-dark); }
+
+header.intro { display: grid; gap: 16px; max-width: 780px; }
+.lead { font-size: 16px; font-weight: 500; color: var(--muted); max-width: 68ch; }
+.cta { display: inline-flex; align-items: center; background: var(--blue); color: #fff; text-decoration: none; font: 700 12.5px/1 var(--font); text-transform: uppercase; letter-spacing: .4px; padding: 15px 28px; border-radius: 999px; }
+.cta:hover { background: var(--blue-dark); color: #fff; }
+.cta:focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px; }
+.facts span { font-size: 12.5px; padding: 6px 14px; border-radius: 999px; background: var(--blue-tint); color: var(--blue-dark); font-weight: 600; }
+
+.flow { margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.flow li { list-style: none; padding: 20px; display: grid; gap: 6px; align-content: start; border-left: 1px solid var(--line); }
+.flow li:first-child { border-left: 0; }
+.flow .n { font: 600 24px/1 var(--font); color: var(--red); font-variant-numeric: tabular-nums; }
+.flow h3 { font-size: 17px; font-weight: 600; }
+.flow p { font-size: 14.5px; color: var(--muted); }
+.flow .who { font-size: 11px; font-weight: 600; color: var(--red-dark); text-transform: uppercase; letter-spacing: 1px; }
+
+section.actor { display: grid; gap: 24px; }
+.actor-head { display: grid; gap: 8px; max-width: 780px; }
+.actor-head p { color: var(--muted); }
+.shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+.shots.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.shots .wide { grid-column: 1 / -1; }
+figure { margin: 0; display: grid; gap: 10px; align-content: start; min-width: 0; }
+figure button { all: unset; cursor: zoom-in; display: block; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--surface); }
+figure button:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+figure img { display: block; width: 100%; height: auto; }
+figure.phone { justify-items: center; text-align: left; }
+figure.phone button { max-width: 280px; border-radius: 26px; border: 6px solid var(--navy); }
+figure.phone figcaption { max-width: 280px; }
+figcaption { font-size: 14.5px; color: var(--muted); max-width: 62ch; }
+figcaption strong { color: var(--ink); font-weight: 600; display: block; }
+.duo { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 32px; align-items: start; }
+.stack { display: grid; gap: 24px; min-width: 0; }
+
+.test-steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 14px; align-content: start; }
+.test-steps li { counter-increment: s; display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 12px; }
+.test-steps li::before { content: counter(s); grid-row: span 2; width: 32px; height: 32px; border-radius: 50%; background: var(--red); color: #fff; font-weight: 600; display: grid; place-items: center; font-size: 14px; }
+.test-steps b { font-weight: 600; color: var(--title); }
+.test-steps span { color: var(--muted); font-size: 14.5px; }
+.test-steps em { font-style: normal; font-weight: 600; color: var(--ink); }
+
+.security { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 28px; display: grid; gap: 20px; }
+.security ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 32px; }
+.security li { display: grid; gap: 2px; padding-left: 16px; border-left: 3px solid var(--red); min-width: 0; }
+.security li b { font-weight: 600; }
+.security li span { color: var(--muted); font-size: 14.5px; }
+
+.email { margin: 0; font-family: var(--mono); font-size: 13px; line-height: 1.6; background: var(--blue-tint); color: var(--ink); border-radius: 10px; padding: 18px 20px; white-space: pre-wrap; overflow-x: auto; border: 1px solid var(--line); }
+footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 20px; }
+
+dialog { border: 0; padding: 0; background: transparent; max-width: min(1400px, 96vw); max-height: 94vh; }
+dialog::backdrop { background: rgba(5, 10, 20, .82); }
+dialog img { display: block; max-width: 100%; max-height: 90vh; width: auto; height: auto; border-radius: 8px; }
+dialog form { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); }
+dialog form button { font: 700 12.5px var(--font); text-transform: uppercase; letter-spacing: .4px; background: var(--surface); color: var(--ink); border: 0; border-radius: 999px; padding: 8px 16px; cursor: pointer; }
+
+@media (max-width: 860px) {
+  .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .flow li:nth-child(3) { border-left: 0; }
+  .flow li:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .shots, .shots.three, .security ul, .duo { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .flow { grid-template-columns: minmax(0, 1fr); }
+  .flow li { border-left: 0; border-top: 1px solid var(--line); }
+  .flow li:first-child { border-top: 0; }
+  .page { gap: 48px; }
+  .band span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="band"><div class="band-inner"><img src="img/logo-ffsa.png" alt="FFSA" width="202" height="34"><span>Rapports d'accident<br>&amp; rapports médicaux</span></div></div>
+<div class="page">
+  <header class="intro">
+    <span class="eyebrow">Aperçu de l'application · version de démonstration</span>
+    <h1>Rapports d'accident et rapports médicaux</h1>
+    <p class="lead">L'application remplace les formulaires Jotform. Le directeur de course déclare l'accident, le médecin de l'épreuve complète un rapport par patient, et le service médical de la FFSA retrouve le dossier complet dans un back office sécurisé. Les captures viennent de l'application, avec des données fictives.</p>
+    <p><a class="cta" href="{{DEMO_URL}}">Ouvrir la démo interactive</a></p>
+    <div class="facts"><span>Hébergement HDS</span><span>Données chiffrées</span><span>Double authentification</span><span>Ordinateur et mobile</span><span>Conservation 10 ans</span></div>
+  </header>
+
+  <ol class="flow" aria-label="Déroulé d'un dossier">
+    <li><span class="n">1</span><span class="who">Directeur de course</span><h3>Déclare l'accident</h3><p>Formulaire en 7 étapes, dans les 48 h, avec les coordonnées du médecin.</p></li>
+    <li><span class="n">2</span><span class="who">Médecin</span><h3>Reçoit un lien</h3><p>E-mail et SMS avec un lien personnel, puis un code de vérification. Aucun compte à créer.</p></li>
+    <li><span class="n">3</span><span class="who">Médecin</span><h3>Un rapport par patient</h3><p>Pré-rempli avec l'épreuve et les personnes déclarées. Il clôture quand tout est saisi.</p></li>
+    <li><span class="n">4</span><span class="who">Service médical</span><h3>Analyse le dossier</h3><p>Prévenu par e-mail, il suit, annote et télécharge le dossier en PDF.</p></li>
+  </ol>
+
+  <section class="actor" aria-labelledby="h-acces">
+    <div class="actor-head">
+      <span class="eyebrow">Accès</span>
+      <h2 id="h-acces">Des comptes autonomes pour les directeurs de course</h2>
+      <p>Les licenciés FFSA se connectent avec leur compte licencié, sans validation. Les autres créent un compte, validé par la FFSA. À chaque connexion, un code est envoyé par e-mail.</p>
+    </div>
+    <div class="shots">
+      <figure><button type="button" data-full="img/01-connexion.jpg" aria-label="Agrandir : connexion"><img src="img/01-connexion.jpg" alt="Écran de connexion" loading="lazy"></button>
+        <figcaption><strong>Connexion</strong>Compte licencié FFSA ou e-mail et mot de passe. Les médecins n'en ont pas besoin : ils passent par leur lien.</figcaption></figure>
+      <figure><button type="button" data-full="img/02-portail-licencie.jpg" aria-label="Agrandir : portail licencié"><img src="img/02-portail-licencie.jpg" alt="Connexion avec le compte licencié FFSA (simulation)" loading="lazy"></button>
+        <figcaption><strong>Compte licencié FFSA</strong>Nom, licence et ASA sont repris du compte licencié. Ici, une simulation du portail FFSA.</figcaption></figure>
+      <figure><button type="button" data-full="img/03-inscription.jpg" aria-label="Agrandir : inscription"><img src="img/03-inscription.jpg" alt="Formulaire de création de compte" loading="lazy"></button>
+        <figcaption><strong>Création de compte</strong>Pour ceux qui n'ont pas de compte licencié : adresse e-mail confirmée, puis validation par la FFSA.</figcaption></figure>
+      <figure><button type="button" data-full="img/04-code-connexion.jpg" aria-label="Agrandir : code de connexion"><img src="img/04-code-connexion.jpg" alt="Saisie du code de connexion reçu par e-mail" loading="lazy"></button>
+        <figcaption><strong>Double authentification</strong>Code à usage unique envoyé par e-mail, valable 10 minutes.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="actor" aria-labelledby="h-dc">
+    <div class="actor-head">
+      <span class="eyebrow">Étape 1</span>
+      <h2 id="h-dc">Le directeur de course déclare l'accident</h2>
+      <p>Le formulaire se remplit en étapes, sur ordinateur comme sur téléphone. La saisie est enregistrée au fur et à mesure : on peut fermer la page et reprendre plus tard. Le directeur de course suit ses déclarations sans jamais voir le rapport médical.</p>
+    </div>
+    <div class="shots">
+      <figure><button type="button" data-full="img/05-mes-declarations.jpg" aria-label="Agrandir : mes déclarations"><img src="img/05-mes-declarations.jpg" alt="Liste des déclarations du directeur de course" loading="lazy"></button>
+        <figcaption><strong>Mes déclarations</strong>Chaque dossier a une référence (<span class="mono">ACC-2026-00003</span>) et indique si le rapport médical est arrivé.</figcaption></figure>
+      <figure><button type="button" data-full="img/06-etapes.jpg" aria-label="Agrandir : formulaire en étapes"><img src="img/06-etapes.jpg" alt="Première étape du rapport d'accident avec la barre de progression" loading="lazy"></button>
+        <figcaption><strong>Sept étapes</strong>Barre de progression, sommaire cliquable et compteur des champs obligatoires. Les erreurs sont signalées pendant la saisie.</figcaption></figure>
+      <figure class="wide"><button type="button" data-full="img/07-pilote-vehicule.jpg" aria-label="Agrandir : pilote et véhicule"><img src="img/07-pilote-vehicule.jpg" alt="Bloc pilote / copilote accidenté avec véhicule, caractéristiques techniques et ADR" loading="lazy"></button>
+        <figcaption><strong>Pilote / copilote et véhicule</strong>Champs et listes du rapport d'accident FFSA 2027 : identité, véhicule, caractéristiques techniques, puis l'enregistreur de données (ADR). Le n° de série et les données ADR ne sont demandés que si le véhicule en est équipé.</figcaption></figure>
+      <figure><button type="button" data-full="img/08-ajouter-bloc.jpg" aria-label="Agrandir : ajouter une personne"><img src="img/08-ajouter-bloc.jpg" alt="Boutons pour ajouter un pilote ou une autre personne accidentée" loading="lazy"></button>
+        <figcaption><strong>Ajouter au besoin</strong>Les pilotes supplémentaires, spectateurs, officiels et témoins s'ajoutent d'un clic, et se retirent aussi simplement.</figcaption></figure>
+      <figure><button type="button" data-full="img/09-equipement.jpg" aria-label="Agrandir : étude de l'équipement"><img src="img/09-equipement.jpg" alt="Tableau d'équipement d'un concurrent" loading="lazy"></button>
+        <figcaption><strong>Étude de l'équipement</strong>Un tableau par concurrent déclaré, 19 articles : présent (Oui / Non / NSP), puis marque, modèle et n° d'homologation si présent.</figcaption></figure>
+    </div>
+    <div class="duo">
+      <figure class="phone"><button type="button" data-full="img/11-photos-mobile.jpg" aria-label="Agrandir : photos sur téléphone"><img src="img/11-photos-mobile.jpg" alt="Ajout de photos depuis le téléphone" loading="lazy"></button>
+        <figcaption><strong>Photos au bord de la piste</strong>« Prendre une photo » ouvre l'appareil du téléphone. Les photos lourdes sont réduites avant l'envoi.</figcaption></figure>
+      <figure><button type="button" data-full="img/10-recapitulatif.jpg" aria-label="Agrandir : récapitulatif"><img src="img/10-recapitulatif.jpg" alt="Récapitulatif avant envoi" loading="lazy"></button>
+        <figcaption><strong>Vérification et envoi</strong>Récapitulatif de toute la saisie, avec « Modifier » par étape et la liste des champs obligatoires manquants. Le rédacteur s'identifie avec son n° de licence.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="actor" aria-labelledby="h-med">
+    <div class="actor-head">
+      <span class="eyebrow">Étapes 2 et 3</span>
+      <h2 id="h-med">Le médecin complète le rapport médical</h2>
+      <p>Il reçoit un e-mail et un SMS sans aucune donnée de santé, seulement un lien. À l'ouverture, un code lui est envoyé pour confirmer son identité. S'il n'est pas le bon médecin, il transfère le dossier à un confrère.</p>
+    </div>
+    <div class="duo">
+      <figure class="phone"><button type="button" data-full="img/12-medecin-code-mobile.jpg" aria-label="Agrandir : vérification par code"><img src="img/12-medecin-code-mobile.jpg" alt="Vérification par code sur téléphone" loading="lazy"></button>
+        <figcaption><strong>Vérification par code</strong>Code valable 10 minutes, envoyé à l'adresse indiquée par le directeur de course.</figcaption></figure>
+      <div class="stack">
+        <pre class="email" aria-label="Exemple d'e-mail reçu par le médecin">Objet : [FFSA] Rapport médical à compléter – dossier ACC-2026-00003
+
+Bonjour Docteur,
+
+Un rapport d'accident a été déclaré lors de l'épreuve « Trophée de
+l'Ouest » et vous a été désigné(e) comme médecin intervenant.
+
+Merci de compléter le rapport médical (un formulaire par patient
+consulté) via le lien sécurisé ci-dessous :
+https://medical.ffsa.example/medecin/••••••••</pre>
+        <figure><button type="button" data-full="img/14-medecin-dossier.jpg" aria-label="Agrandir : dossier du médecin"><img src="img/14-medecin-dossier.jpg" alt="Dossier du médecin avec les personnes déclarées" loading="lazy"></button>
+          <figcaption><strong>Dossier du médecin</strong>Les personnes déclarées par le directeur de course sont listées : leurs informations sont reprises dans le rapport. Il clique sur « J'ai terminé » pour prévenir le service médical.</figcaption></figure>
+      </div>
+    </div>
+    <div class="shots three">
+      <figure class="phone"><button type="button" data-full="img/13-medecin-formulaire-mobile.jpg" aria-label="Agrandir : formulaire sur téléphone"><img src="img/13-medecin-formulaire-mobile.jpg" alt="Formulaire médical sur téléphone" loading="lazy"></button>
+        <figcaption><strong>Sur téléphone</strong>Six étapes, pré-remplies avec l'épreuve et le patient.</figcaption></figure>
+      <figure><button type="button" data-full="img/15-medecin-blessures.jpg" aria-label="Agrandir : blessures"><img src="img/15-medecin-blessures.jpg" alt="Localisation et type des blessures" loading="lazy"></button>
+        <figcaption><strong>Blessures</strong>Type de blessure en toutes lettres (contusion, fracture, entorse…) par zone, côté droit et gauche.</figcaption></figure>
+      <figure><button type="button" data-full="img/16-medecin-conclusion.jpg" aria-label="Agrandir : conclusion"><img src="img/16-medecin-conclusion.jpg" alt="Conclusion : classification et aptitude" loading="lazy"></button>
+        <figcaption><strong>Classification et aptitude</strong>Classification 0 à 4. « Épreuve en cours » n'apparaît que si le pilote est apte.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="actor" aria-labelledby="h-bo">
+    <div class="actor-head">
+      <span class="eyebrow">Étape 4</span>
+      <h2 id="h-bo">Le service médical suit les dossiers</h2>
+      <p>Deux rôles séparés : le service médical accède aux données de santé, l'administrateur gère les comptes sans jamais les voir. Connexion par mot de passe et application d'authentification. Chaque consultation, téléchargement et export est enregistré.</p>
+    </div>
+    <div class="shots">
+      <figure class="wide"><button type="button" data-full="img/18-back-office-liste.jpg" aria-label="Agrandir : liste des dossiers"><img src="img/18-back-office-liste.jpg" alt="Back office : liste des dossiers avec compteurs et filtres" loading="lazy"></button>
+        <figcaption><strong>Liste des dossiers</strong>Compteurs (en retard, en attente, à analyser, attribués), filtres, export complet et export statistique pseudonymisé.</figcaption></figure>
+      <figure class="wide"><button type="button" data-full="img/19-back-office-dossier.jpg" aria-label="Agrandir : dossier"><img src="img/19-back-office-dossier.jpg" alt="Back office : dossier avec suivi, notes et téléchargement PDF" loading="lazy"></button>
+        <figcaption><strong>Dossier</strong>Statut de traitement, médecin fédéral référent, notes internes, téléchargement en PDF au format FFSA. Rapport d'accident et rapports médicaux côte à côte.</figcaption></figure>
+      <figure><button type="button" data-full="img/17-double-authentification.jpg" aria-label="Agrandir : double authentification"><img src="img/17-double-authentification.jpg" alt="Saisie du code de double authentification" loading="lazy"></button>
+        <figcaption><strong>Double authentification</strong>Obligatoire pour le back office (Google Authenticator, Microsoft Authenticator…).</figcaption></figure>
+      <figure><button type="button" data-full="img/20-demandes.jpg" aria-label="Agrandir : demandes d'accès"><img src="img/20-demandes.jpg" alt="Demandes d'accès des directeurs de course" loading="lazy"></button>
+        <figcaption><strong>Demandes d'accès</strong>Les inscriptions sans compte licencié sont acceptées ou refusées ici, avec un message à la personne.</figcaption></figure>
+      <figure><button type="button" data-full="img/21-utilisateurs.jpg" aria-label="Agrandir : utilisateurs"><img src="img/21-utilisateurs.jpg" alt="Gestion des utilisateurs par l'administrateur" loading="lazy"></button>
+        <figcaption><strong>Utilisateurs</strong>L'administrateur invite, désactive et réinitialise les comptes. Il n'a aucun accès aux dossiers.</figcaption></figure>
+      <figure><button type="button" data-full="img/22-audit.jpg" aria-label="Agrandir : journal d'audit"><img src="img/22-audit.jpg" alt="Journal d'audit des accès" loading="lazy"></button>
+        <figcaption><strong>Journal d'audit</strong>Qui a fait quoi et quand. Le journal ne peut être ni modifié ni effacé.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="actor" aria-labelledby="h-test">
+    <div class="actor-head">
+      <span class="eyebrow">Version de démonstration</span>
+      <h2 id="h-test">Tester l'application</h2>
+      <p>La démo interactive s'ouvre dans le navigateur, sans compte ni installation, même hors connexion. Les comptes de test sont prêts, le code de connexion s'affiche à l'écran et les e-mails apparaissent dans la démo au lieu d'être envoyés. Chaque testeur a ses propres données fictives.</p>
+      <p><a class="cta" href="{{DEMO_URL}}">Ouvrir la démo interactive</a></p>
+    </div>
+    <div class="shots">
+      <ol class="test-steps">
+        <li><b>Ouvrir</b><span>Cliquez sur <em>Ouvrir la démo interactive</em>. Le guide « Comment tester » s'affiche en bas à droite.</span></li>
+        <li><b>Déclarer</b><span>Connexion avec le compte « Directeur de course », puis « Déclarer un accident ».</span></li>
+        <li><b>Jouer le médecin</b><span>Bandeau jaune « Voir les e-mails envoyés » : ouvrez le lien reçu par le médecin, puis son code dans la même boîte.</span></li>
+        <li><b>Consulter</b><span>Connexion avec le compte « Service médical » et ouverture du dossier.</span></li>
+        <li><b>Noter</b><span>Le bouton <em>Notes</em> garde vos remarques écran par écran. Exportez-les en texte pour les transmettre.</span></li>
+      </ol>
+      <figure><button type="button" data-full="img/23-boite-mail-demo.jpg" aria-label="Agrandir : boîte mail de démonstration"><img src="img/23-boite-mail-demo.jpg" alt="Boîte mail de démonstration" loading="lazy"></button>
+        <figcaption><strong>Boîte mail de démonstration</strong>Tous les messages (médecin, directeur de course, service médical) y apparaissent, liens cliquables.</figcaption></figure>
+      <figure class="wide"><button type="button" data-full="img/24-notes-reunion.jpg" aria-label="Agrandir : notes de réunion"><img src="img/24-notes-reunion.jpg" alt="Panneau Notes de réunion dans la démo" loading="lazy"></button>
+        <figcaption><strong>Notes de réunion</strong>Chaque note est rattachée à l'écran affiché, et éventuellement à un élément désigné d'un clic. L'export liste les remarques dans l'ordre, prêtes à être appliquées.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="security" aria-labelledby="h-sec">
+    <h2 id="h-sec">Protection des données de santé</h2>
+    <ul>
+      <li><b>Chiffrement</b><span>Formulaires, brouillons et pièces jointes chiffrés dans la base, clés renouvelables.</span></li>
+      <li><b>Deux rôles séparés</b><span>Le service médical voit les données de santé. L'administrateur gère les comptes sans y avoir accès.</span></li>
+      <li><b>Accès cloisonnés</b><span>Le directeur de course ne voit que ses déclarations, le médecin que son dossier.</span></li>
+      <li><b>Double authentification obligatoire</b><span>Code par e-mail pour les directeurs de course, application d'authentification pour le back office.</span></li>
+      <li><b>E-mails et SMS sans données sensibles</b><span>Uniquement une référence de dossier et un lien, jamais l'identité de la victime.</span></li>
+      <li><b>Traçabilité</b><span>Journal de tous les accès, impossible à modifier ou à effacer.</span></li>
+      <li><b>Conservation limitée</b><span>Dossiers supprimés automatiquement après 10 ans. Page « Données personnelles » accessible à tous.</span></li>
+      <li><b>Pièces jointes contrôlées</b><span>Format vérifié et analyse antivirus avant tout enregistrement.</span></li>
+    </ul>
+  </section>
+
+  <footer>Version de démonstration · données fictives · captures réalisées le 6 novembre 2026 aux couleurs de la charte FFSA.</footer>
+</div>
+
+<dialog id="viewer" aria-label="Capture agrandie">
+  <form method="dialog"><button type="submit">Fermer</button></form>
+  <img id="viewer-img" alt="">
+</dialog>
+
+<script>
+(function () {
+  var dlg = document.getElementById('viewer');
+  var img = document.getElementById('viewer-img');
+  document.querySelectorAll('figure button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var thumb = b.querySelector('img');
+      img.src = b.getAttribute('data-full') || thumb.src;
+      img.alt = thumb.alt;
+      if (dlg.showModal) dlg.showModal();
+    });
+  });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg || e.target === img) dlg.close(); });
+})();
+</script>

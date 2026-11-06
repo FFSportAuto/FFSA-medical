@@ -763,7 +763,7 @@
   var picking = false, hovered = null;
   function describe(el) {
     var field = el.closest('.field, label, fieldset');
-    var lab = field && (field.querySelector('label, legend') || field);
+    var lab = field && (field.querySelector('label, legend, .label') || field);
     var txt = (lab && lab !== root ? lab.textContent : '') || el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.textContent || el.getAttribute('value') || '';
     txt = txt.replace(/\s+/g, ' ').trim();
     if (!txt) txt = el.tagName.toLowerCase();
