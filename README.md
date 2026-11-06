@@ -145,6 +145,7 @@ docker compose up -d --build
 docker compose exec app node scripts/create-user.js admin@ffsa.org "Prénom Nom" admin
 ```
 
+Guide complet pour la DSI (prérequis HDS, secrets, installation, vérifications, exploitation) : [`docs/MISE-EN-PRODUCTION.md`](docs/MISE-EN-PRODUCTION.md).
 Voir [`docs/SECURITE-RGPD.md`](docs/SECURITE-RGPD.md) pour les mesures de sécurité et la check-list d'hébergement.
 
 ## Structure
