@@ -18,11 +18,13 @@ const accident = {
     vehicle2_driver_last_name: 'Petit', vehicle2_driver_first_name: 'Marc', vehicle2_license: '198442', vehicle2_number: '12', vehicle2_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)', vehicle2_make: 'Peugeot', vehicle2_model: '308 Racing Cup',
     person1_last_name: 'Bernard', person1_first_name: 'Julien', person1_license: '301122', person1_role: 'Commissaire de piste',
     weather: ['Nuageux'], temperature: '14 °C', visibility: ['Bonne'], surface: ['Asphalte'], track_layout: ['En descente'], track_condition: ['Mouillé', 'Autre'], track_condition_other: 'Traces d’huile',
-    equipment: {
-      Numéro: { 'Concurrent 1': '27', 'Concurrent 2': '12' }, Casque: { 'Concurrent 1': 'Conforme', 'Concurrent 2': 'Conforme' },
-      'Hans / Simpson': { 'Concurrent 1': 'Conforme' }, 'Harnais de sécurité': { 'Concurrent 1': 'Sangle droite détendue' },
-      'Extincteur utilisé ? (oui / non)': { 'Concurrent 1': 'Non', 'Concurrent 2': 'Non' },
+    equipment1: {
+      'Combinaison du pilote / copilote': { Présent: 'Oui', "Marque, modèle, n° d'homologation": 'Sparco Prime RS-8, FIA 8856-2018' },
+      Casque: { Présent: 'Oui', "Marque, modèle, n° d'homologation": 'Stilo ST5 GT, FIA 8860-2018' },
+      'Hans / Simpson': { Présent: 'Oui' }, 'Harnais de sécurité': { Présent: 'Oui', "Marque, modèle, n° d'homologation": 'Sabelt 6 points, FIA 8853-2016' },
+      'Extincteur manuel': { Présent: 'Non' }, 'Filet de vitre': { Présent: 'NSP' },
     },
+    equipment2: { Casque: { Présent: 'Oui' }, 'Extincteur embarqué': { Présent: 'Oui' } },
     equipment_comments: 'Harnais à vérifier par les commissaires techniques.',
     rescue_observations: '11:20 accident – 11:21 drapeau rouge – 11:23 arrivée VIR et médecin – 11:31 extraction – 11:48 départ ambulance.',
     witness1_first_name: 'Paul', witness1_last_name: 'Lefèvre', witness1_role: 'Commissaire poste 4', witness1_confirmed: true,

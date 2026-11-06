@@ -231,34 +231,33 @@
     });
   }
 
-  // ---- Tableau dont les colonnes suivent les blocs ajoutés (ex. une colonne par concurrent) ----
-  function syncColumns(form) {
-    toArray(form.querySelectorAll('[data-columns-follow]')).forEach(function (f) {
-      var secs = toArray(form.querySelectorAll('[data-repeat="' + f.getAttribute('data-columns-follow') + '"]'));
-      toArray(f.querySelectorAll('thead th[data-col]')).forEach(function (th) {
-        var ci = Number(th.getAttribute('data-col'));
-        var sec = secs[ci];
-        var on = Boolean(sec) && !sec.classList.contains('repeat-off');
-        var base = th.getAttribute('data-base') || th.textContent;
-        th.setAttribute('data-base', base);
-        // En-tête : « Concurrent 1 – Durand (n° 27) » d'après le bloc correspondant
-        var name = sec && sec.querySelector('[name$="driver_last_name"]');
-        var num = sec && sec.querySelector('[name$="_number"]');
-        var label = base + (name && name.value.trim() ? ' – ' + name.value.trim() : '') + (num && num.value.trim() ? ' (n° ' + num.value.trim() + ')' : '');
-        th.textContent = label;
-        th.classList.toggle('col-off', !on);
-        toArray(f.querySelectorAll('td[data-col="' + ci + '"]')).forEach(function (td) {
-          td.classList.toggle('col-off', !on);
-          td.setAttribute('data-col-label', label);
-          var i = td.querySelector('[name]');
-          if (!i) return;
-          if (!on) i.value = '';
-          i.disabled = !on;
-          // Ligne « Numéro » : reprend le numéro du concurrent s'il est vide
-          if (on && !i.value && num && num.value.trim() && /^Num/.test(td.parentNode.querySelector('th').textContent)) i.value = num.value.trim();
-        });
-      });
-      f.hidden = !secs.some(function (s) { return !s.classList.contains('repeat-off'); });
+  // ---- Champs rattachés à un bloc ajouté (ex. tableau d'équipement de chaque concurrent) ----
+  function syncFollows(form) {
+    toArray(form.querySelectorAll('[data-follows]')).forEach(function (f) {
+      var sec = toArray(form.querySelectorAll('[data-repeat="' + f.getAttribute('data-follows') + '"]'))[Number(f.getAttribute('data-follows-index'))];
+      var on = Boolean(sec) && !sec.classList.contains('repeat-off');
+      if (!on && !f.hidden) clearInputs(f);
+      f.hidden = !on;
+      if (!on) return;
+      // Titre : « Concurrent 1 – Thomas Durand (n° 27) », d'après le bloc correspondant
+      var label = f.querySelector('.label');
+      var base = label.getAttribute('data-base') || label.textContent.trim();
+      label.setAttribute('data-base', base);
+      var val = function (suffix) { var i = sec.querySelector('[name$="' + suffix + '"]'); return i ? i.value.trim() : ''; };
+      var name = [val('driver_first_name'), val('driver_last_name')].filter(Boolean).join(' ');
+      label.textContent = base + (val('driver_last_name') ? ' – ' + name : '') + (val('_number') ? ' (n° ' + val('_number') + ')' : '');
+    });
+  }
+
+  // ---- Case de tableau active seulement selon une autre case de la ligne (ex. détail si « Présent : Oui ») ----
+  function syncCells(form) {
+    toArray(form.querySelectorAll('td[data-enabled-col]')).forEach(function (td) {
+      var src = td.parentNode.querySelector('td[data-col="' + td.getAttribute('data-enabled-col') + '"] [name]');
+      var on = Boolean(src) && src.value === td.getAttribute('data-enabled-value');
+      var i = td.querySelector('[name]');
+      if (!on && i.value) i.value = '';
+      i.disabled = !on;
+      td.classList.toggle('cell-off', !on);
     });
   }
 
@@ -571,8 +570,9 @@
 
   function enhanceForm(form) {
     setupRepeats(form);
-    syncColumns(form);
-    form.addEventListener('change', function () { syncColumns(form); });
+    syncFollows(form);
+    syncCells(form);
+    form.addEventListener('change', function () { syncFollows(form); syncCells(form); });
     setupQuickDates(form);
     setupRadioToggle(form);
     setupFiles(form);

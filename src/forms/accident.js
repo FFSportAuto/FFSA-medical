@@ -22,7 +22,7 @@ const VEHICLE_TYPES = [
 const ADR = ['Inconnu', 'Non', 'Oui'];
 const ADR_DATA = ['Oui', 'Non'];
 const COCKPIT = ['Inconnu', 'Ouvert', 'Fermé'];
-const DRIVING_POSITION = ['N/A', 'Gauche', 'Droite'];
+const DRIVING_POSITION = ['NSP', 'Gauche', 'Droite'];
 const ENGINE_TYPES = ['Moteur thermique', 'Hybride', 'Electrique', 'Autre'];
 const FUEL_TYPES = ['Essence', 'Diesel', 'Gaz', 'Methanol', 'Essence/hybride', 'Diesel/hybride', 'Electrique', 'Autre'];
 const VEHICLE_SPECS = ['Inconnue', 'Moderne (Annexe J)', 'Historique (Annexe K)', 'Autre'];
@@ -38,6 +38,10 @@ function vehicleSection(n) {
     repeat: { group: 'vehicle', addLabel: 'Ajouter un autre pilote / copilote' },
     fields: [
       { name: `${p}number`, label: 'Concurrent n°', type: 'text', width: 'half' },
+      { name: `${p}driver_first_name`, label: 'Prénom du pilote / copilote', type: 'text', width: 'half' },
+      { name: `${p}driver_last_name`, label: 'Nom du pilote / copilote', type: 'text', width: 'half' },
+      { name: `${p}license`, label: 'Licence n°', type: 'text', width: 'half', inputmode: 'numeric' },
+      { name: `${p}heading_vehicle`, label: 'Véhicule', type: 'heading' },
       { name: `${p}group`, label: 'Groupe', type: 'text', width: 'half' },
       { name: `${p}kart_category`, label: 'Catégorie (karting)', type: 'text', width: 'half' },
       { name: `${p}make`, label: 'Marque', type: 'text', width: 'half' },
@@ -46,17 +50,55 @@ function vehicleSection(n) {
       { name: `${p}dragster_category`, label: "Si c'est un Dragster, catégorie", type: 'text', width: 'half', showIf: { field: `${p}vehicle_type`, equals: 'Dragster' } },
       { name: `${p}year`, label: 'Année de construction', type: 'text', width: 'half', inputmode: 'numeric' },
       list('adr', "Véhicule équipé d'un ADR émis par la FIA ?", ADR),
-      { name: `${p}adr_reference`, label: 'N° de série / référence ADR', type: 'text', width: 'half', showIf: { field: `${p}adr`, equals: 'Oui' } },
-      list('adr_data', 'Données récupérées / disponibles ?', ADR_DATA, { showIf: { field: `${p}adr`, equals: 'Oui' } }),
+      { name: `${p}adr_reference`, label: 'N° de série / référence ADR', type: 'text', width: 'half' },
+      list('adr_data', 'Données récupérées / disponibles ?', ADR_DATA),
       list('cockpit', 'Habitacle', COCKPIT),
       list('driving_position', 'Position du poste de conduite', DRIVING_POSITION),
       list('engine_type', 'Type de moteur', ENGINE_TYPES),
       list('fuel_type', 'Type de carburant', FUEL_TYPES),
       list('specification', 'Spécification du véhicule', VEHICLE_SPECS),
-      { name: `${p}driver_last_name`, label: 'Nom du pilote / copilote', type: 'text', width: 'half' },
-      { name: `${p}driver_first_name`, label: 'Prénom du pilote / copilote', type: 'text', width: 'half' },
-      { name: `${p}license`, label: 'Licence n°', type: 'text', width: 'half', inputmode: 'numeric' },
     ],
+  };
+}
+
+// Étude de l'équipement : un tableau par pilote / copilote déclaré (affiché seulement si le bloc existe)
+const EQUIPMENT_ITEMS = [
+  'Combinaison du pilote / copilote',
+  'Gants',
+  'Chaussures',
+  'Sous-vêtements',
+  'Casque',
+  'Visière',
+  'Hans / Simpson',
+  "Rembourrage de l'arceau",
+  "Matériau de l'appuie-tête",
+  "Réservoir d'essence / vessie",
+  'Câbles de retenue des roues',
+  "Matériau absorbeur d'énergie – porte",
+  'Siège',
+  'Harnais de sécurité',
+  'Armature de sécurité',
+  'Extincteur embarqué',
+  'Extincteur manuel',
+  'Filet de protection (racing nets)',
+  'Filet de vitre',
+];
+function equipmentTable(n) {
+  const p = `vehicle${n}_`;
+  return {
+    name: `equipment${n}`,
+    label: `Concurrent ${n}`,
+    // Libellé complété avec le nom et le numéro du concurrent (écran, PDF, back office)
+    displayLabel: (v) => `Concurrent ${n}` + (v[`${p}driver_last_name`] ? ` – ${[v[`${p}driver_first_name`], v[`${p}driver_last_name`]].filter(Boolean).join(' ')}` : '') + (v[`${p}number`] ? ` (n° ${v[`${p}number`]})` : ''),
+    type: 'matrix',
+    follows: { group: 'vehicle', index: n - 1 },
+    rows: EQUIPMENT_ITEMS,
+    columns: ['Présent', "Marque, modèle, n° d'homologation"],
+    cells: [
+      { type: 'select', options: ['Oui', 'Non', 'NSP'] },
+      { type: 'text', enabledIf: { column: 0, equals: 'Oui' } },
+    ],
+    columnWidths: [0.22, 0.78],
   };
 }
 
@@ -106,7 +148,7 @@ const withOther = (name, label, options) => [
 
 module.exports = {
   id: 'accident',
-  version: 6,
+  version: 7,
   title: "Rapport d'accident",
   intro:
     "À remplir dans les 48 heures après l'accident par le directeur de course, " +
@@ -235,26 +277,7 @@ module.exports = {
       title: "Étude de l'équipement",
       step: 'Conditions et équipement',
       fields: [
-        {
-          name: 'equipment',
-          label: 'Observations par véhicule concurrent',
-          type: 'matrix',
-          rows: [
-            'Numéro',
-            'Combinaison du pilote / copilote',
-            'Casque',
-            'Visière',
-            'Hans / Simpson',
-            'Harnais de sécurité',
-            'Arceau de sécurité',
-            'Extincteur à bord',
-            'Extincteur utilisé ? (oui / non)',
-          ],
-          // Une colonne par pilote / copilote déclaré à l'étape « Personnes accidentées »
-          columns: ['Concurrent 1', 'Concurrent 2', 'Concurrent 3'],
-          columnsFollow: 'vehicle',
-          cell: { type: 'text' },
-        },
+        ...[1, 2, 3].map(equipmentTable),
         { name: 'equipment_comments', label: 'Commentaires spécifiques (exemple : problème avec système Hans / Simpson)', type: 'textarea', rows: 3 },
       ],
     },

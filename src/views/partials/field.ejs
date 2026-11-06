@@ -10,26 +10,27 @@
 <% if (field.type === 'heading') { %>
 <h4 class="subheading"><%= field.label %></h4>
 <% } else { %>
-<div class="field <%= field.width || '' %> <%= err ? 'has-error' : '' %>" data-field="<%= field.name %>" data-type="<%= asPills ? 'radio' : field.type %>"<% if (field.shortLabel) { %> data-label="<%= field.shortLabel %>"<% } %><% if (field.required) { %> data-required<% } %><% if (field.columnsFollow) { %> data-columns-follow="<%= field.columnsFollow %>"<% } %><% if (field.pattern) { %> data-pattern="<%= field.pattern %>" data-pattern-message="<%= field.patternMessage || 'Format invalide.' %>"<% } %> <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
+<div class="field <%= field.width || '' %> <%= err ? 'has-error' : '' %>" data-field="<%= field.name %>" data-type="<%= asPills ? 'radio' : field.type %>"<% if (field.shortLabel) { %> data-label="<%= field.shortLabel %>"<% } %><% if (field.required) { %> data-required<% } %><% if (field.follows) { %> data-follows="<%= field.follows.group %>" data-follows-index="<%= field.follows.index %>"<% } %><% if (field.pattern) { %> data-pattern="<%= field.pattern %>" data-pattern-message="<%= field.patternMessage || 'Format invalide.' %>"<% } %> <% if (showIf) { %>data-show-if="<%= showIf %>"<% } %>>
   <% if (field.type === 'matrix') { %>
     <span class="label"><%= field.label %><% if (field.required) { %> <abbr title="obligatoire">*</abbr><% } %></span>
     <div class="matrix-wrap">
-      <table class="matrix">
+      <table class="matrix<%= field.columnWidths ? ' matrix-detail' : '' %>">
         <thead><tr><th></th><% field.columns.forEach(function (c, ci) { %><th data-col="<%= ci %>"><%= c %></th><% }) %></tr></thead>
         <tbody>
         <% field.rows.forEach(function (row, ri) { %>
           <tr><th scope="row"><%= row %></th>
           <% field.columns.forEach(function (col, ci) {
                const name = field.name + '__' + ri + '__' + ci;
-               const cv = (v && v[row] && v[row][col] !== undefined) ? v[row][col] : ''; %>
-            <td data-col="<%= ci %>" data-col-label="<%= col %>">
-              <% if (field.cell.type === 'select') { %>
+               const cv = (v && v[row] && v[row][col] !== undefined) ? v[row][col] : '';
+               const cell = field.cells ? field.cells[ci] : field.cell; %>
+            <td data-col="<%= ci %>" data-col-label="<%= col %>"<% if (cell.enabledIf) { %> data-enabled-col="<%= cell.enabledIf.column %>" data-enabled-value="<%= cell.enabledIf.equals %>"<% } %>>
+              <% if (cell.type === 'select') { %>
                 <select name="<%= name %>" aria-label="<%= row %> – <%= col %>">
                   <option value=""></option>
-                  <% field.cell.options.forEach(function (o) { %><option <%= cv === o ? 'selected' : '' %>><%= o %></option><% }) %>
+                  <% cell.options.forEach(function (o) { %><option <%= cv === o ? 'selected' : '' %>><%= o %></option><% }) %>
                 </select>
               <% } else { %>
-                <input type="<%= field.cell.type === 'number' ? 'number' : 'text' %>" name="<%= name %>" value="<%= cv %>" aria-label="<%= row %> – <%= col %>" <% if (field.cell.type === 'number') { %>min="<%= field.cell.min %>" max="<%= field.cell.max %>" inputmode="numeric"<% } %> enterkeyhint="next">
+                <input type="<%= cell.type === 'number' ? 'number' : 'text' %>" name="<%= name %>" value="<%= cv %>" aria-label="<%= row %> – <%= col %>" <% if (cell.type === 'number') { %>min="<%= cell.min %>" max="<%= cell.max %>" inputmode="numeric"<% } %> enterkeyhint="next">
               <% } %>
             </td>
           <% }) %>

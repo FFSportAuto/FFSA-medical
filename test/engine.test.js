@@ -61,12 +61,23 @@ test('matrices', () => {
   assert.deepStrictEqual(m.values.upper_limbs, { Clavicule: { Gauche: 'Fracture' }, 'Main / Doigts': { Droite: 'Plaie' } });
   assert.ok(engine.validate(medicalForm, { [engine.cellName(upper, 0, 0)]: 'F' }).errors.upper_limbs);
 
-  // Équipement : une colonne par concurrent ; les colonnes des concurrents non déclarés sont ignorées
-  const equip = accidentForm.sections.flatMap((s) => s.fields).find((f) => f.name === 'equipment');
-  const e = engine.validate(accidentForm, { vehicle1_driver_last_name: 'Durand', [engine.cellName(equip, 2, 0)]: 'Conforme', [engine.cellName(equip, 2, 1)]: 'Orphelin' });
-  assert.deepStrictEqual(e.values.equipment, { Casque: { 'Concurrent 1': 'Conforme' } });
-  const e2 = engine.validate(accidentForm, { vehicle2_driver_last_name: 'Martin', [engine.cellName(equip, 2, 1)]: 'Conforme' });
-  assert.deepStrictEqual(e2.values.equipment, { Casque: { 'Concurrent 2': 'Conforme' } });
+  // Équipement : un tableau par concurrent (Présent Oui / Non / NSP, détail seulement si Oui) ;
+  // le tableau d'un concurrent non déclaré est ignoré
+  const all = accidentForm.sections.flatMap((s) => s.fields);
+  const eq1 = all.find((f) => f.name === 'equipment1');
+  const eq2 = all.find((f) => f.name === 'equipment2');
+  const casque = eq1.rows.indexOf('Casque');
+  const e = engine.validate(accidentForm, {
+    vehicle1_driver_last_name: 'Durand',
+    [engine.cellName(eq1, casque, 0)]: 'Oui', [engine.cellName(eq1, casque, 1)]: 'Stilo ST5',
+    [engine.cellName(eq1, 0, 0)]: 'Non', [engine.cellName(eq1, 0, 1)]: 'ignoré car Non',
+    [engine.cellName(eq2, casque, 0)]: 'Oui',
+  });
+  assert.deepStrictEqual(e.values.equipment1, { 'Combinaison du pilote / copilote': { Présent: 'Non' }, Casque: { Présent: 'Oui', "Marque, modèle, n° d'homologation": 'Stilo ST5' } });
+  assert.strictEqual(e.values.equipment2, undefined);
+  assert.ok(engine.validate(accidentForm, { [engine.cellName(eq1, casque, 0)]: 'Peut-être' }).errors.equipment1);
+  assert.strictEqual(eq1.displayLabel({ vehicle1_driver_first_name: 'Thomas', vehicle1_driver_last_name: 'Durand', vehicle1_number: '27' }), 'Concurrent 1 – Thomas Durand (n° 27)');
+  assert.strictEqual(eq1.rows.length, 19);
 
   const a = engine.validate(accidentForm, { [engine.cellName(casualties, 0, 0)]: '2' });
   assert.deepStrictEqual(a.values.casualties, { Pilotes: { 'Nombre de blessés': 2 } });
@@ -120,32 +131,33 @@ test('mots de passe', async () => {
   assert.ok(!(await verifyPassword('mauvais', h)));
 });
 
-test('pilotes / copilotes : champs et listes du tableur FFSA 2027, dans le même ordre', () => {
+test('pilotes / copilotes : identité puis sous-partie « Véhicule », listes du tableur FFSA 2027', () => {
   const fields = accidentForm.sections.find((s) => s.title === 'Pilote / copilote accidenté').fields;
   assert.deepStrictEqual(fields.map((f) => f.label), [
-    'Concurrent n°', 'Groupe', 'Catégorie (karting)', 'Marque', 'Modèle', 'Type de véhicule', "Si c'est un Dragster, catégorie",
+    'Concurrent n°', 'Prénom du pilote / copilote', 'Nom du pilote / copilote', 'Licence n°',
+    'Véhicule',
+    'Groupe', 'Catégorie (karting)', 'Marque', 'Modèle', 'Type de véhicule', "Si c'est un Dragster, catégorie",
     'Année de construction', "Véhicule équipé d'un ADR émis par la FIA ?", 'N° de série / référence ADR', 'Données récupérées / disponibles ?',
     'Habitacle', 'Position du poste de conduite', 'Type de moteur', 'Type de carburant', 'Spécification du véhicule',
-    'Nom du pilote / copilote', 'Prénom du pilote / copilote', 'Licence n°',
   ]);
+  assert.strictEqual(fields[4].type, 'heading');
   const lists = Object.fromEntries(fields.filter((f) => f.type === 'select').map((f) => [f.name.replace('vehicle1_', ''), f.options]));
   assert.deepStrictEqual(lists, {
     vehicle_type: ['Monoplace', 'Kart', 'Voiture de tourisme (y compris SUV et 4x4)', 'GT', 'Voiture de sport deux places', 'Prototype Le Mans (LMP)', 'Silhouette', 'Camion', 'Buggy', 'Dragster', 'Autre'],
     adr: ['Inconnu', 'Non', 'Oui'],
     adr_data: ['Oui', 'Non'],
     cockpit: ['Inconnu', 'Ouvert', 'Fermé'],
-    driving_position: ['N/A', 'Gauche', 'Droite'],
+    driving_position: ['NSP', 'Gauche', 'Droite'],
     engine_type: ['Moteur thermique', 'Hybride', 'Electrique', 'Autre'],
     fuel_type: ['Essence', 'Diesel', 'Gaz', 'Methanol', 'Essence/hybride', 'Diesel/hybride', 'Electrique', 'Autre'],
     specification: ['Inconnue', 'Moderne (Annexe J)', 'Historique (Annexe K)', 'Autre'],
   });
   assert.ok(fields.filter((f) => f.type === 'select').every((f) => f.dropdown), 'affichées en listes déroulantes');
-  // Référence et données ADR demandées seulement si le véhicule est équipé d'un ADR
-  const v = engine.validate(accidentForm, { vehicle1_adr: 'Non', vehicle1_adr_reference: 'X', vehicle1_adr_data: 'Oui' }).values;
-  assert.strictEqual(v.vehicle1_adr_reference, undefined);
-  assert.strictEqual(v.vehicle1_adr_data, undefined);
-  const w = engine.validate(accidentForm, { vehicle1_adr: 'Oui', vehicle1_adr_reference: 'X', vehicle1_adr_data: 'Oui' }).values;
-  assert.strictEqual(w.vehicle1_adr_reference, 'X');
+  // Référence et données ADR toujours proposées (sans condition sur la réponse ADR)
+  assert.ok(!fields.some((f) => /adr/.test(f.name) && f.showIf));
+  const v = engine.validate(accidentForm, { vehicle1_adr: 'Inconnu', vehicle1_adr_reference: 'X', vehicle1_adr_data: 'Non' }).values;
+  assert.strictEqual(v.vehicle1_adr_reference, 'X');
+  assert.strictEqual(v.vehicle1_adr_data, 'Non');
   assert.ok(engine.validate(accidentForm, { vehicle1_fuel_type: 'Kérosène' }).errors.vehicle1_fuel_type);
 });
 

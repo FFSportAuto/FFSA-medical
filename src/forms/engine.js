@@ -27,18 +27,24 @@ function validateCell(cell, v) {
   return v.length > MAX_TEXT ? `${MAX_TEXT} caractères maximum.` : null;
 }
 
-// Matrice stockée sous la forme { ligne: { colonne: valeur } } (cellules vides omises)
+// Type d'une cellule : commun à la matrice (cell) ou propre à chaque colonne (cells)
+const cellOf = (field, ci) => (field.cells ? field.cells[ci] : field.cell);
+
+// Matrice stockée sous la forme { ligne: { colonne: valeur } } (cellules vides omises).
+// Une cellule avec enabledIf n'est retenue que si la cellule indiquée de la même ligne a la valeur attendue.
 function readMatrix(field, body) {
   const out = {};
   let error = null;
+  const cellValue = (ri, ci) => { const raw = body[cellName(field, ri, ci)]; return typeof raw === 'string' ? raw.trim() : ''; };
   field.rows.forEach((row, ri) => {
     field.columns.forEach((col, ci) => {
-      const raw = body[cellName(field, ri, ci)];
-      const v = typeof raw === 'string' ? raw.trim() : '';
+      const cell = cellOf(field, ci);
+      const v = cellValue(ri, ci);
       if (!v) return;
-      const err = validateCell(field.cell, v);
+      if (cell.enabledIf && cellValue(ri, cell.enabledIf.column) !== cell.enabledIf.equals) return;
+      const err = validateCell(cell, v);
       if (err) error = `${row} / ${col} : ${err}`;
-      (out[row] = out[row] || {})[col] = field.cell.type === 'number' && !err ? Number(v.replace(',', '.')) : v;
+      (out[row] = out[row] || {})[col] = cell.type === 'number' && !err ? Number(v.replace(',', '.')) : v;
     });
   });
   return { value: out, error };
@@ -79,20 +85,14 @@ function validate(form, body, files = {}) {
     else if (f.type !== 'file') raw[f.name] = typeof body[f.name] === 'string' ? body[f.name].trim() : '';
   }
 
-  // Matrice dont les colonnes suivent des blocs répétés (ex. une colonne par concurrent déclaré) :
-  // les colonnes des blocs facultatifs non remplis sont ignorées
+  // Champ rattaché à un bloc répété (ex. tableau d'équipement d'un concurrent) : ignoré si le bloc
+  // facultatif correspondant n'a pas été rempli
   for (const f of allFields(form)) {
-    if (f.type !== 'matrix' || !f.columnsFollow) continue;
-    const blocks = form.sections.filter((s) => s.repeat && s.repeat.group === f.columnsFollow);
-    f.columns.forEach((col, ci) => {
-      const block = blocks[ci];
-      if (!block || !block.optional || sectionHasValues(block, raw)) return;
-      for (const row of Object.keys(raw[f.name])) {
-        delete raw[f.name][row][col];
-        if (!Object.keys(raw[f.name][row]).length) delete raw[f.name][row];
-      }
-      if (matrixErrors[f.name] && matrixErrors[f.name].includes(`/ ${col} :`)) delete matrixErrors[f.name];
-    });
+    if (!f.follows) continue;
+    const block = form.sections.filter((s) => s.repeat && s.repeat.group === f.follows.group)[f.follows.index];
+    if (!block || !block.optional || sectionHasValues(block, raw)) continue;
+    raw[f.name] = f.type === 'matrix' ? {} : '';
+    delete matrixErrors[f.name];
   }
 
   const values = {};
@@ -166,6 +166,8 @@ function validate(form, body, files = {}) {
   return { values, errors, raw };
 }
 
+const labelOf = (field, values) => (typeof field.displayLabel === 'function' ? field.displayLabel(values || {}) : field.label);
+
 function formatValue(field, value) {
   if (value === undefined || value === null || value === '') return '';
   if (field.type === 'matrix') {
@@ -190,7 +192,7 @@ function toDisplay(form, values) {
       shareWithDoctor: Boolean(s.shareWithDoctor),
       fields: s.fields
         .filter((f) => f.type !== 'file' && isVisible({ ...f, section: s }, values) && values[f.name] !== undefined)
-        .map((f) => ({ ...f, value: values[f.name], display: formatValue(f, values[f.name]) })),
+        .map((f) => ({ ...f, label: labelOf(f, values), value: values[f.name], display: formatValue(f, values[f.name]) })),
     }))
     .filter((s) => s.fields.length);
 }
@@ -220,9 +222,10 @@ const PSEUDO_TYPES = new Set(['select', 'radio', 'checkboxes', 'number', 'time',
 function pseudonymizedColumns(form) {
   const cols = [];
   for (const f of allFields(form)) {
-    if (!PSEUDO_TYPES.has(f.type) || (f.type === 'matrix' && f.cell.type === 'text') || f.name === 'birthdate') continue;
+    if (!PSEUDO_TYPES.has(f.type) || f.name === 'birthdate') continue;
     if (f.type === 'matrix') {
-      for (const row of f.rows) for (const col of f.columns) {
+      for (const row of f.rows) for (const [ci, col] of f.columns.entries()) {
+        if (cellOf(f, ci).type === 'text') continue;
         cols.push({ label: `${f.label} – ${row} – ${col}`, value: (v) => (v[f.name] && v[f.name][row] && v[f.name][row][col]) ?? '' });
       }
     } else if (f.type === 'date') {
@@ -264,4 +267,4 @@ const sectionHasValues = (section, values) =>
     return true;
   });
 
-module.exports = { pseudonymizedColumns, ageAt, validate, toDisplay, formatValue, exportColumns, allFields, isVisible, cellName, prefill, sectionHasValues };
+module.exports = { labelOf, cellOf, pseudonymizedColumns, ageAt, validate, toDisplay, formatValue, exportColumns, allFields, isVisible, cellName, prefill, sectionHasValues };

@@ -144,26 +144,26 @@ function signatureRow(doc, label, dataUrl) {
   doc.y = y + h;
 }
 
-function matrixTable(doc, field, value) {
+function matrixTable(doc, field, value, label = field.label) {
   const rows = field.rows.filter((r) => value[r]);
-  // Colonnes qui suivent les blocs ajoutés (concurrents) : seules celles renseignées sont imprimées
-  if (field.columnsFollow) field = { ...field, columns: field.columns.filter((c) => rows.some((r) => value[r][c] !== undefined && value[r][c] !== '')) };
   const firstW = Math.min(170, CONTENT_W * 0.36);
-  const colW = (CONTENT_W - firstW) / field.columns.length;
+  // Largeurs de colonnes : réparties également, ou selon columnWidths (fractions de l'espace restant)
+  const widths = field.columns.map((c, i) => (CONTENT_W - firstW) * (field.columnWidths ? field.columnWidths[i] : 1 / field.columns.length));
+  const colX = (i) => MARGIN.left + firstW + widths.slice(0, i).reduce((a, b) => a + b, 0);
   const rowH = 19;
   ensureSpace(doc, 24 + rowH * (rows.length + 1));
   doc.moveDown(0.3);
-  doc.font('medium').fontSize(9).fillColor(COLOR.label).text(field.label, MARGIN.left, doc.y, { width: CONTENT_W });
+  doc.font('medium').fontSize(9).fillColor(COLOR.label).text(label, MARGIN.left, doc.y, { width: CONTENT_W });
   doc.moveDown(0.25);
   const startY = doc.y;
   let y = startY;
   const drawRow = (cells, header) => {
     if (header) doc.save().rect(MARGIN.left, y, CONTENT_W, rowH).fill(COLOR.head).restore();
     cells.forEach((c, i) => {
-      const x = i === 0 ? MARGIN.left + 6 : MARGIN.left + firstW + colW * (i - 1);
-      const w = i === 0 ? firstW - 8 : colW;
+      const x = i === 0 ? MARGIN.left + 6 : colX(i - 1) + (field.columnWidths ? 6 : 0);
+      const w = i === 0 ? firstW - 8 : widths[i - 1] - (field.columnWidths ? 12 : 0);
       doc.font(header || i === 0 ? 'medium' : 'regular').fontSize(header ? 8.5 : 9.5).fillColor(header ? COLOR.label : COLOR.text)
-        .text(String(c ?? ''), x, y + 5, { width: w, align: i === 0 ? 'left' : 'center', lineBreak: false, ellipsis: true });
+        .text(String(c ?? ''), x, y + 5, { width: w, align: i === 0 || field.columnWidths ? 'left' : 'center', lineBreak: false, ellipsis: true });
     });
     doc.save().lineWidth(0.5).strokeColor(COLOR.line).moveTo(MARGIN.left, y + rowH).lineTo(MARGIN.left + CONTENT_W, y + rowH).stroke().restore();
     y += rowH;
@@ -192,7 +192,7 @@ function renderSection(doc, section, values) {
       subHeading(doc, pendingHeading);
       pendingHeading = null;
     }
-    if (f.type === 'matrix') matrixTable(doc, f, values[f.name]);
+    if (f.type === 'matrix') matrixTable(doc, f, values[f.name], engine.labelOf(f, values));
     else if (f.type === 'signature') signatureRow(doc, f.label, values[f.name]);
     else row(doc, f.label, engine.formatValue(f, values[f.name]));
     count++;
