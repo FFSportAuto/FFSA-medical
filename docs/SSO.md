@@ -1,11 +1,11 @@
-# Accès des organisateurs : compte licencié FFSA (SSO) ou inscription
+# Accès des directeurs de course : compte licencié FFSA (SSO) ou inscription
 
-Les organisateurs créent leur accès eux-mêmes, par l'une de ces deux voies :
+Les directeurs de course créent leur accès eux-mêmes, par l'une de ces deux voies :
 
 | Voie | Pour qui | Validation FFSA |
 |---|---|---|
 | **Compte licencié FFSA** (bouton « Se connecter avec mon compte licencié FFSA ») | Licenciés (directeurs de course, officiels, dirigeants d'ASA…) | Aucune : le compte est créé à la première connexion |
-| **Inscription** (« Créer un compte ») | Organisateurs sans compte licencié | Oui : confirmation de l'e-mail, puis validation en un clic dans le back office (menu « Demandes ») |
+| **Inscription** (« Créer un compte ») | Directeurs de course sans compte licencié | Oui : confirmation de l'e-mail, puis validation en un clic dans le back office (menu « Demandes ») |
 
 Les comptes du **back office** (service médical, administrateurs) restent créés par invitation et
 se connectent toujours avec mot de passe + double authentification ; ils ne sont jamais rattachés
@@ -40,8 +40,8 @@ Variables d'environnement correspondantes : voir `.env.example` (`OIDC_*`, `APPR
 
 ## Rattachement des comptes
 
-- À la première connexion par compte licencié, si un compte **organisateur** existe déjà avec la même
-  adresse e-mail (vérifiée par le fournisseur), il est rattaché : l'organisateur retrouve ses déclarations.
+- À la première connexion par compte licencié, si un compte **directeur de course** existe déjà avec la même
+  adresse e-mail (vérifiée par le fournisseur), il est rattaché : le directeur de course retrouve ses déclarations.
 - Une demande d'inscription en attente est validée automatiquement si la personne se connecte ensuite
   avec son compte licencié.
 
@@ -51,7 +51,7 @@ Variables d'environnement correspondantes : voir `.env.example` (`OIDC_*`, `APPR
 - Les personnes de `APPROVER_EMAILS` (par défaut le service médical) sont prévenues de chaque demande.
 - Réponse identique que l'adresse soit connue ou non (pas de divulgation des comptes existants).
 - Limitation du nombre de demandes, champ piège anti-robots, mot de passe robuste.
-- Un organisateur ne voit que ses propres déclarations, jamais les rapports médicaux.
+- Un directeur de course ne voit que ses propres déclarations, jamais les rapports médicaux.
 
 ## Démonstration
 
