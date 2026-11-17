@@ -100,7 +100,8 @@
     [['directeur@demo.ffsa.fr', 'Directeur de course Démo', 'organizer', false], ['medical@demo.ffsa.fr', 'Service médical Démo', 'medical', true], ['admin@demo.ffsa.fr', 'Administrateur Démo', 'admin', true]]
       .forEach(function (u) { state.users.push({ id: uuid(), email: u[0], full_name: u[1], role: u[2], password: PASSWORD, totp_enabled: u[3], active: true, activated: true, auth_source: 'local', approval_status: 'approved', email_verified_at: now(), last_login_at: null, created_at: now(), organization: u[2] === 'organizer' ? 'ASA Démo (exemple)' : null }); });
     var orga = state.users[0];
-    var base = { doctor_examined: 'Oui', doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78', author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_license: '178842' };
+    var base = { doctor_examined: 'Oui', doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78', author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_license: '178842',
+    monday_contact_last_name: 'Martin', monday_contact_first_name: 'Jean', monday_contact_email: 'jean.martin@asa-demo.fr', monday_contact_phone: '06 21 43 65 87' };
     var a1 = createAccident(orga, Object.assign({}, base, {
       event_name: 'Rallye des Vosges (exemple)', event_location: 'Gérardmer', discipline: 'Rallye', event_level: 'Épreuve nationale',
       accident_date: '2026-09-20', accident_time: '14:35',

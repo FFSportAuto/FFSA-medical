@@ -235,6 +235,12 @@ module.exports = {
           columns: ['Nombre de blessés', 'Nombre de décès'],
           cell: { type: 'number', min: 0, max: 999 },
         },
+        // Personne de l'organisation que le service médical peut joindre après l'épreuve
+        { name: 'heading_monday', label: 'Contact joignable le lundi matin', type: 'heading' },
+        { name: 'monday_contact_last_name', label: 'Nom', type: 'text', width: 'half' },
+        { name: 'monday_contact_first_name', label: 'Prénom', type: 'text', width: 'half' },
+        { name: 'monday_contact_email', label: 'E-mail', type: 'email', width: 'half' },
+        { name: 'monday_contact_phone', label: 'Téléphone', type: 'tel', width: 'half' },
       ],
     },
     {

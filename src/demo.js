@@ -60,6 +60,7 @@ async function seed() {
   const base = {
     doctor_examined: 'Oui', doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78',
     author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_license: '178842',
+    monday_contact_last_name: 'Martin', monday_contact_first_name: 'Jean', monday_contact_email: 'jean.martin@asa-demo.fr', monday_contact_phone: '06 21 43 65 87',
   };
   const done = await reports.createAccidentReport(orga, {
     ...base,

@@ -194,7 +194,14 @@ test('autres personnes, conditions et témoins : retours du 17/11', () => {
   assert.deepStrictEqual([w.witness1_email, w.witness1_phone, w.circumstances], ['t@exemple.fr', '0601020304', 'Sortie de route']);
   // Plus d'étape « L'accident » ni de date de l'épreuve
   assert.ok(!accidentForm.sections.some((s) => s.step === "L'accident"));
-  assert.ok(!engine.allFields(accidentForm).some((f) => f.name === 'event_date' || f.name.startsWith('summary_') || f.name.startsWith('monday_')));
+  assert.ok(!engine.allFields(accidentForm).some((f) => f.name === 'event_date' || f.name.startsWith('summary_')));
+  // Contact joignable le lundi matin : dans l'épreuve, avant le médecin
+  const names = engine.allFields(accidentForm).map((f) => f.name);
+  const mc = ['monday_contact_last_name', 'monday_contact_first_name', 'monday_contact_email', 'monday_contact_phone'];
+  assert.ok(mc.every((n) => names.indexOf(n) > names.indexOf('casualties') && names.indexOf(n) < names.indexOf('doctor_examined')));
+  const c = engine.validate(accidentForm, { monday_contact_last_name: 'Laurent', monday_contact_email: 'pas-un-mail', monday_contact_phone: '06 21 43 65 87' });
+  assert.ok(c.errors.monday_contact_email);
+  assert.strictEqual(c.values.monday_contact_phone, '06 21 43 65 87');
 });
 
 test('personnes déclarées reprises dans le rapport médical (sans doublon)', () => {
