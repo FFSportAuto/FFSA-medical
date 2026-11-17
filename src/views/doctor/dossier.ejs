@@ -46,14 +46,4 @@
   <%- include('../partials/display', { sections: context }) %>
 </details>
 
-<details class="card context">
-  <summary>Vous n'avez pas vu ce patient ? Transmettre à un confrère</summary>
-  <p class="muted small">Le confrère recevra un nouveau lien par e-mail (et SMS si vous indiquez son portable). Votre lien sera désactivé ; les rapports déjà saisis sont conservés.</p>
-  <form method="post" action="/medecin/<%= token %>/transferer" class="transfer" data-confirm="Transmettre la demande à ce confrère ? Votre lien sera désactivé.">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <div class="field"><label class="label" for="t_email">E-mail du confrère</label><input id="t_email" name="email" type="email" required></div>
-    <div class="field"><label class="label" for="t_phone">Portable du confrère (facultatif)</label><input id="t_phone" name="phone" type="tel"></div>
-    <button class="btn" type="submit">Transmettre</button>
-  </form>
-</details>
 <%- include('../partials/footer') %>

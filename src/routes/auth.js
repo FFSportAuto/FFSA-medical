@@ -117,7 +117,7 @@ router.post('/connexion', loginLimiter, async (req, res) => {
   }
   await db.query('UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = $1', [user.id]);
 
-  // Inscription libre : l'adresse doit être confirmée puis la demande validée par la FFSA
+  // Inscription libre : l'adresse e-mail doit être confirmée avant la première connexion
   if (user.approval_status !== 'approved') {
     if (user.approval_status === 'rejected') return fail("Votre demande de compte n'a pas été acceptée. Contactez le service médical de la FFSA.");
     if (!user.email_verified_at) {
@@ -125,7 +125,7 @@ router.post('/connexion', loginLimiter, async (req, res) => {
       await mailer.send('signupVerify', user.email, { name: user.full_name, link: `${config.baseUrl}/inscription/confirmer/${token}` });
       return fail('Confirmez d’abord votre adresse e-mail : un nouveau lien de confirmation vient de vous être envoyé.');
     }
-    return fail('Votre demande de compte est en cours de validation par la FFSA. Vous serez prévenu(e) par e-mail.');
+    return fail();
   }
 
   if (await beginSecondFactor(req, res, user)) return;
@@ -223,7 +223,7 @@ router.get('/connexion/sso/retour', loginLimiter, async (req, res, next) => {
   res.redirect(target);
 });
 
-// ---- Inscription libre (organisateurs sans compte licencié) ----
+// ---- Inscription libre des directeurs de course ----
 
 const signupView = (res, locals = {}, status = 200) =>
   res.status(status).render('auth/signup', {
@@ -256,8 +256,10 @@ router.get('/inscription/confirmer/:token', async (req, res) => {
   if (!t) return res.status(410).render('errors/error', { title: 'Lien invalide', message: 'Ce lien de confirmation est invalide ou a expiré. Connectez-vous pour en recevoir un nouveau.' });
   await audit(req, 'signup_email_verified', { targetType: 'user', targetId: t.user_id, actor: t.full_name });
   res.render('errors/info', {
-    title: 'Adresse confirmée',
-    message: 'Merci. Votre demande de compte directeur de course est maintenant transmise à la FFSA pour validation. Vous recevrez un e-mail dès qu’elle sera acceptée.',
+    title: 'Compte activé',
+    message: 'Merci, votre adresse est confirmée et votre compte est actif. Vous pouvez vous connecter.',
+    link: '/connexion',
+    linkLabel: 'Se connecter',
   });
 });
 

@@ -28,45 +28,54 @@ const PAGE_SIZE = 50;
 const ROLE_LABELS = { organizer: 'Directeur de course', medical: 'Service médical (accès aux données de santé)', admin: 'Administrateur (comptes et journal, sans données de santé)' };
 
 // Filtres communs à la liste et à l'export
-const OVERDUE_SQL = `(ar.status = 'awaiting_medical' AND ar.created_at < now() - interval '${reports.OVERDUE_HOURS} hours')`;
+// En retard : rapport médical attendu, mais plus aucun lien valable (le lien du médecin expire après 48 h)
+const OVERDUE_SQL = `(ar.status = 'awaiting_medical' AND NOT EXISTS (SELECT 1 FROM medical_requests m
+  WHERE m.accident_id = ar.id AND m.revoked_at IS NULL AND m.used_at IS NULL AND m.expires_at > now()))`;
 
-function buildFilters(q, user) {
+const STATUS_LABELS = { awaiting_medical: 'En attente du rapport médical', complete: 'Complet', no_medical: 'Sans rapport médical' };
+
+// Tri de la liste : colonnes triables (paramètres ?tri=…&ordre=asc|desc)
+const SORTS = {
+  reference: 'ar.reference', epreuve: 'ar.event_name', discipline: 'ar.discipline', date: 'ar.event_date',
+  directeur: 'u.full_name', statut: 'ar.status', suivi: 'ar.processing_status', depose: 'ar.created_at',
+};
+
+function buildFilters(q) {
   const where = [];
   const params = [];
   const add = (sql, value) => {
     params.push(value);
     where.push(sql.replaceAll('?', `$${params.length}`));
   };
-  if (q.statut === 'awaiting_medical' || q.statut === 'complete') add('ar.status = ?', q.statut);
+  if (STATUS_LABELS[q.statut]) add('ar.status = ?', q.statut);
   if (q.discipline) add('ar.discipline = ?', String(q.discipline));
   if (/^\d{4}-\d{2}-\d{2}$/.test(q.du || '')) add('ar.event_date >= ?', q.du);
   if (/^\d{4}-\d{2}-\d{2}$/.test(q.au || '')) add('ar.event_date <= ?', q.au);
   if (q.q) add('(ar.reference ILIKE ? OR ar.event_name ILIKE ?)', `%${String(q.q).slice(0, 100)}%`);
   if (reports.PROCESSING[q.suivi]) add('ar.processing_status = ?', q.suivi);
-  if (q.attribue === 'moi' && user) add('ar.assigned_to = ?', user.id);
-  if (q.attribue === 'personne') where.push('ar.assigned_to IS NULL');
   if (q.retard === '1') where.push(OVERDUE_SQL);
   return { where: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
 }
 
 router.get('/back-office', (req, res, next) => (req.user.role === 'admin' ? res.redirect('/back-office/utilisateurs') : next()), async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
-  const { where, params } = buildFilters(req.query, req.user);
+  const { where, params } = buildFilters(req.query);
+  // Par défaut : dossiers en retard d'abord, puis les plus récents
+  const sort = SORTS[req.query.tri] ? { key: req.query.tri, dir: req.query.ordre === 'desc' ? 'desc' : 'asc' } : null;
+  const orderBy = sort ? `${SORTS[sort.key]} ${sort.dir.toUpperCase()} NULLS LAST, ar.created_at DESC` : `${OVERDUE_SQL} DESC, ar.created_at DESC`;
   const { rows } = await db.query(
     `SELECT ar.id, ar.reference, ar.event_name, ar.event_date, ar.discipline, ar.status, ar.created_at, ar.completed_at,
-            ar.processing_status, ${OVERDUE_SQL} AS overdue, a.full_name AS assignee_name,
-            u.full_name AS organizer_name, count(*) OVER () AS total
-       FROM accident_reports ar JOIN users u ON u.id = ar.organizer_id LEFT JOIN users a ON a.id = ar.assigned_to
-       ${where} ORDER BY ${OVERDUE_SQL} DESC, ar.created_at DESC LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`,
+            ar.processing_status, ${OVERDUE_SQL} AS overdue, u.full_name AS organizer_name, count(*) OVER () AS total
+       FROM accident_reports ar JOIN users u ON u.id = ar.organizer_id
+       ${where} ORDER BY ${orderBy} LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`,
     params,
   );
   const stats = await db.one(
     `SELECT count(*) FILTER (WHERE ${OVERDUE_SQL}) AS overdue,
             count(*) FILTER (WHERE ar.status = 'awaiting_medical') AS pending,
-            count(*) FILTER (WHERE ar.processing_status = 'a_analyser' AND ar.status = 'complete') AS to_review,
-            count(*) FILTER (WHERE ar.assigned_to = $1 AND ar.processing_status <> 'clos') AS mine,
+            count(*) FILTER (WHERE ar.processing_status = 'a_analyser' AND ar.status IN ('complete', 'no_medical')) AS to_review,
+            count(*) FILTER (WHERE ar.status = 'no_medical') AS no_medical,
             count(*) AS total FROM accident_reports ar`,
-    [req.user.id],
   );
   const total = rows.length ? Number(rows[0].total) : 0;
   res.render('backoffice/index', {
@@ -74,6 +83,8 @@ router.get('/back-office', (req, res, next) => (req.user.role === 'admin' ? res.
     reports: rows,
     stats,
     query: req.query,
+    sort,
+    statusLabels: STATUS_LABELS,
     page,
     pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
     total,
@@ -87,13 +98,12 @@ router.get('/back-office/dossiers/:id', async (req, res, next) => {
   if (!UUID_RE.test(req.params.id)) return next();
   const accident = await reports.getAccident(req.params.id);
   if (!accident) return next();
-  const [medical, attachments, requests, organizer, notes, staff] = await Promise.all([
+  const [medical, attachments, requests, organizer, notes] = await Promise.all([
     reports.listMedical(accident.id),
     reports.listAttachments(accident.id),
     reports.listRequests(accident.id),
     db.one('SELECT full_name, email FROM users WHERE id = $1', [accident.organizer_id]),
     reports.listNotes(accident.id),
-    db.query("SELECT id, full_name FROM users WHERE role = 'medical' AND active ORDER BY full_name").then((r) => r.rows),
   ]);
   await audit(req, 'dossier_viewed', { targetType: 'accident', targetId: accident.id });
   res.render('backoffice/show', {
@@ -105,11 +115,11 @@ router.get('/back-office/dossiers/:id', async (req, res, next) => {
     attachments,
     requests,
     notes,
-    staff,
+    statusLabels: STATUS_LABELS,
     retentionEnd: reports.retentionEnd(accident.created_at),
     retentionYears: config.retentionYears,
     processing: reports.PROCESSING,
-    overdue: accident.status === 'awaiting_medical' && Date.now() - new Date(accident.created_at) > reports.OVERDUE_HOURS * 3600e3,
+    overdue: accident.status === 'awaiting_medical' && !requests.some((r) => !r.revoked_at && !r.used_at && new Date(r.expires_at) > new Date()),
     flash: req.query.relance ? 'Nouvelle invitation envoyée au médecin.' : req.query.suivi ? 'Suivi mis à jour.' : req.query.note ? 'Note ajoutée.' : null,
   });
 });
@@ -127,19 +137,15 @@ router.get('/back-office/dossiers/:id/pieces/:attachmentId', async (req, res, ne
   res.send(file.content);
 });
 
-// Suivi : statut de traitement et attribution
+// Suivi : statut de traitement
 router.post('/back-office/dossiers/:id/suivi', async (req, res, next) => {
   if (!UUID_RE.test(req.params.id)) return next();
   const status = req.body.processing_status;
-  const assignedTo = req.body.assigned_to;
-  if (!reports.PROCESSING[status] || (assignedTo && !UUID_RE.test(assignedTo))) {
-    return res.status(400).render('errors/error', { title: 'Requête invalide', message: 'Statut ou attribution invalide.' });
+  if (!reports.PROCESSING[status]) {
+    return res.status(400).render('errors/error', { title: 'Requête invalide', message: 'Statut de traitement invalide.' });
   }
-  if (assignedTo && !(await db.one("SELECT 1 FROM users WHERE id = $1 AND role = 'medical' AND active", [assignedTo]))) {
-    return res.status(400).render('errors/error', { title: 'Requête invalide', message: 'Cette personne ne fait pas partie du service médical.' });
-  }
-  await reports.updateCase(req.params.id, { status, assignedTo: assignedTo || null });
-  await audit(req, 'case_updated', { targetType: 'accident', targetId: req.params.id, details: { status, assigned: Boolean(assignedTo) } });
+  await reports.updateCase(req.params.id, { status });
+  await audit(req, 'case_updated', { targetType: 'accident', targetId: req.params.id, details: { status } });
   res.redirect(`/back-office/dossiers/${req.params.id}?suivi=1`);
 });
 
@@ -195,17 +201,17 @@ const csvCell = (v) => {
 };
 
 router.get('/back-office/export.csv', async (req, res) => {
-  const { where, params } = buildFilters(req.query, req.user);
+  const { where, params } = buildFilters(req.query);
   const { rows } = await db.query(
-    `SELECT ar.id, ar.reference, ar.status, ar.created_at, ar.completed_at, ar.processing_status, a.full_name AS assignee_name,
+    `SELECT ar.id, ar.reference, ar.status, ar.created_at, ar.completed_at, ar.processing_status,
             ar.data_enc AS accident_enc, mr.data_enc AS medical_enc
-       FROM accident_reports ar LEFT JOIN medical_reports mr ON mr.accident_id = ar.id LEFT JOIN users a ON a.id = ar.assigned_to
+       FROM accident_reports ar LEFT JOIN medical_reports mr ON mr.accident_id = ar.id
        ${where} ORDER BY ar.created_at DESC, mr.created_at`,
     params,
   );
   const aCols = engine.exportColumns(accidentForm);
   const mCols = engine.exportColumns(medicalForm);
-  const header = ['Référence', 'Statut', 'Suivi', 'Attribué à', 'Déclaré le', 'Complété le',
+  const header = ['Référence', 'Statut', 'Suivi', 'Déclaré le', 'Complété le',
     ...aCols.map((c) => `Accident – ${c.label}`), ...mCols.map((c) => `Médical – ${c.label}`)];
   const lines = [header.map(csvCell).join(';')];
   for (const r of rows) {
@@ -213,9 +219,8 @@ router.get('/back-office/export.csv', async (req, res) => {
     const m = r.medical_enc ? decryptJson(r.medical_enc) : {};
     lines.push([
       r.reference,
-      r.status === 'complete' ? 'Complet' : 'En attente du rapport médical',
+      STATUS_LABELS[r.status] || r.status,
       reports.PROCESSING[r.processing_status] || '',
-      r.assignee_name || '',
       new Date(r.created_at).toISOString(),
       r.completed_at ? new Date(r.completed_at).toISOString() : '',
       ...aCols.map((c) => c.value(a)),
@@ -234,7 +239,7 @@ router.get('/back-office/export.csv', async (req, res) => {
 // Export statistique pseudonymisé : aucun nom, contact, texte libre ni signature ; dates au mois ;
 // identifiant de dossier remplacé par un pseudonyme non réversible (HMAC).
 router.get('/back-office/export-pseudonymise.csv', async (req, res) => {
-  const { where, params } = buildFilters(req.query, req.user);
+  const { where, params } = buildFilters(req.query);
   const { rows } = await db.query(
     `SELECT ar.id, ar.status, ar.data_enc AS accident_enc, mr.data_enc AS medical_enc
        FROM accident_reports ar LEFT JOIN medical_reports mr ON mr.accident_id = ar.id
@@ -252,7 +257,7 @@ router.get('/back-office/export-pseudonymise.csv', async (req, res) => {
     const m = r.medical_enc ? decryptJson(r.medical_enc) : {};
     lines.push([
       pseudo(r.id),
-      r.status === 'complete' ? 'Complet' : 'En attente du rapport médical',
+      STATUS_LABELS[r.status] || r.status,
       engine.ageAt(m.birthdate, m.date || a.accident_date),
       ...aCols.map((c) => c.value(a)),
       ...mCols.map((c) => c.value(m)),
@@ -265,30 +270,6 @@ router.get('/back-office/export-pseudonymise.csv', async (req, res) => {
     'Cache-Control': 'no-store',
   });
   res.send('\ufeff' + lines.join('\r\n'));
-});
-
-// ---- Demandes d'accès des organisateurs (inscription libre) ----
-
-router.get('/back-office/demandes', async (req, res) => {
-  const rows = await accounts.listRequests();
-  res.render('backoffice/requests', {
-    title: "Demandes d'accès",
-    pending: rows.filter((r) => r.approval_status === 'pending' && r.email_verified_at),
-    unverified: rows.filter((r) => r.approval_status === 'pending' && !r.email_verified_at),
-    reviewed: rows.filter((r) => r.approval_status !== 'pending'),
-    flash: req.query.ok || null,
-  });
-});
-
-router.post('/back-office/demandes/:id/:decision', async (req, res, next) => {
-  const { id, decision } = req.params;
-  if (!UUID_RE.test(id) || !['valider', 'refuser'].includes(decision)) return next();
-  const note = String(req.body.note || '').trim().slice(0, 500);
-  const done = await accounts.review(id, req.user, decision, note);
-  if (!done) return res.redirect('/back-office/demandes');
-  await audit(req, decision === 'valider' ? 'signup_approved' : 'signup_rejected', { targetType: 'user', targetId: id });
-  const msg = decision === 'valider' ? `Compte de ${done.full_name} activé ; un e-mail lui a été envoyé.` : `Demande de ${done.full_name} refusée.`;
-  res.redirect('/back-office/demandes?ok=' + encodeURIComponent(msg));
 });
 
 // ---- Gestion des utilisateurs (administrateurs) ----

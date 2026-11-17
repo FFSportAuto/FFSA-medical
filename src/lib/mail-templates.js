@@ -14,41 +14,27 @@ const templates = {
       `et vous a été désigné(e) comme médecin intervenant.\n\n` +
       `Merci de compléter le rapport médical (un formulaire par patient consulté) via le lien sécurisé ci-dessous :\n${link}\n\n` +
       `Pour des raisons de sécurité, un code de vérification vous sera envoyé à l'ouverture du lien.\n` +
-      `Ce lien est personnel et valable jusqu'au ${expiresAt}.` +
-      signature,
-  }),
-  doctorTransfer: ({ reference, eventName, link, expiresAt }) => ({
-    subject: `[FFSA] Rapport médical à compléter – dossier ${reference} (transmis par un confrère)`,
-    text:
-      `Bonjour Docteur,\n\n` +
-      `Un confrère vous a transmis la rédaction du rapport médical relatif à l'épreuve « ${eventName} » ` +
-      `(dossier ${reference}). Merci de remplir un formulaire par patient consulté via le lien sécurisé ci-dessous :\n${link}\n\n` +
-      `Un code de vérification vous sera envoyé à l'ouverture du lien. Ce lien est personnel et valable jusqu'au ${expiresAt}.` +
-      signature,
-  }),
-  doctorReminder: ({ reference, eventName, link }) => ({
-    subject: `[FFSA] Rappel – rapport médical en attente – dossier ${reference}`,
-    text:
-      `Bonjour Docteur,\n\nLe rapport médical relatif à l'épreuve « ${eventName} » (dossier ${reference}) ` +
-      `n'a pas encore été complété.\n\nLien sécurisé :\n${link}` +
+      `Ce lien est personnel et valable 48 heures, jusqu'au ${expiresAt}. Passé ce délai, seul le service médical de la FFSA peut vous en envoyer un nouveau.` +
       signature,
   }),
   doctorOtp: ({ reference, code }) => ({
     subject: `[FFSA] Code de vérification – dossier ${reference}`,
     text: `Votre code de vérification : ${code}\n\nIl est valable 10 minutes.` + signature,
   }),
-  organizerConfirmation: ({ reference, eventName }) => ({
+  organizerConfirmation: ({ reference, eventName, withMedical = true }) => ({
     subject: `[FFSA] Rapport d'accident enregistré – dossier ${reference}`,
     text:
       `Bonjour,\n\nVotre rapport d'accident pour l'épreuve « ${eventName} » a bien été enregistré ` +
-      `sous la référence ${reference}.\nLe médecin désigné a été invité à compléter le rapport médical.` +
+      `sous la référence ${reference}.\n` +
+      (withMedical ? 'Le médecin désigné a été invité à compléter le rapport médical (sous 48 heures).' : 'Aucun rapport médical n’est demandé : le médecin de l’épreuve n’a pas examiné les personnes accidentées.') +
       signature,
   }),
-  serviceNewAccident: ({ reference, eventName, link }) => ({
+  serviceNewAccident: ({ reference, eventName, link, withMedical = true }) => ({
     subject: `[FFSA] Nouveau rapport d'accident – ${reference}`,
     text:
       `Un nouveau rapport d'accident a été déposé (épreuve « ${eventName} », dossier ${reference}).\n` +
-      `Le rapport médical a été demandé au médecin intervenant.\n\nConsulter : ${link}` +
+      (withMedical ? 'Le rapport médical a été demandé au médecin intervenant.' : 'Le médecin de l’épreuve n’a pas examiné les personnes accidentées : aucun rapport médical n’est demandé.') +
+      `\n\nConsulter : ${link}` +
       signature,
   }),
   serviceComplete: ({ reference, eventName, link }) => ({
@@ -68,9 +54,8 @@ const templates = {
   signupVerify: ({ name, link }) => ({
     subject: `[FFSA] Confirmez votre adresse e-mail`,
     text:
-      `Bonjour ${name},\n\nMerci pour votre demande de compte directeur de course sur l'application de déclaration des accidents de la FFSA.\n\n` +
-      `Confirmez votre adresse e-mail via ce lien (valable 48 h) :\n${link}\n\n` +
-      `Votre demande sera ensuite examinée par la FFSA ; vous serez prévenu(e) par e-mail.` +
+      `Bonjour ${name},\n\nMerci pour votre inscription comme directeur de course sur l'application de déclaration des accidents de la FFSA.\n\n` +
+      `Confirmez votre adresse e-mail via ce lien (valable 48 h) pour activer votre compte :\n${link}` +
       signature,
   }),
   signupExisting: ({ link }) => ({
@@ -78,22 +63,6 @@ const templates = {
     text:
       `Une demande de création de compte a été faite avec votre adresse, mais un compte existe déjà.\n\n` +
       `Pour vous connecter ou choisir un nouveau mot de passe : ${link}` +
-      signature,
-  }),
-  signupToReview: ({ name, organization, link }) => ({
-    subject: `[FFSA] Nouvelle demande d'accès directeur de course à valider`,
-    text: `${name} (${organization}) demande un compte directeur de course.\n\nExaminer la demande : ${link}` + signature,
-  }),
-  signupApproved: ({ name, link }) => ({
-    subject: `[FFSA] Votre compte directeur de course est activé`,
-    text: `Bonjour ${name},\n\nVotre compte directeur de course a été validé par la FFSA. Vous pouvez vous connecter :\n${link}` + signature,
-  }),
-  signupRejected: ({ name, reason }) => ({
-    subject: `[FFSA] Votre demande de compte directeur de course`,
-    text:
-      `Bonjour ${name},\n\nVotre demande de compte directeur de course n'a pas été acceptée.` +
-      (reason ? `\n\nMotif : ${reason}` : '') +
-      `\n\nPour toute question, contactez le service médical de la FFSA.` +
       signature,
   }),
   loginCode: ({ code, minutes }) => ({

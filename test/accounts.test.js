@@ -1,9 +1,8 @@
 'use strict';
 
-// Comptes organisateurs autonomes : connexion par compte licencié (OpenID Connect) et inscription libre.
+// Comptes des directeurs de course : connexion par compte licencié (OpenID Connect, si configurée) et inscription libre.
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgres://postgres@localhost:5432/ffsa_test';
-process.env.APPROVER_EMAILS = 'validation@ffsa.test';
 
 const test = require('node:test');
 const assert = require('node:assert');
@@ -143,20 +142,16 @@ test("un compte du back office n'est jamais rattaché par SSO", async () => {
   assert.strictEqual((await db.one("SELECT sso_subject FROM users WHERE email = 'karim.benali@asa-demo.fr'")).sso_subject, null);
 });
 
-test('inscription libre : confirmation e-mail, validation FFSA, puis connexion', async () => {
-  const secret = totp.generateSecret();
-  await db.query(
-    "INSERT INTO users (email, full_name, role, password_hash, totp_enabled, totp_secret_enc) VALUES ('valideur@ffsa.test', 'Valideur FFSA', 'medical', $1, true, $2)",
-    [await hashPassword(PASSWORD), encrypt(secret)],
-  );
+test('inscription libre : compte actif dès la confirmation de l\'adresse e-mail', async () => {
   const form = {
     last_name: 'Martin', first_name: 'Lucie', email: 'lucie.martin@club.test', phone: '06 12 34 56 78',
-    organization: 'Club auto du Lac', job_title: 'Directeur de course', license_number: '', message: 'Slalom du Lac en mai',
-    password: PASSWORD, confirm: PASSWORD, terms: '1',
+    job_title: 'Directeur de course', license_number: '', password: PASSWORD, confirm: PASSWORD,
   };
   const c = client();
-  await c.get('/inscription');
-  const invalid = await c.post('/inscription', { ...form, email: 'x', terms: '' });
+  const page = await c.get('/inscription');
+  assert.doesNotMatch(page.text, /structure organisatrice|Message pour la FFSA|J'atteste/, 'champs retirés');
+  assert.match(page.text, /N° de licence FFSA</);
+  const invalid = await c.post('/inscription', { ...form, email: 'x' });
   assert.strictEqual(invalid.status, 400);
   assert.match(invalid.text, /Adresse e-mail invalide/);
   const done = await c.post('/inscription', form);
@@ -170,44 +165,14 @@ test('inscription libre : confirmation e-mail, validation FFSA, puis connexion',
   await l1.get('/connexion');
   assert.match((await l1.post('/connexion', { email: form.email, password: PASSWORD })).text, /Confirmez d’abord votre adresse/);
   const link = lastMail(/Confirmez votre adresse/).text.match(/\/inscription\/confirmer\/\S+/)[0];
-  assert.match((await client().get(link)).text, /Adresse confirmée/);
-  assert.deepStrictEqual([].concat(lastMail(/demande d'accès directeur de course/).to), ['validation@ffsa.test']);
+  assert.match((await client().get(link)).text, /Compte activé/);
+  assert.strictEqual((await db.one("SELECT approval_status FROM users WHERE email = 'lucie.martin@club.test'")).approval_status, 'approved');
 
-  // En attente de validation
-  const l2 = client();
-  await l2.get('/connexion');
-  assert.match((await l2.post('/connexion', { email: form.email, password: PASSWORD })).text, /en cours de validation/);
-
-  // Validation par le service médical
-  const v = client();
-  await v.get('/connexion');
-  await v.post('/connexion', { email: 'valideur@ffsa.test', password: PASSWORD });
-  await v.get('/connexion/2fa');
-  await v.post('/connexion/2fa', { code: totp.generate(secret) });
-  const list = await v.get('/back-office/demandes');
-  assert.match(list.text, /Lucie Martin/);
-  assert.match(list.text, /Slalom du Lac en mai/);
-  assert.match((await v.get('/back-office')).text, /class="count">1</, 'compteur dans le menu');
-  assert.strictEqual((await v.post(`/back-office/demandes/${user.id}/valider`, {})).status, 302);
-  assert.ok(lastMail(/compte directeur de course est activé/));
-
+  // Connexion possible aussitôt, sans validation par la FFSA
   const l3 = client();
   await l3.get('/connexion');
   const ok = await completeEmailCode(l3, await l3.post('/connexion', { email: form.email, password: PASSWORD }));
   assert.strictEqual(ok.location, '/organisateur');
-
-  // Refus d'une autre demande, avec motif
-  const c2 = client();
-  await c2.get('/inscription');
-  await c2.post('/inscription', { ...form, email: 'refus@club.test', first_name: 'Paul' });
-  await client().get(lastMail(/Confirmez votre adresse/).text.match(/\/inscription\/confirmer\/\S+/)[0]);
-  const refused = await db.one("SELECT id FROM users WHERE email = 'refus@club.test'");
-  await v.get('/back-office/demandes');
-  await v.post(`/back-office/demandes/${refused.id}/refuser`, { note: 'Structure inconnue' });
-  assert.match(lastMail(/Votre demande de compte directeur de course/).text, /Structure inconnue/);
-  const l4 = client();
-  await l4.get('/connexion');
-  assert.match((await l4.post('/connexion', { email: 'refus@club.test', password: PASSWORD })).text, /pas été acceptée/);
 
   // Adresse déjà connue : même réponse, aucun doublon, e-mail d'information
   const c3 = client();

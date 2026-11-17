@@ -12,7 +12,7 @@ Les mesures de sécurité et les obligations RGPD (DPO) sont détaillées dans [
 | Base de données | PostgreSQL 16 : **seul stockage**, pièces jointes comprises (chiffrées dans la base) |
 | Antivirus | ClamAV (conteneur `clamav/clamav`), interrogé pour chaque pièce jointe |
 | Livraison | `Dockerfile` + `docker-compose.yml` (application, PostgreSQL, ClamAV) |
-| Tâches planifiées | Dans le processus de l'application, chaque heure : relances des médecins, purge des brouillons (30 jours) et des dossiers expirés (10 ans) |
+| Tâches planifiées | Dans le processus de l'application, chaque heure : purge des brouillons (30 jours) et des dossiers expirés (10 ans) |
 | Santé | `GET /sante` (utilisé par le `HEALTHCHECK` Docker) |
 
 Le schéma de la base est créé ou mis à jour automatiquement au démarrage (`src/db/schema.sql`, idempotent).
@@ -37,7 +37,7 @@ en production avec ce mode.
 **Services externes**
 - **Relais SMTP** d'envoi depuis un domaine FFSA, avec SPF, DKIM et DMARC à jour : sinon les liens envoyés aux médecins arrivent en courrier indésirable.
 - **SMS** (facultatif) : compte Brevo (`SMS_PROVIDER=brevo`) pour envoyer le lien et le code au portable du médecin.
-- **Connexion avec le compte licencié FFSA** (facultatif) : un client OpenID Connect sur le fournisseur d'identité des licenciés. URL de retour à déclarer : `<BASE_URL>/connexion/sso/retour`. Détails : [`SSO.md`](SSO.md). Sans lui, les directeurs de course créent un compte validé par la FFSA.
+- **Connexion avec le compte licencié FFSA** (facultatif, non retenue pour l'instant) : un client OpenID Connect sur le fournisseur d'identité des licenciés. URL de retour à déclarer : `<BASE_URL>/connexion/sso/retour`. Détails : [`SSO.md`](SSO.md). Sans lui, les directeurs de course créent un compte validé par la FFSA.
 
 ## 3. Installation
 
@@ -58,8 +58,7 @@ openssl rand -base64 24         # POSTGRES_PASSWORD (et dans DATABASE_URL)
 des sauvegardes, dans le coffre de secrets, avec une copie de secours sous la responsabilité de la DSI.
 
 Variables à renseigner en priorité : `BASE_URL`, `DATABASE_URL`, `SESSION_SECRET`, la clé de chiffrement,
-`SMTP_*` et `MAIL_FROM`, `MEDICAL_SERVICE_EMAILS` (adresses prévenues à chaque dossier), `APPROVER_EMAILS`
-(validation des demandes d'accès), `PRIVACY_*` (texte de la page « Données personnelles », à valider par le DPO).
+`SMTP_*` et `MAIL_FROM`, `MEDICAL_SERVICE_EMAILS` (adresses prévenues à chaque dossier), `PRIVACY_*` (texte de la page « Données personnelles », à valider par le DPO).
 
 ```bash
 docker compose up -d --build
@@ -69,8 +68,8 @@ docker compose exec app node scripts/create-user.js medecin.federal@ffsa.org "Pr
 
 Chaque compte reçoit un lien d'activation par e-mail. La double authentification (application d'authentification)
 est activée à la première connexion. Rôles : `admin` gère les comptes sans accès aux données de santé, `medical`
-(service médical) accède aux dossiers. Les comptes des directeurs de course se créent seuls (compte licencié ou
-inscription validée).
+(service médical) accède aux dossiers. Les comptes des directeurs de course se créent seuls (inscription, compte actif
+après confirmation de l'adresse e-mail).
 
 ## 4. Vérifications après la mise en ligne
 

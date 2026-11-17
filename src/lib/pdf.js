@@ -231,7 +231,7 @@ function namedBlock(doc, heading, section, values, opts) {
 function writeAccident(doc, accident, attachments) {
   const v = accident.data;
   const [doctorSec] = byTitle(accidentForm, "Médecin de l'épreuve");
-  const [summarySec] = byTitle(accidentForm, 'Synthèse');
+  const [circSec] = byTitle(accidentForm, "Circonstances de l'accident");
   const [eventSec] = byTitle(accidentForm, "L'épreuve");
   const vehicles = [...byTitle(accidentForm, 'Pilote / copilote'), ...byTitle(accidentForm, 'Autre pilote')];
   const persons = byTitle(accidentForm, 'Autre personne');
@@ -242,12 +242,12 @@ function writeAccident(doc, accident, attachments) {
   const [rescueSec] = byTitle(accidentForm, 'Intervention des secours');
   const [authorSec] = byTitle(accidentForm, 'Rapport établi par');
 
-  // Page 1 : médecin de l'épreuve et synthèse (« rapport à remplir en cas d'accident »)
+  // Page 1 : médecin de l'épreuve et circonstances (« rapport à remplir en cas d'accident »)
   pageTitle(doc, "Rapport à remplir en cas d'accident", `Dossier ${accident.reference}`);
   blockHeading(doc, "Médecin de l'épreuve", { align: 'left' });
   renderSection(doc, doctorSec, v);
-  blockHeading(doc, 'À remplir impérativement en cas d’accident avec blessé (évacué par ambulance) ou plus grave', { align: 'left' });
-  if (!renderSection(doc, summarySec, v)) emptyNote(doc);
+  blockHeading(doc, "Circonstances de l'accident", { align: 'left' });
+  if (!renderSection(doc, circSec, v)) emptyNote(doc);
 
   // Page 2 : rapport d'accident (épreuve, bilan humain)
   doc.addPage();

@@ -239,13 +239,13 @@
       if (!on && !f.hidden) clearInputs(f);
       f.hidden = !on;
       if (!on) return;
-      // Titre : « Concurrent 1 – Thomas Durand (n° 27) », d'après le bloc correspondant
+      // Titre : « Concurrent n° 27 – Thomas Durand », d'après le bloc correspondant
       var label = f.querySelector('.label');
       var base = label.getAttribute('data-base') || label.textContent.trim();
       label.setAttribute('data-base', base);
       var val = function (suffix) { var i = sec.querySelector('[name$="' + suffix + '"]'); return i ? i.value.trim() : ''; };
       var name = [val('driver_first_name'), val('driver_last_name')].filter(Boolean).join(' ');
-      label.textContent = base + (val('driver_last_name') ? ' – ' + name : '') + (val('_number') ? ' (n° ' + val('_number') + ')' : '');
+      label.textContent = (val('_number') ? 'Concurrent n° ' + val('_number') : base + ' (n° non renseigné)') + (name ? ' – ' + name : '');
     });
   }
 

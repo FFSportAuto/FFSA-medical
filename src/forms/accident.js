@@ -21,8 +21,8 @@ const VEHICLE_TYPES = [
 ];
 const ADR = ['Inconnu', 'Non', 'Oui'];
 const ADR_DATA = ['Oui', 'Non'];
-const COCKPIT = ['Inconnu', 'Ouvert', 'Fermé'];
-const DRIVING_POSITION = ['NSP', 'Gauche', 'Droite'];
+const COCKPIT = ['Ouvert', 'Fermé'];
+const DRIVING_POSITION = ['Centrale', 'Gauche', 'Droite'];
 const ENGINE_TYPES = ['Moteur thermique', 'Hybride', 'Electrique', 'Autre'];
 const FUEL_TYPES = ['Essence', 'Diesel', 'Gaz', 'Methanol', 'Essence/hybride', 'Diesel/hybride', 'Electrique', 'Autre'];
 const VEHICLE_SPECS = ['Inconnue', 'Moderne (Annexe J)', 'Historique (Annexe K)', 'Autre'];
@@ -60,7 +60,7 @@ function vehicleSection(n) {
       { name: `${p}heading_adr`, label: 'Enregistreur de données accident (ADR)', type: 'heading' },
       list('adr', "Véhicule équipé d'un ADR émis par la FIA ?", ADR, { width: 'half-alone' }),
       { name: `${p}adr_reference`, label: 'N° de série / référence ADR', type: 'text', width: 'half', showIf: { field: `${p}adr`, equals: 'Oui' } },
-      list('adr_data', 'Données récupérées / disponibles ?', ADR_DATA, { showIf: { field: `${p}adr`, equals: 'Oui' } }),
+      list('adr_data', 'Données récupérées', ADR_DATA, { showIf: { field: `${p}adr`, equals: 'Oui' } }),
     ],
   };
 }
@@ -92,8 +92,11 @@ function equipmentTable(n) {
   return {
     name: `equipment${n}`,
     label: `Concurrent ${n}`,
-    // Libellé complété avec le nom et le numéro du concurrent (écran, PDF, back office)
-    displayLabel: (v) => `Concurrent ${n}` + (v[`${p}driver_last_name`] ? ` – ${[v[`${p}driver_first_name`], v[`${p}driver_last_name`]].filter(Boolean).join(' ')}` : '') + (v[`${p}number`] ? ` (n° ${v[`${p}number`]})` : ''),
+    // Libellé avec le numéro et le nom du concurrent (écran, PDF, back office) : « Concurrent n° 27 – Thomas Girard »
+    displayLabel: (v) => {
+      const name = [v[`${p}driver_first_name`], v[`${p}driver_last_name`]].filter(Boolean).join(' ');
+      return (v[`${p}number`] ? `Concurrent n° ${v[`${p}number`]}` : `Concurrent ${n} (n° non renseigné)`) + (name ? ` – ${name}` : '');
+    },
     type: 'matrix',
     follows: { group: 'vehicle', index: n - 1 },
     rows: EQUIPMENT_ITEMS,
@@ -106,6 +109,8 @@ function equipmentTable(n) {
   };
 }
 
+const PERSON_FUNCTIONS = ['Directeur de Course', 'Commissaire Sportif', 'Commissaire de Route / de Piste', 'Volontaire', 'Autre'];
+
 function otherPersonSection(n) {
   const p = `person${n}_`;
   return {
@@ -117,9 +122,14 @@ function otherPersonSection(n) {
     fields: [
       { name: `${p}last_name`, label: 'Nom', type: 'text', width: 'half' },
       { name: `${p}first_name`, label: 'Prénom', type: 'text', width: 'half' },
-      { name: `${p}license`, label: 'Licence n°', type: 'text', width: 'half', inputmode: 'numeric' },
-      { name: `${p}role`, label: 'Qualité', type: 'text', width: 'half' },
-      { name: `${p}address`, label: 'Adresse (si non licencié)', type: 'text', width: 'half' },
+      { name: `${p}licensed`, label: 'Licencié(e) FFSA ?', type: 'radio', options: ['Oui', 'Non'] },
+      // Licencié : licence et fonction ; non licencié : coordonnées
+      { name: `${p}license`, label: 'Licence n°', type: 'text', width: 'half', inputmode: 'numeric', showIf: { field: `${p}licensed`, equals: 'Oui' } },
+      { name: `${p}function`, label: 'Fonction', type: 'select', dropdown: true, width: 'half', options: PERSON_FUNCTIONS, showIf: { field: `${p}licensed`, equals: 'Oui' } },
+      { name: `${p}function_other`, label: 'Préciser la fonction', type: 'text', width: 'half', showIf: { field: `${p}function`, equals: 'Autre' } },
+      { name: `${p}email`, label: 'E-mail', type: 'email', width: 'half', showIf: { field: `${p}licensed`, equals: 'Non' } },
+      { name: `${p}phone`, label: 'Téléphone', type: 'tel', width: 'half', showIf: { field: `${p}licensed`, equals: 'Non' } },
+      { name: `${p}address`, label: 'Adresse postale', type: 'text', showIf: { field: `${p}licensed`, equals: 'Non' } },
     ],
   };
 }
@@ -140,19 +150,23 @@ function witnessSection(n) {
       { name: `${p}first_name`, label: 'Prénom', type: 'text', width: 'half' },
       { name: `${p}last_name`, label: 'Nom', type: 'text', width: 'half' },
       { name: `${p}role`, label: 'Qualité', type: 'text' },
+      { name: `${p}heading_contact`, label: 'Contact du témoin (facultatif)', type: 'heading' },
+      { name: `${p}email`, label: 'E-mail', type: 'email', width: 'half' },
+      { name: `${p}phone`, label: 'Téléphone', type: 'tel', width: 'half' },
       { name: `${p}confirmed`, label: 'Le témoin a relu et confirme cette déclaration (vaut signature).', shortLabel: 'Confirmation du témoin', type: 'consent' },
     ],
   };
 }
 
+// Choix unique, avec précision si « Autre »
 const withOther = (name, label, options) => [
-  { name, label, type: 'checkboxes', options: [...options, 'Autre'] },
-  { name: `${name}_other`, label: `${label} – autre (préciser)`, type: 'text', showIf: { field: name, includes: 'Autre' } },
+  { name, label, type: 'radio', options: [...options, 'Autre'] },
+  { name: `${name}_other`, label: `${label} – autre (préciser)`, type: 'text', showIf: { field: name, equals: 'Autre' } },
 ];
 
 module.exports = {
   id: 'accident',
-  version: 8,
+  version: 9,
   title: "Rapport d'accident",
   intro:
     "À remplir dans les 48 heures après l'accident par le directeur de course, " +
@@ -211,7 +225,8 @@ module.exports = {
             'Autre',
           ],
         },
-        { name: 'event_date', label: "Date de l'épreuve", type: 'date', required: true, width: 'half' },
+        { name: 'accident_date', label: "Date de l'accident", type: 'date', required: true, width: 'half' },
+        { name: 'accident_time', label: "Heure de l'accident", type: 'time', width: 'half' },
         {
           name: 'casualties',
           label: 'Bilan humain',
@@ -226,30 +241,14 @@ module.exports = {
       title: "Médecin de l'épreuve",
       step: 'Épreuve et médecin',
       intro:
-        'Le rapport médical doit être rempli par le médecin de l’épreuve. ' +
-        'Renseignez ses coordonnées : le formulaire en ligne lui sera directement envoyé par e-mail.',
+        'Si le médecin de l’épreuve a examiné les personnes accidentées, renseignez ses coordonnées : ' +
+        'le rapport médical en ligne lui est envoyé par e-mail et par SMS. Sinon, aucun rapport médical n’est demandé.',
       fields: [
-        { name: 'doctor_first_name', label: 'Prénom du médecin', type: 'text', required: true, width: 'half' },
-        { name: 'doctor_last_name', label: 'Nom du médecin', type: 'text', required: true, width: 'half' },
-        { name: 'doctor_email', label: 'Adresse e-mail du médecin', type: 'email', required: true, width: 'half' },
-        { name: 'doctor_phone', label: 'Téléphone portable du médecin', type: 'tel', required: true, width: 'half', help: 'Le lien lui est aussi envoyé par SMS.' },
-      ],
-    },
-    {
-      title: 'Synthèse – accident avec blessé (évacué par ambulance) ou plus grave',
-      step: "L'accident",
-      intro: 'À remplir impérativement en cas d’accident avec blessé évacué par ambulance, ou plus grave.',
-      shareWithDoctor: true,
-      fields: [
-        { name: 'summary_victim_last_name', label: 'Nom de la personne accidentée', type: 'text', width: 'half' },
-        { name: 'summary_victim_first_name', label: 'Prénom de la personne accidentée', type: 'text', width: 'half' },
-        { name: 'summary_victim_license', label: 'N° de licence', type: 'text', width: 'half', inputmode: 'numeric' },
-        { name: 'accident_date', label: "Date de l'accident", type: 'date', required: true, width: 'half', sameAs: { field: 'event_date', label: "Jour de l'épreuve" } },
-        { name: 'accident_time', label: "Heure de l'accident", type: 'time', width: 'half' },
-        { name: 'circumstances', label: "Circonstances de l'accident", type: 'textarea', rows: 5 },
-        { name: 'heading_monday', label: "Personne de l'organisation joignable par téléphone le lundi matin", type: 'heading' },
-        { name: 'monday_contact_name', label: 'Nom et prénom', type: 'text', width: 'half' },
-        { name: 'monday_contact_phone', label: 'N° de téléphone', type: 'tel', width: 'half' },
+        { name: 'doctor_examined', label: 'Le médecin de l’épreuve a-t-il examiné les personnes accidentées ?', shortLabel: 'Examen par le médecin de l’épreuve', type: 'radio', required: true, options: ['Oui', 'Non'] },
+        { name: 'doctor_first_name', label: 'Prénom du médecin', type: 'text', required: true, width: 'half', showIf: { field: 'doctor_examined', equals: 'Oui' } },
+        { name: 'doctor_last_name', label: 'Nom du médecin', type: 'text', required: true, width: 'half', showIf: { field: 'doctor_examined', equals: 'Oui' } },
+        { name: 'doctor_email', label: 'Adresse e-mail du médecin', type: 'email', required: true, width: 'half', showIf: { field: 'doctor_examined', equals: 'Oui' } },
+        { name: 'doctor_phone', label: 'Téléphone portable du médecin', type: 'tel', required: true, width: 'half', help: 'Le lien lui est aussi envoyé par SMS.', showIf: { field: 'doctor_examined', equals: 'Oui' } },
       ],
     },
     vehicleSection(1),
@@ -286,8 +285,14 @@ module.exports = {
       ],
     },
     {
+      title: "Circonstances de l'accident",
+      step: 'Circonstances, schéma et secours',
+      shareWithDoctor: true,
+      fields: [{ name: 'circumstances', label: "Circonstances de l'accident", type: 'textarea', rows: 6 }],
+    },
+    {
       title: "Schéma de l'accident",
-      step: 'Schéma, secours et pièces',
+      step: 'Circonstances, schéma et secours',
       intro:
         'À compléter pour toute classification médicale. Indiquez : numéro de poste et emplacement ; numéro de licence des officiels ' +
         'présents dans la zone de l’accident ; la protection du bord de la piste ; les drapeaux et/ou signaux lumineux utilisés ' +
@@ -298,7 +303,7 @@ module.exports = {
     },
     {
       title: 'Intervention des secours',
-      step: 'Schéma, secours et pièces',
+      step: 'Circonstances, schéma et secours',
       intro:
         'À compléter OBLIGATOIREMENT si la classification médicale est de 3 à 4 et/ou en cas d’incendie. ' +
         'Joindre une copie de la main courante de la direction de course. Indiquez les personnes intervenues ' +
@@ -310,7 +315,7 @@ module.exports = {
     },
     {
       title: 'Pièces à joindre',
-      step: 'Schéma, secours et pièces',
+      step: 'Circonstances, schéma et secours',
       intro:
         'Témoignages visuels, rapports des commissaires, du directeur de la spéciale, des responsables du service incendie ; ' +
         'rapport des vérifications techniques effectuées sur toutes les voitures accidentées ; tout autre rapport d’expert ' +

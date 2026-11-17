@@ -11,14 +11,14 @@
 <% } else { %>
   <div class="card table-wrap">
     <table>
-      <thead><tr><th>Référence</th><th>Épreuve</th><th>Date</th><th>Rapport médical</th><th></th></tr></thead>
+      <thead><tr><th>Référence</th><th>Épreuve</th><th>Date de l’accident</th><th>Rapport médical</th><th></th></tr></thead>
       <tbody>
       <% reports.forEach(function (r) { %>
         <tr>
           <td class="mono"><%= r.reference %></td>
           <td><%= r.event_name %></td>
           <td><%= r.event_date ? new Date(r.event_date).toLocaleDateString('fr-FR') : '' %></td>
-          <td><% if (r.status === 'complete') { %><span class="badge ok">Reçu</span><% } else { %><span class="badge wait">En attente</span><% } %></td>
+          <td><% if (r.status === 'complete') { %><span class="badge ok">Reçu</span><% } else if (r.status === 'no_medical') { %><span class="badge">Non demandé</span><% } else { %><span class="badge wait">En attente</span><% } %></td>
           <td><a href="/organisateur/rapports/<%= r.id %>">Voir</a></td>
         </tr>
       <% }) %>

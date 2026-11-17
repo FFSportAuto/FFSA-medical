@@ -19,7 +19,11 @@ test('les noms de champs sont uniques dans chaque formulaire', () => {
 test('champs obligatoires et conditions', () => {
   const { errors } = engine.validate(accidentForm, {});
   assert.ok(errors.event_name);
-  assert.ok(errors.doctor_email);
+  assert.ok(errors.accident_date);
+  assert.ok(errors.doctor_examined);
+  assert.ok(!errors.doctor_email, 'coordonnées du médecin demandées seulement s\'il a examiné les personnes');
+  assert.ok(engine.validate(accidentForm, { doctor_examined: 'Oui' }).errors.doctor_email);
+  assert.ok(!engine.validate(accidentForm, { doctor_examined: 'Non' }).errors.doctor_email);
   assert.ok(!errors.discipline_other, 'champ conditionnel masqué non exigé');
   assert.ok(!engine.validate(accidentForm, { discipline: 'Autre' }).errors.discipline_other, 'facultatif');
 
@@ -76,7 +80,8 @@ test('matrices', () => {
   assert.deepStrictEqual(e.values.equipment1, { 'Combinaison du pilote / copilote': { Présent: 'Non' }, Casque: { Présent: 'Oui', "Marque, modèle, n° d'homologation": 'Stilo ST5' } });
   assert.strictEqual(e.values.equipment2, undefined);
   assert.ok(engine.validate(accidentForm, { [engine.cellName(eq1, casque, 0)]: 'Peut-être' }).errors.equipment1);
-  assert.strictEqual(eq1.displayLabel({ vehicle1_driver_first_name: 'Thomas', vehicle1_driver_last_name: 'Durand', vehicle1_number: '27' }), 'Concurrent 1 – Thomas Durand (n° 27)');
+  assert.strictEqual(eq1.displayLabel({ vehicle1_driver_first_name: 'Thomas', vehicle1_driver_last_name: 'Durand', vehicle1_number: '27' }), 'Concurrent n° 27 – Thomas Durand');
+  assert.strictEqual(eq1.displayLabel({ vehicle1_driver_last_name: 'Durand' }), 'Concurrent 1 (n° non renseigné) – Durand');
   assert.strictEqual(eq1.rows.length, 19);
 
   const a = engine.validate(accidentForm, { [engine.cellName(casualties, 0, 0)]: '2' });
@@ -91,12 +96,13 @@ test('matrices', () => {
 test('validation des formats', () => {
   const { errors } = engine.validate(accidentForm, {
     doctor_email: 'pas-un-email',
-    event_date: '2026-13-45',
+    doctor_examined: 'Oui',
+    accident_date: '2026-13-45',
     discipline: 'Inconnue',
-    weather: ['Nuageux', 'Piratage'],
+    weather: 'Piratage',
   });
   assert.ok(errors.doctor_email);
-  assert.ok(errors.event_date);
+  assert.ok(errors.accident_date);
   assert.ok(errors.discipline);
   assert.ok(errors.weather);
 });
@@ -141,7 +147,7 @@ test('pilotes / copilotes : identité puis sous-partie « Véhicule », listes d
     'Caractéristiques techniques',
     'Habitacle', 'Position du poste de conduite', 'Type de moteur', 'Type de carburant',
     'Enregistreur de données accident (ADR)',
-    "Véhicule équipé d'un ADR émis par la FIA ?", 'N° de série / référence ADR', 'Données récupérées / disponibles ?',
+    "Véhicule équipé d'un ADR émis par la FIA ?", 'N° de série / référence ADR', 'Données récupérées',
   ]);
   assert.deepStrictEqual(fields.filter((f) => f.type === 'heading').map((f) => f.label), ['Véhicule', 'Caractéristiques techniques', 'Enregistreur de données accident (ADR)']);
   const lists = Object.fromEntries(fields.filter((f) => f.type === 'select').map((f) => [f.name.replace('vehicle1_', ''), f.options]));
@@ -149,8 +155,8 @@ test('pilotes / copilotes : identité puis sous-partie « Véhicule », listes d
     vehicle_type: ['Monoplace', 'Kart', 'Voiture de tourisme (y compris SUV et 4x4)', 'GT', 'Voiture de sport deux places', 'Prototype Le Mans (LMP)', 'Silhouette', 'Camion', 'Buggy', 'Dragster', 'Autre'],
     adr: ['Inconnu', 'Non', 'Oui'],
     adr_data: ['Oui', 'Non'],
-    cockpit: ['Inconnu', 'Ouvert', 'Fermé'],
-    driving_position: ['NSP', 'Gauche', 'Droite'],
+    cockpit: ['Ouvert', 'Fermé'],
+    driving_position: ['Centrale', 'Gauche', 'Droite'],
     engine_type: ['Moteur thermique', 'Hybride', 'Electrique', 'Autre'],
     fuel_type: ['Essence', 'Diesel', 'Gaz', 'Methanol', 'Essence/hybride', 'Diesel/hybride', 'Electrique', 'Autre'],
     specification: ['Inconnue', 'Moderne (Annexe J)', 'Historique (Annexe K)', 'Autre'],
@@ -169,16 +175,41 @@ test('pilotes / copilotes : identité puis sous-partie « Véhicule », listes d
   assert.ok(engine.validate(accidentForm, { vehicle1_fuel_type: 'Kérosène' }).errors.vehicle1_fuel_type);
 });
 
+test('autres personnes, conditions et témoins : retours du 17/11', () => {
+  // Licencié : licence et fonction ; non licencié : coordonnées
+  const lic = engine.validate(accidentForm, { person1_licensed: 'Oui', person1_license: '1', person1_function: 'Volontaire', person1_email: 'x@y.fr' }).values;
+  assert.strictEqual(lic.person1_license, '1');
+  assert.strictEqual(lic.person1_email, undefined);
+  const non = engine.validate(accidentForm, { person1_licensed: 'Non', person1_license: '1', person1_email: 'x@y.fr', person1_address: 'Rue' }).values;
+  assert.strictEqual(non.person1_license, undefined);
+  assert.deepStrictEqual([non.person1_email, non.person1_address], ['x@y.fr', 'Rue']);
+  const fn = accidentForm.sections.flatMap((s) => s.fields).find((f) => f.name === 'person1_function');
+  assert.deepStrictEqual(fn.options, ['Directeur de Course', 'Commissaire Sportif', 'Commissaire de Route / de Piste', 'Volontaire', 'Autre']);
+  // Météo et revêtement : choix unique
+  for (const name of ['weather', 'visibility', 'surface', 'track_layout', 'track_condition']) {
+    assert.strictEqual(accidentForm.sections.flatMap((s) => s.fields).find((f) => f.name === name).type, 'radio', name);
+  }
+  // Témoin : contact facultatif ; circonstances en texte libre
+  const w = engine.validate(accidentForm, { witness1_email: 't@exemple.fr', witness1_phone: '0601020304', circumstances: 'Sortie de route' }).values;
+  assert.deepStrictEqual([w.witness1_email, w.witness1_phone, w.circumstances], ['t@exemple.fr', '0601020304', 'Sortie de route']);
+  // Plus d'étape « L'accident » ni de date de l'épreuve
+  assert.ok(!accidentForm.sections.some((s) => s.step === "L'accident"));
+  assert.ok(!engine.allFields(accidentForm).some((f) => f.name === 'event_date' || f.name.startsWith('summary_') || f.name.startsWith('monday_')));
+});
+
 test('personnes déclarées reprises dans le rapport médical (sans doublon)', () => {
   const { declaredPersons } = require('../src/forms/patients');
   const list = declaredPersons({
-    summary_victim_last_name: 'Girard', summary_victim_first_name: 'Thomas', summary_victim_license: '254781',
-    vehicle1_driver_last_name: 'Girard', vehicle1_driver_first_name: 'Thomas', vehicle1_number: '27', vehicle1_group: 'GT4',
-    person1_last_name: 'Bernard', person1_first_name: 'Julien', person1_role: 'Commissaire de piste',
+    vehicle1_driver_last_name: 'Girard', vehicle1_driver_first_name: 'Thomas', vehicle1_number: '27', vehicle1_group: 'GT4', vehicle1_license: '254781',
+    person1_last_name: 'Bernard', person1_first_name: 'Julien', person1_licensed: 'Oui', person1_license: '301122', person1_function: 'Commissaire de Route / de Piste',
+    person2_last_name: 'Roux', person2_first_name: 'Anne', person2_licensed: 'Non', person2_phone: '06 55 44 33 22', person2_address: '12 rue des Lilas',
+    person3_last_name: 'girard', person3_first_name: 'Thomas',
   });
-  assert.strictEqual(list.length, 2);
+  assert.strictEqual(list.length, 3, 'la même personne déclarée deux fois n\'apparaît qu\'une fois');
   assert.deepStrictEqual(list[0].prefill, {
     patient_last_name: 'Girard', patient_first_name: 'Thomas', crew_number: '27', category: 'GT4', license: '254781',
   });
   assert.deepStrictEqual(list[1].prefill.patient_type, ['Officiel']);
+  assert.strictEqual(list[1].prefill.license, '301122');
+  assert.deepStrictEqual([list[2].detail, list[2].prefill.phone, list[2].prefill.address], ['Non licencié(e)', '06 55 44 33 22', '12 rue des Lilas']);
 });

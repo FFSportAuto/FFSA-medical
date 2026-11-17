@@ -59,8 +59,8 @@ const config = {
   sessionIdleMinutes: Number(process.env.SESSION_IDLE_MINUTES || 30),
   // Durée de conservation des dossiers (années après la déclaration), puis suppression définitive
   retentionYears: Number(process.env.RETENTION_YEARS || 10),
-  doctorLinkValidityDays: Number(process.env.DOCTOR_LINK_VALIDITY_DAYS || 14),
-  doctorReminderHours: Number(process.env.DOCTOR_REMINDER_HOURS || 48),
+  // Durée de validité du lien envoyé au médecin ; au-delà, nouveau lien envoyé par le service médical
+  doctorLinkValidityHours: Number(process.env.DOCTOR_LINK_VALIDITY_HOURS || 48),
   // Antivirus ClamAV (démon clamd) pour les pièces jointes ; vide = pas d'analyse (déconseillé en production)
   antivirus: { host: process.env.CLAMAV_HOST || '', port: Number(process.env.CLAMAV_PORT || 3310) },
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB || 10),
@@ -99,11 +99,6 @@ const config = {
     requiredClaim: process.env.OIDC_REQUIRED_CLAIM || '',
     requiredValues: (process.env.OIDC_REQUIRED_VALUES || '').split(',').map((s) => s.trim()).filter(Boolean),
   },
-  // Personnes prévenues des demandes d'accès à valider (par défaut : le service médical)
-  approverEmails: (process.env.APPROVER_EMAILS || process.env.MEDICAL_SERVICE_EMAILS || 'service.medical@example.org')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean),
   // Mentions d'information (page « Données personnelles ») : à compléter et valider par le DPO
   privacy: {
     controller: process.env.PRIVACY_CONTROLLER || 'Fédération Française du Sport Automobile (FFSA) [adresse du siège à compléter]',

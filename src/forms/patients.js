@@ -1,7 +1,7 @@
 'use strict';
 
-// Reprise, dans le rapport médical, des personnes déclarées par l'organisateur.
-// Chaque personne a une clé stable (vehicle1, person2, summary…) qui relie le rapport médical
+// Reprise, dans le rapport médical, des personnes déclarées par le directeur de course.
+// Chaque personne a une clé stable (vehicle1, person2…) qui relie le rapport médical
 // à la déclaration d'accident.
 
 const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
@@ -11,13 +11,13 @@ function patientTypeFromRole(role) {
   const r = norm(role);
   if (/copilot/.test(r)) return ['Copilote'];
   if (/pilot/.test(r)) return ['Pilote'];
-  if (/commissaire|officiel|directeur|chrono/.test(r)) return ['Officiel'];
+  if (/commissaire|officiel|directeur|chrono|volontaire/.test(r)) return ['Officiel'];
   if (/spectat|public|riverain/.test(r)) return ['Spectateur'];
   return undefined;
 }
 
 /**
- * Liste des personnes accidentées déclarées, sans doublon (la synthèse reprend souvent le pilote n°1).
+ * Liste des personnes accidentées déclarées, sans doublon (une même personne déclarée deux fois n'apparaît qu'une fois).
  * @returns [{ key, name, detail, prefill }]  prefill = valeurs du formulaire médical
  */
 function declaredPersons(a) {
@@ -48,15 +48,16 @@ function declaredPersons(a) {
   }
   for (let n = 1; n <= 4; n++) {
     const p = `person${n}_`;
-    add(`person${n}`, a[`${p}last_name`], a[`${p}first_name`], a[`${p}role`] || 'Autre personne', {
-      patient_type: patientTypeFromRole(a[`${p}role`]),
+    // Fonction pour un licencié (liste), « Qualité » libre dans les anciens rapports
+    const fn = a[`${p}function`] === 'Autre' ? a[`${p}function_other`] || 'Autre' : a[`${p}function`] || a[`${p}role`];
+    const detail = fn || (a[`${p}licensed`] === 'Non' ? 'Non licencié(e)' : 'Autre personne');
+    add(`person${n}`, a[`${p}last_name`], a[`${p}first_name`], detail, {
+      patient_type: patientTypeFromRole(fn),
       license: a[`${p}license`],
+      phone: a[`${p}phone`],
       address: a[`${p}address`],
     });
   }
-  add('summary', a.summary_victim_last_name, a.summary_victim_first_name, 'Personne indiquée dans la synthèse', {
-    license: a.summary_victim_license,
-  });
   for (const p of out) for (const k of Object.keys(p.prefill)) if (p.prefill[k] === undefined || p.prefill[k] === '') delete p.prefill[k];
   return out;
 }

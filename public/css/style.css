@@ -73,8 +73,9 @@ form.inline { display: inline; margin: 0; }
 h1, h2, h3, h4 { text-wrap: balance; }
 h1 { font-size: 24px; font-weight: 600; color: var(--navy); margin: 0; line-height: 1.25; letter-spacing: -.2px; }
 h2 { font-size: 22px; font-weight: 700; color: var(--navy); margin: 0 0 12px; }
-h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--red-dark); margin: 20px 0 8px; }
-.eyebrow { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--red-dark); }
+/* Sous-titres rouges : capitales, graisse 700 */
+h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--red-dark); margin: 20px 0 8px; }
+.eyebrow { display: block; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--red-dark); }
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; margin-bottom: 8px; flex-wrap: wrap; }
 .head-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .lead { color: var(--muted); font-size: 14px; font-weight: 500; margin: 0 0 22px; max-width: 80ch; }
@@ -152,7 +153,7 @@ textarea { resize: vertical; }
 /* Demi-largeur seule sur sa ligne (question suivie de champs qui en dépendent) */
 .grid .field.half-alone { grid-column: 1 / -1; }
 .grid .field.half-alone > select, .grid .field.half-alone > input { width: calc(50% - 9px); }
-.subheading { grid-column: 1 / -1; margin: 12px 0 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--red-dark); border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.subheading { grid-column: 1 / -1; margin: 14px 0 10px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--red-dark); border-bottom: 1px solid var(--border); padding-bottom: 6px; }
 .section-intro { white-space: pre-line; font-size: 13.5px; margin: 8px 0 0; }
 details.section.optional { padding-block: 16px; }
 details.section.optional > summary { cursor: pointer; display: flex; align-items: center; gap: 12px; list-style: none; }
@@ -253,6 +254,10 @@ td.empty, .empty { text-align: center; color: var(--muted); padding: 32px; }
 tbody tr:hover td { background: #fafbfd; }
 td.mono { white-space: nowrap; }
 td.mono a { font-weight: 600; text-decoration: none; }
+th a.sort { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+th a.sort:hover, th a.sort.on { color: var(--navy); }
+.sort-ico { font-size: 10px; opacity: .45; }
+th a.sort.on .sort-ico { opacity: 1; color: var(--red); }
 
 /* ---------- Back office ---------- */
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; }

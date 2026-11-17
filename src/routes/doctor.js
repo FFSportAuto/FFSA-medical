@@ -18,7 +18,7 @@ const codeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHea
 const STATE_MESSAGES = {
   used: 'Le dossier médical de cet accident a été clôturé et transmis au service médical de la FFSA. Merci.',
   revoked: 'Ce lien a été remplacé par un lien plus récent. Utilisez le dernier e-mail reçu.',
-  expired: 'Ce lien a expiré. Contactez le service médical de la FFSA pour en obtenir un nouveau.',
+  expired: 'Ce lien a expiré : le rapport médical doit être rempli dans les 48 heures. Contactez le service médical de la FFSA, qui peut vous envoyer un nouveau lien.',
 };
 
 const maskEmail = (email) => email.replace(/^(.)(.*)(@.*)$/, (m, a, b, c) => a + '•'.repeat(Math.min(b.length, 6)) + c);
@@ -69,7 +69,7 @@ function patientsOverview(accident, medical) {
   return { persons, others };
 }
 
-// Tableau de bord du médecin : personnes déclarées, rapports saisis, transfert, clôture
+// Tableau de bord du médecin : personnes déclarées, rapports saisis, clôture
 router.get('/medecin/:token', loadRequest, async (req, res) => {
   const request = req.medicalRequest;
   if (!req.doctorVerified) return renderVerify(res, request);
@@ -84,7 +84,7 @@ router.get('/medecin/:token', loadRequest, async (req, res) => {
     others: others.map((m) => ({ name: patientName(m.data), classification: m.data.classification, at: m.created_at })),
     reportCount: medical.length,
     flash: req.query.ajoute ? 'Rapport enregistré.' : null,
-    error: req.query.vide ? 'Ajoutez au moins un rapport patient avant de clôturer.' : req.query.transfert === 'invalide' ? 'Adresse e-mail du confrère invalide.' : null,
+    error: req.query.vide ? 'Ajoutez au moins un rapport patient avant de clôturer.' : null,
   });
 });
 
@@ -170,23 +170,6 @@ router.post('/medecin/:token/patient', ...uploadFields(medicalForm), loadRequest
   await reports.deleteDraft(draftKeyFor(accident.id, ref));
   await audit(req, 'medical_submitted', { targetType: 'medical_report', targetId: id, actor: `médecin ${request.doctorEmail}`, details: { accident: request.accident_id } });
   res.redirect(`/medecin/${req.params.token}?ajoute=1`);
-});
-
-// Transmission à un confrère (par exemple le médecin qui a réellement vu le patient)
-router.post('/medecin/:token/transferer', loadRequest, requireVerified, async (req, res) => {
-  const request = req.medicalRequest;
-  const email = String(req.body.email || '').trim();
-  const phone = String(req.body.phone || '').trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.redirect(`/medecin/${req.params.token}?transfert=invalide`);
-  if (!(await reports.transferRequest(request, email, phone || null))) {
-    return res.status(409).render('errors/info', { title: 'Rapport médical', message: STATE_MESSAGES.used });
-  }
-  await audit(req, 'doctor_transferred', { targetType: 'accident', targetId: request.accident_id, actor: `médecin ${request.doctorEmail}` });
-  delete req.session.doctorAccess;
-  res.render('errors/info', {
-    title: 'Demande transmise',
-    message: `La demande de rapport médical du dossier ${request.reference} a été transmise à ${email}. Votre lien est désormais désactivé ; les rapports déjà saisis sont conservés.`,
-  });
 });
 
 router.post('/medecin/:token/cloturer', loadRequest, requireVerified, async (req, res) => {

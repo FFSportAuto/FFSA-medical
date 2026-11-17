@@ -19,12 +19,8 @@
   var smsTemplates = req('sms-templates');
   var declaredPersons = req('patients').declaredPersons;
   var signupRules = req('signup-rules');
-  var SSO_LABEL = 'Se connecter avec mon compte licencié FFSA (simulation)';
-  // Licenciés fictifs du portail simulé (identiques à src/sso-demo-idp.js)
-  var LICENSEES = [
-    { sub: 'lic-201501', given_name: 'Camille', family_name: 'Laurent', email: 'camille.laurent@asa-demo.fr', licence: '201501', asa: 'ASA Démo Ouest' },
-    { sub: 'lic-178842', given_name: 'Karim', family_name: 'Benali', email: 'karim.benali@asa-demo.fr', licence: '178842', asa: 'ASA Démo Sud' },
-  ];
+  var SSO_LABEL = null; // connexion par compte licencié : absente de la démo
+  var STATUS_LABELS = { awaiting_medical: 'En attente du rapport médical', complete: 'Complet', no_medical: 'Sans rapport médical' };
   var PROCESSING = { a_analyser: 'À analyser', en_cours: 'En cours', clos: 'Clos' };
 
   // ---------- Stockage local ----------
@@ -57,7 +53,7 @@
   var maskPhone = function (raw) { var n = String(raw || '').replace(/\D/g, ''); return n.length >= 4 ? '•• •• •• ' + n.slice(-4, -2) + ' ' + n.slice(-2) : ''; };
   function invite(r, a, tpl) {
     var link = '/medecin/' + r.token;
-    mail(tpl || 'doctorInvitation', r.doctorEmail, { reference: a.reference, eventName: a.event_name, link: link, expiresAt: new Date(r.expires_at).toLocaleDateString('fr-FR') });
+    mail(tpl || 'doctorInvitation', r.doctorEmail, { reference: a.reference, eventName: a.event_name, link: link, expiresAt: new Date(r.expires_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }).replace(' ', ' à ') });
     sms(tpl || 'doctorInvitation', r.doctorPhone, { reference: a.reference, link: link });
   }
   function audit(action, targetType, targetId) {
@@ -71,18 +67,19 @@
     var id = uuid();
     state.seq += 1;
     var ref = 'ACC-' + new Date().getFullYear() + '-' + String(state.seq).padStart(5, '0');
-    var a = { id: id, reference: ref, organizer_id: organizer.id, status: 'awaiting_medical', event_name: values.event_name, event_date: values.event_date || null, discipline: values.discipline || null, data: values, created_at: now(), completed_at: null, processing_status: 'a_analyser', assigned_to: null };
+    // Rapport médical demandé seulement si le médecin de l'épreuve a examiné les personnes accidentées
+    var withMedical = values.doctor_examined !== 'Non';
+    var a = { id: id, reference: ref, organizer_id: organizer.id, status: withMedical ? 'awaiting_medical' : 'no_medical', event_name: values.event_name, event_date: values.accident_date || null, discipline: values.discipline || null, data: values, created_at: now(), completed_at: withMedical ? null : now(), processing_status: 'a_analyser' };
     state.accidents.unshift(a);
-    var r = createRequest(a, values.doctor_email, values.doctor_phone);
-    var ctx = { reference: ref, eventName: a.event_name };
-    invite(r, a);
+    var ctx = { reference: ref, eventName: a.event_name, withMedical: withMedical };
+    if (withMedical) invite(createRequest(a, values.doctor_email, values.doctor_phone), a);
     mail('organizerConfirmation', organizer.email, ctx);
-    mail('serviceNewAccident', 'service.medical@ffsa.fr', { reference: ref, eventName: a.event_name, link: '/back-office/dossiers/' + id });
+    mail('serviceNewAccident', 'service.medical@ffsa.fr', { reference: ref, eventName: a.event_name, withMedical: withMedical, link: '/back-office/dossiers/' + id });
     return a;
   }
   function createRequest(a, email, phone, from) {
     state.requests.forEach(function (r) { if (r.accident_id === a.id && !r.revoked_at && !r.used_at) r.revoked_at = now(); });
-    var r = { id: uuid(), accident_id: a.id, doctorEmail: email, doctorPhone: phone || null, transferred_from: from || null, token: rnd(24), expires_at: new Date(Date.now() + 14 * 864e5).toISOString(), sent_at: now(), reminder_sent_at: null, revoked_at: null, used_at: null, otp: null, otp_expires: 0 };
+    var r = { id: uuid(), accident_id: a.id, doctorEmail: email, doctorPhone: phone || null, transferred_from: from || null, token: rnd(24), expires_at: new Date(Date.now() + 48 * 3600e3).toISOString(), sent_at: now(), reminder_sent_at: null, revoked_at: null, used_at: null, otp: null, otp_expires: 0 };
     state.requests.push(r);
     return r;
   }
@@ -92,28 +89,32 @@
     mail('serviceComplete', 'service.medical@ffsa.fr', { reference: a.reference, eventName: a.event_name, link: '/back-office/dossiers/' + a.id });
   }
 
+  // Pièces jointes d'exemple (noms seulement : le téléchargement n'est pas simulé)
+  function sampleFiles(a) {
+    [['diagram', 'photo-sortie-de-route.jpg', 'image/jpeg', 34628], ['logbook', 'main-courante.pdf', 'application/pdf', 2140]].forEach(function (f) {
+      state.attachments.push({ id: uuid(), accident_id: a.id, source: 'accident', field: f[0], filename: f[1], mime_type: f[2], size_bytes: f[3], created_at: now() });
+    });
+  }
   function seed() {
     state = { seq: 0, users: [], accidents: [], requests: [], medical: [], attachments: [], mails: [], audit: [], notes: [], drafts: {}, session: {} };
     [['directeur@demo.ffsa.fr', 'Directeur de course Démo', 'organizer', false], ['medical@demo.ffsa.fr', 'Service médical Démo', 'medical', true], ['admin@demo.ffsa.fr', 'Administrateur Démo', 'admin', true]]
       .forEach(function (u) { state.users.push({ id: uuid(), email: u[0], full_name: u[1], role: u[2], password: PASSWORD, totp_enabled: u[3], active: true, activated: true, auth_source: 'local', approval_status: 'approved', email_verified_at: now(), last_login_at: null, created_at: now(), organization: u[2] === 'organizer' ? 'ASA Démo (exemple)' : null }); });
-    // Une demande d'accès en attente, pour montrer la validation
-    state.users.push({ id: uuid(), email: 'julie.moreau@club-demo.fr', full_name: 'Julie Moreau', role: 'organizer', password: PASSWORD, totp_enabled: false, active: true, activated: true,
-      auth_source: 'local', approval_status: 'pending', email_verified_at: now(), phone: '06 98 76 54 32', organization: 'Écurie du Val (exemple)', job_title: 'Organisateur / ASA',
-      license_number: null, signup_message: 'Organisation du slalom du Val en juin.', created_at: now() });
     var orga = state.users[0];
-    var base = { doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78', author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_license: '178842' };
+    var base = { doctor_examined: 'Oui', doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78', author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_license: '178842' };
     var a1 = createAccident(orga, Object.assign({}, base, {
       event_name: 'Rallye des Vosges (exemple)', event_location: 'Gérardmer', discipline: 'Rallye', event_level: 'Épreuve nationale',
-      event_date: '2026-09-20', accident_date: '2026-09-20', accident_time: '14:35', summary_victim_last_name: 'Exemple', summary_victim_first_name: 'Paul',
+      accident_date: '2026-09-20', accident_time: '14:35',
       circumstances: 'Sortie de route en ES3, tonneau. Pilote extrait par l’équipe d’intervention.',
       casualties: { Pilotes: { 'Nombre de blessés': 1 } }, vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Paul', vehicle1_number: '27', vehicle1_license: '254781', vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
-      weather: ['Nuageux'], surface: ['Asphalte'], track_condition: ['Mouillé'],
+      weather: 'Nuageux', surface: 'Asphalte', track_condition: 'Mouillé',
     }));
-    createAccident(orga, Object.assign({}, base, {
+    sampleFiles(a1);
+    var a2 = createAccident(orga, Object.assign({}, base, {
       event_name: 'Course de côte du Mont-Dore (exemple)', event_location: 'Le Mont-Dore', discipline: 'Course de côte',
-      event_date: '2026-09-27', accident_date: '2026-09-27', accident_time: '10:05', summary_victim_last_name: 'Exemple', summary_victim_first_name: 'Léa', vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Léa', vehicle1_number: '112', vehicle1_license: '287654',
+      accident_date: '2026-09-27', accident_time: '10:05', vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Léa', vehicle1_number: '112', vehicle1_license: '287654',
       circumstances: 'Choc latéral contre le rail au virage 7.',
     }));
+    sampleFiles(a2);
     state.medical.push({ id: uuid(), accident_id: a1.id, patient_ref: 'vehicle1', created_at: now(), data: {
       date: '2026-09-20', time: '14:35', place: 'Gérardmer', event: 'Rallye des Vosges (exemple)',
       patient_last_name: 'Exemple', patient_first_name: 'Paul', patient_type: ['Pilote'], bp: '130/80', pulse: '92', glasgow: '15',
@@ -121,8 +122,9 @@
       hospital: 'CHU de Nancy', diagnosis: 'Fracture de la clavicule droite suspectée.', classification: "2 : transfert à l'hôpital",
       fit: 'Oui (pas de suspension de licence)', current_event: 'Inapte à reprendre', doctor_name: 'Claire Moreau' } });
     finish(a1);
-    // Le second dossier date de 3 jours : il apparaît « en retard » dans le back office
+    // Le second dossier date de 3 jours et son lien a expiré : il apparaît « en retard » dans le back office
     state.accidents.forEach(function (a) { if (a.status === 'awaiting_medical') a.created_at = new Date(Date.now() - 3 * 864e5).toISOString(); });
+    state.requests.forEach(function (r) { if (r.accident_id === a2.id) r.expires_at = new Date(Date.now() - 864e5).toISOString(); });
     state.mails = [];
     state.audit = [];
     save();
@@ -173,6 +175,7 @@
     var msg = null;
     if (r.used_at || a.status === 'complete') msg = 'Le dossier médical de cet accident a été clôturé et transmis au service médical de la FFSA. Merci.';
     else if (r.revoked_at) msg = 'Ce lien a été remplacé par un lien plus récent. Utilisez le dernier e-mail reçu.';
+    else if (new Date(r.expires_at) < new Date()) msg = 'Ce lien a expiré : le rapport médical doit être rempli dans les 48 heures. Contactez le service médical de la FFSA, qui peut vous envoyer un nouveau lien.';
     if (msg) return { stop: view('errors/info', { title: 'Rapport médical', message: msg }, 410) };
     var acc = state.session.doctorAccess;
     return { r: r, a: a, verified: Boolean(acc && acc.requestId === r.id && acc.until > Date.now()) };
@@ -182,7 +185,8 @@
     return { title: 'Vérification', reference: ctx.a.reference, maskedEmail: maskEmail(ctx.r.doctorEmail), maskedPhone: ctx.r.doctorPhone ? maskPhone(ctx.r.doctorPhone) : null, codeSent: codeSent, error: error || null, token: ctx.r.token };
   }
 
-  var isOverdue = function (a) { return a.status === 'awaiting_medical' && Date.now() - new Date(a.created_at) > 48 * 3600e3; };
+  // En retard : rapport médical attendu mais plus aucun lien valable (lien du médecin valable 48 h)
+  var isOverdue = function (a) { return a.status === 'awaiting_medical' && !state.requests.some(function (r) { return r.accident_id === a.id && !r.revoked_at && !r.used_at && new Date(r.expires_at) > new Date(); }); };
   var draftLocals = function (url, discard, key) { var d = state.drafts[key]; return { draftUrl: url, discardUrl: discard, draftSavedAt: d ? d.updatedAt : null }; };
   function filtered(q) {
     return state.accidents.filter(function (a) {
@@ -192,8 +196,6 @@
       if (q.au && (!a.event_date || a.event_date > q.au)) return false;
       if (q.q) { var s = q.q.toLowerCase(); if (a.reference.toLowerCase().indexOf(s) === -1 && a.event_name.toLowerCase().indexOf(s) === -1) return false; }
       if (q.suivi && a.processing_status !== q.suivi) return false;
-      if (q.attribue === 'moi' && a.assigned_to !== state.session.userId) return false;
-      if (q.attribue === 'personne' && a.assigned_to) return false;
       if (q.retard === '1' && !isOverdue(a)) return false;
       return true;
     });
@@ -220,7 +222,6 @@
         mail('signupVerify', found.email, { name: found.full_name, link: '/inscription/confirmer/' + found.verifyToken });
         return loginErr('Confirmez d’abord votre adresse e-mail : un nouveau lien de confirmation vient de vous être envoyé.');
       }
-      if (found.approval_status === 'pending') return loginErr('Votre demande de compte est en cours de validation par la FFSA. Vous serez prévenu(e) par e-mail.');
       return beginMfa(found);
     }
     if (path === '/connexion/2fa') {
@@ -238,7 +239,6 @@
       }
       return mfaView(null, 200, query.renvoye);
     }
-    // Connexion par compte licencié (portail simulé)
     if (path === '/connexion/2fa/renvoyer' && method === 'POST') {
       var ru2 = state.users.find(function (x) { return x.id === state.session.mfaUserId; });
       if (!ru2 || state.session.mfaMethod !== 'email') return redirect('/connexion');
@@ -247,21 +247,6 @@
     }
     if (path === '/donnees-personnelles') return view('legal/privacy', { title: 'Données personnelles', retentionYears: 10,
       privacy: { controller: 'Fédération Française du Sport Automobile (FFSA) [adresse du siège à compléter]', dpoContact: '[adresse de contact du délégué à la protection des données à compléter]', legalBasis: '', validated: false } });
-    if (path === '/connexion/sso') return view('demo/sso', { title: 'Portail licenciés FFSA (simulation)', licensees: LICENSEES, q: { client_id: 'demo', redirect_uri: '', state: '', nonce: '', code_challenge: '' } });
-    if (path === '/demo/sso/authorize' && method === 'POST') {
-      var lic = LICENSEES.find(function (l) { return l.sub === body.sub; });
-      if (!lic) return notFound();
-      var su = state.users.find(function (x) { return x.sso_subject === lic.sub; }) || state.users.find(function (x) { return x.email === lic.email; });
-      if (su && su.role !== 'organizer') return view('errors/error', { title: 'Connexion impossible', message: 'Cette adresse correspond à un compte du service médical : connectez-vous avec votre mot de passe et votre code de double authentification.' }, 409);
-      if (su) { su.sso_subject = lic.sub; su.license_number = lic.licence; su.organization = lic.asa; if (su.approval_status === 'pending') su.approval_status = 'approved'; }
-      else {
-        su = { id: uuid(), email: lic.email, full_name: lic.given_name + ' ' + lic.family_name, role: 'organizer', password: null, totp_enabled: false, active: true, activated: true,
-          auth_source: 'sso', sso_subject: lic.sub, license_number: lic.licence, organization: lic.asa, approval_status: 'approved', email_verified_at: now(), created_at: now() };
-        state.users.push(su);
-        audit('sso_account_created', 'user', su.id);
-      }
-      return beginMfa(su);
-    }
     // Inscription libre
     if (path === '/inscription') {
       var signupLocals = function (extra) { return Object.assign({ title: 'Créer un compte directeur de course', values: {}, errors: {}, formError: null, jobTitles: signupRules.JOB_TITLES, ssoLabel: SSO_LABEL }, extra); };
@@ -277,8 +262,8 @@
         mail('signupExisting', sv.v.email, { link: '/mot-de-passe-oublie' });
       } else {
         var nu2 = { id: uuid(), email: sv.v.email, full_name: sv.v.first_name + ' ' + sv.v.last_name, role: 'organizer', password: pw, totp_enabled: false, active: true, activated: true,
-          auth_source: 'local', approval_status: 'pending', email_verified_at: null, phone: sv.v.phone, organization: sv.v.organization, job_title: sv.v.job_title,
-          license_number: sv.v.license_number || null, signup_message: sv.v.message || null, created_at: now(), verifyToken: rnd(24) };
+          auth_source: 'local', approval_status: 'pending', email_verified_at: null, phone: sv.v.phone, job_title: sv.v.job_title,
+          license_number: sv.v.license_number || null, created_at: now(), verifyToken: rnd(24) };
         state.users.push(nu2);
         mail('signupVerify', nu2.email, { name: nu2.full_name, link: '/inscription/confirmer/' + nu2.verifyToken });
       }
@@ -287,9 +272,8 @@
     if ((m = path.match(/^\/inscription\/confirmer\/(\w+)$/))) {
       var vu = state.users.find(function (x) { return x.verifyToken && x.verifyToken === m[1]; });
       if (!vu) return view('errors/error', { title: 'Lien invalide', message: 'Ce lien de confirmation est invalide ou a expiré. Connectez-vous pour en recevoir un nouveau.' }, 410);
-      vu.email_verified_at = now(); delete vu.verifyToken;
-      mail('signupToReview', 'service.medical@ffsa.fr', { name: vu.full_name, organization: vu.organization || '—', link: '/back-office/demandes' });
-      return info('Adresse confirmée', 'Merci. Votre demande de compte directeur de course est maintenant transmise à la FFSA pour validation. Vous recevrez un e-mail dès qu’elle sera acceptée.');
+      vu.email_verified_at = now(); vu.approval_status = 'approved'; delete vu.verifyToken;
+      return info('Compte activé', 'Merci, votre adresse est confirmée et votre compte est actif. Vous pouvez vous connecter.', '/connexion', 'Se connecter');
     }
     if (path === '/deconnexion' && method === 'POST') { audit('logout'); state.session = {}; return redirect('/connexion'); }
     if (path === '/mot-de-passe-oublie') return view('auth/forgot', { title: 'Mot de passe oublié', sent: method === 'POST' });
@@ -384,15 +368,6 @@
         var dd = state.drafts[dkey];
         return view('doctor/form', formLocals(dd ? dd.values : Object.assign({}, engine.prefill(medicalForm, ctx.a.data), person ? person.prefill : {})));
       }
-      if (sub === '/transferer' && method === 'POST') {
-        var temail = String(body.email || '').trim();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(temail)) return redirect('/medecin/' + token + '?transfert=invalide');
-        var nr = createRequest(ctx.a, temail, String(body.phone || '').trim() || null, ctx.r.id);
-        invite(nr, ctx.a, 'doctorTransfer');
-        audit('doctor_transferred', 'accident', ctx.a.id);
-        delete state.session.doctorAccess;
-        return info('Demande transmise', 'La demande de rapport médical du dossier ' + ctx.a.reference + ' a été transmise à ' + temail + '. Votre lien est désormais désactivé ; les rapports déjà saisis sont conservés.');
-      }
       if (sub === '/cloturer' && method === 'POST') {
         if (!state.medical.some(function (x) { return x.accident_id === ctx.a.id; })) return redirect('/medecin/' + token + '?vide=1');
         finish(ctx.a);
@@ -410,7 +385,7 @@
           .map(function (x) { return { name: patientName(x.data), classification: x.data.classification, at: x.created_at }; }),
         reportCount: pats.length,
         flash: query.ajoute ? 'Rapport enregistré.' : null,
-        error: query.vide ? 'Ajoutez au moins un rapport patient avant de clôturer.' : query.transfert === 'invalide' ? 'Adresse e-mail du confrère invalide.' : null,
+        error: query.vide ? 'Ajoutez au moins un rapport patient avant de clôturer.' : null,
       });
     }
 
@@ -425,18 +400,26 @@
       if (path === '/back-office') {
         var list = filtered(query);
         var page = Math.max(1, Number(query.page) || 1);
-        list.sort(function (x, y) { return (isOverdue(y) - isOverdue(x)) || (y.created_at > x.created_at ? 1 : -1); });
-        var rows = list.slice((page - 1) * 50, page * 50).map(function (a) {
+        var rowsAll = list.map(function (a) {
           var o = state.users.find(function (x) { return x.id === a.organizer_id; });
-          var as = state.users.find(function (x) { return x.id === a.assigned_to; });
-          return Object.assign({}, a, { organizer_name: o ? o.full_name : '', assignee_name: as ? as.full_name : null, overdue: isOverdue(a) });
+          return Object.assign({}, a, { organizer_name: o ? o.full_name : '', overdue: isOverdue(a) });
         });
+        // Tri : colonne choisie (?tri=…&ordre=asc|desc), sinon dossiers en retard puis plus récents
+        var SORT_KEYS = { reference: 'reference', epreuve: 'event_name', discipline: 'discipline', date: 'event_date', directeur: 'organizer_name', statut: 'status', suivi: 'processing_status', depose: 'created_at' };
+        var sort = SORT_KEYS[query.tri] ? { key: query.tri, dir: query.ordre === 'desc' ? 'desc' : 'asc' } : null;
+        rowsAll.sort(function (x, y) {
+          if (!sort) return (y.overdue - x.overdue) || (y.created_at > x.created_at ? 1 : -1);
+          var k = SORT_KEYS[sort.key], vx = x[k] || '', vy = y[k] || '';
+          var c = String(vx).localeCompare(String(vy), 'fr');
+          return (sort.dir === 'desc' ? -c : c) || (y.created_at > x.created_at ? 1 : -1);
+        });
+        var rows = rowsAll.slice((page - 1) * 50, page * 50);
         var all = state.accidents;
         var stats = { total: all.length, overdue: all.filter(isOverdue).length, pending: all.filter(function (a) { return a.status === 'awaiting_medical'; }).length,
-          to_review: all.filter(function (a) { return a.status === 'complete' && a.processing_status === 'a_analyser'; }).length,
-          mine: all.filter(function (a) { return a.assigned_to === u.id && a.processing_status !== 'clos'; }).length };
+          to_review: all.filter(function (a) { return a.status !== 'awaiting_medical' && a.processing_status === 'a_analyser'; }).length,
+          no_medical: all.filter(function (a) { return a.status === 'no_medical'; }).length };
         var eq = new URLSearchParams(Object.entries(query).filter(function (e) { return e[0] !== 'page' && e[1]; })).toString();
-        return view('backoffice/index', { title: 'Dossiers', reports: rows, stats: stats, query: query, page: page, pages: Math.max(1, Math.ceil(list.length / 50)), total: list.length,
+        return view('backoffice/index', { title: 'Dossiers', reports: rows, stats: stats, query: query, sort: sort, statusLabels: STATUS_LABELS, page: page, pages: Math.max(1, Math.ceil(list.length / 50)), total: list.length,
           disciplines: engine.allFields(accidentForm).find(function (f) { return f.name === 'discipline'; }).options, processing: PROCESSING, exportQuery: eq });
       }
       if (path === '/back-office/export.csv') return info('Export tableur', "L'export CSV (une ligne par patient, ouvrable dans Excel) fonctionne dans l'application. Le téléchargement de fichiers n'est pas possible dans cette démo en ligne.", '/back-office', 'Retour aux dossiers');
@@ -453,7 +436,6 @@
       if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/suivi$/)) && method === 'POST') {
         var sa = accidentById(m[1]); if (!sa) return notFound();
         if (PROCESSING[body.processing_status]) sa.processing_status = body.processing_status;
-        sa.assigned_to = body.assigned_to || null;
         audit('case_updated', 'accident', sa.id);
         return redirect('/back-office/dossiers/' + sa.id + '?suivi=1');
       }
@@ -473,29 +455,11 @@
           attachments: state.attachments.filter(function (x) { return x.accident_id === acc.id; }),
           requests: state.requests.filter(function (x) { return x.accident_id === acc.id; }).slice().reverse(),
           notes: state.notes.filter(function (x) { return x.accident_id === acc.id; }),
-          staff: state.users.filter(function (x) { return x.role === 'medical' && x.active; }),
+          statusLabels: STATUS_LABELS,
           retentionEnd: (function () { var d = new Date(acc.created_at); d.setFullYear(d.getFullYear() + 10); return d; })(), retentionYears: 10,
           processing: PROCESSING, overdue: isOverdue(acc),
           flash: query.relance ? 'Nouvelle invitation envoyée au médecin.' : query.suivi ? 'Suivi mis à jour.' : query.note ? 'Note ajoutée.' : null,
         });
-      }
-      if (path === '/back-office/demandes') {
-        var reqs = state.users.filter(function (x) { return x.role === 'organizer' && x.auth_source === 'local' && (x.approval_status !== 'approved' || x.reviewed_at); });
-        return view('backoffice/requests', { title: "Demandes d'accès",
-          pending: reqs.filter(function (x) { return x.approval_status === 'pending' && x.email_verified_at; }),
-          unverified: reqs.filter(function (x) { return x.approval_status === 'pending' && !x.email_verified_at; }),
-          reviewed: reqs.filter(function (x) { return x.approval_status !== 'pending'; }).map(function (x) {
-            var rv = state.users.find(function (y) { return y.id === x.reviewed_by; }); return Object.assign({}, x, { reviewer: rv ? rv.full_name : null }); }),
-          flash: query.ok || null });
-      }
-      if ((m = path.match(/^\/back-office\/demandes\/([\w-]+)\/(valider|refuser)$/)) && method === 'POST') {
-        var ru = state.users.find(function (x) { return x.id === m[1] && x.approval_status === 'pending'; });
-        if (!ru) return redirect('/back-office/demandes');
-        ru.approval_status = m[2] === 'valider' ? 'approved' : 'rejected'; ru.reviewed_by = u.id; ru.reviewed_at = now(); ru.review_note = String(body.note || '').trim() || null;
-        if (m[2] === 'valider') mail('signupApproved', ru.email, { name: ru.full_name, link: '/connexion' });
-        else mail('signupRejected', ru.email, { name: ru.full_name, reason: ru.review_note });
-        audit(m[2] === 'valider' ? 'signup_approved' : 'signup_rejected', 'user', ru.id);
-        return redirect('/back-office/demandes?ok=' + encodeURIComponent(m[2] === 'valider' ? 'Compte de ' + ru.full_name + ' activé ; un e-mail lui a été envoyé.' : 'Demande de ' + ru.full_name + ' refusée.'));
       }
       var ad = requireRole(['admin']); if (ad) return ad;
       if (path === '/back-office/utilisateurs' && method === 'GET') return usersView(query.ok || null, null);
@@ -565,7 +529,7 @@
     var u = currentUser();
     var data = Object.assign({
       user: u, csrfToken: 'demo', path: currentPath, demoMode: true, appName: 'FFSA',
-      pendingRequests: u && u.role !== 'organizer' ? state.users.filter(function (x) { return x.approval_status === 'pending' && x.email_verified_at; }).length : 0,
+      maxUploadMb: 10,
       sectionHasValues: engine.sectionHasValues, disciplineClass: disciplineClass,
     }, locals);
     var html = ejs.render(TEMPLATES[name], data, { includer: includer });

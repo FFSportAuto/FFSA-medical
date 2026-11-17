@@ -22,7 +22,7 @@ est affiché à l'écran (en réel, il est lu dans une application sur télépho
 ## Scénario conseillé
 
 1. Connectez-vous en **directeur de course** et déclarez un accident (menu « Déclarer un accident »).
-   Indiquez n'importe quelle adresse e-mail pour le médecin.
+   Répondez « Oui » à la question sur l’examen par le médecin et indiquez n’importe quelle adresse e-mail pour lui.
 2. Aucun e-mail ne part réellement : ouvrez **« Voir les e-mails envoyés »** (bandeau jaune en haut).
 3. Ouvrez le lien du message « Rapport médical à compléter » : vous êtes le **médecin**.
    Demandez le code, retrouvez-le dans la boîte mail de démo, puis saisissez un rapport par patient

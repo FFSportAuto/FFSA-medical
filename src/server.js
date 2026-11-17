@@ -22,9 +22,8 @@ async function main() {
   const app = createApp();
   app.listen(config.port, () => console.log(`${config.appName} – http://localhost:${config.port}`));
 
-  // Relance horaire des médecins n'ayant pas complété leur rapport
+  // Tâches horaires : purge des brouillons et des dossiers arrivés au terme de la durée de conservation
   setInterval(() => {
-    reports.sendReminders().catch((err) => console.error('Relances :', err));
     reports.purgeDrafts().catch((err) => console.error('Purge des brouillons :', err));
     reports.purgeExpired().catch((err) => console.error('Durée de conservation :', err));
   }, 60 * 60 * 1000).unref();

@@ -1,11 +1,13 @@
 # Accès des directeurs de course : compte licencié FFSA (SSO) ou inscription
 
-Les directeurs de course créent leur accès eux-mêmes, par l'une de ces deux voies :
+**Choix actuel** : seule l'**inscription** (« Créer un compte ») est proposée. Le compte est actif dès que
+l'adresse e-mail est confirmée, sans validation par la FFSA. La connexion avec le compte licencié décrite
+ci-dessous reste disponible dans le code : le bouton n'apparaît que si `OIDC_ISSUER` est configuré.
 
 | Voie | Pour qui | Validation FFSA |
 |---|---|---|
-| **Compte licencié FFSA** (bouton « Se connecter avec mon compte licencié FFSA ») | Licenciés (directeurs de course, officiels, dirigeants d'ASA…) | Aucune : le compte est créé à la première connexion |
-| **Inscription** (« Créer un compte ») | Directeurs de course sans compte licencié | Oui : confirmation de l'e-mail, puis validation en un clic dans le back office (menu « Demandes ») |
+| **Inscription** (« Créer un compte ») | Tous les directeurs de course | Aucune : compte actif après confirmation de l'e-mail |
+| **Compte licencié FFSA** (si activé) | Licenciés (directeurs de course, officiels, dirigeants d'ASA…) | Aucune : le compte est créé à la première connexion |
 
 Les comptes du **back office** (service médical, administrateurs) restent créés par invitation et
 se connectent toujours avec mot de passe + double authentification ; ils ne sont jamais rattachés
@@ -36,24 +38,23 @@ passerelle (par exemple Keycloak) peut l'exposer en OpenID Connect.
    `OIDC_REQUIRED_CLAIM=roles` et `OIDC_REQUIRED_VALUES=officiel,organisateur`.
    Les licenciés hors de ces profils sont invités à utiliser le formulaire d'inscription.
 
-Variables d'environnement correspondantes : voir `.env.example` (`OIDC_*`, `APPROVER_EMAILS`).
+Variables d'environnement correspondantes : voir `.env.example` (`OIDC_*`).
 
 ## Rattachement des comptes
 
 - À la première connexion par compte licencié, si un compte **directeur de course** existe déjà avec la même
   adresse e-mail (vérifiée par le fournisseur), il est rattaché : le directeur de course retrouve ses déclarations.
-- Une demande d'inscription en attente est validée automatiquement si la personne se connecte ensuite
+- Une inscription dont l'adresse n'est pas encore confirmée est activée si la personne se connecte ensuite
   avec son compte licencié.
 
 ## Sécurité de l'inscription libre
 
-- Confirmation de l'adresse e-mail obligatoire (lien valable 48 h), puis validation par la FFSA.
-- Les personnes de `APPROVER_EMAILS` (par défaut le service médical) sont prévenues de chaque demande.
+- Confirmation de l'adresse e-mail obligatoire (lien valable 48 h) : le compte est ensuite actif.
 - Réponse identique que l'adresse soit connue ou non (pas de divulgation des comptes existants).
 - Limitation du nombre de demandes, champ piège anti-robots, mot de passe robuste.
 - Un directeur de course ne voit que ses propres déclarations, jamais les rapports médicaux.
 
-## Démonstration
+## Tests
 
-En mode démo (`DEMO_MODE=true`) et sans `OIDC_ISSUER`, un **portail licencié simulé** (`/demo/sso`)
-remplace le vrai fournisseur : on y choisit un licencié fictif. Il n'est jamais actif en production.
+Les tests automatiques utilisent un **portail licencié simulé** (`src/sso-demo-idp.js`). Il n'est plus proposé
+dans la démonstration.

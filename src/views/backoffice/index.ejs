@@ -7,17 +7,16 @@
   </div>
 </div>
 <div class="stats four">
-  <a class="stat card <%= Number(stats.overdue) ? 'alert-tile' : '' %>" href="/back-office?retard=1"><span class="stat-num <%= Number(stats.overdue) ? 'danger' : '' %>"><%= stats.overdue %></span><span>en retard (rapport médical &gt; 48 h)</span></a>
+  <a class="stat card <%= Number(stats.overdue) ? 'alert-tile' : '' %>" href="/back-office?retard=1"><span class="stat-num <%= Number(stats.overdue) ? 'danger' : '' %>"><%= stats.overdue %></span><span>en retard (lien du médecin expiré)</span></a>
   <a class="stat card" href="/back-office?statut=awaiting_medical"><span class="stat-num warn"><%= stats.pending %></span><span>en attente du médecin</span></a>
-  <a class="stat card" href="/back-office?statut=complete&amp;suivi=a_analyser"><span class="stat-num"><%= stats.to_review %></span><span>complets à analyser</span></a>
-  <a class="stat card" href="/back-office?attribue=moi"><span class="stat-num ok"><%= stats.mine %></span><span>qui me sont attribués</span></a>
+  <a class="stat card" href="/back-office?suivi=a_analyser"><span class="stat-num"><%= stats.to_review %></span><span>à analyser</span></a>
+  <a class="stat card" href="/back-office?statut=no_medical"><span class="stat-num"><%= stats.no_medical %></span><span>sans rapport médical</span></a>
 </div>
 <form method="get" class="card filters">
   <input type="search" name="q" value="<%= query.q || '' %>" placeholder="Référence ou épreuve" aria-label="Recherche">
   <select name="statut" aria-label="Statut">
     <option value="">Tous les statuts</option>
-    <option value="awaiting_medical" <%= query.statut === 'awaiting_medical' ? 'selected' : '' %>>En attente médical</option>
-    <option value="complete" <%= query.statut === 'complete' ? 'selected' : '' %>>Complet</option>
+    <% Object.entries(statusLabels).forEach(function ([k, l]) { %><option value="<%= k %>" <%= query.statut === k ? 'selected' : '' %>><%= l %></option><% }) %>
   </select>
   <select name="discipline" aria-label="Discipline">
     <option value="">Toutes disciplines</option>
@@ -27,20 +26,25 @@
     <option value="">Tout suivi</option>
     <% Object.entries(processing).forEach(function ([k, l]) { %><option value="<%= k %>" <%= query.suivi === k ? 'selected' : '' %>><%= l %></option><% }) %>
   </select>
-  <select name="attribue" aria-label="Attribution">
-    <option value="">Toutes attributions</option>
-    <option value="moi" <%= query.attribue === 'moi' ? 'selected' : '' %>>Attribués à moi</option>
-    <option value="personne" <%= query.attribue === 'personne' ? 'selected' : '' %>>Non attribués</option>
-  </select>
   <label class="inline-label"><input type="checkbox" name="retard" value="1" <%= query.retard === '1' ? 'checked' : '' %>> en retard</label>
   <label class="inline-label">du <input type="date" name="du" value="<%= query.du || '' %>"></label>
   <label class="inline-label">au <input type="date" name="au" value="<%= query.au || '' %>"></label>
+  <% if (sort) { %><input type="hidden" name="tri" value="<%= sort.key %>"><input type="hidden" name="ordre" value="<%= sort.dir %>"><% } %>
   <button class="btn primary" type="submit">Filtrer</button>
   <a href="/back-office" class="btn ghost">Réinitialiser</a>
 </form>
 <div class="card table-wrap">
   <table>
-    <thead><tr><th>Référence</th><th>Épreuve</th><th>Discipline</th><th>Date</th><th>Directeur de course</th><th>Statut</th><th>Suivi</th><th>Déposé le</th></tr></thead>
+    <%
+      // En-têtes triables : un clic trie, un second clic inverse l'ordre
+      const sortLink = (key) => '?' + new URLSearchParams(Object.assign({}, query, { tri: key, ordre: sort && sort.key === key && sort.dir === 'asc' ? 'desc' : 'asc', page: 1 })).toString();
+      const cols = [['reference', 'Référence'], ['epreuve', 'Épreuve'], ['discipline', 'Discipline'], ['date', 'Date de l\u2019accident'], ['directeur', 'Directeur de course'], ['statut', 'Statut'], ['suivi', 'Suivi'], ['depose', 'Déposé le']];
+    %>
+    <thead><tr>
+      <% cols.forEach(function ([key, label]) { const on = sort && sort.key === key; %>
+        <th aria-sort="<%= on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none' %>"><a class="sort<%= on ? ' on' : '' %>" href="<%= sortLink(key) %>"><%= label %><span class="sort-ico" aria-hidden="true"><%= on ? (sort.dir === 'asc' ? '▲' : '▼') : '↕' %></span></a></th>
+      <% }) %>
+    </tr></thead>
     <tbody>
     <% if (!reports.length) { %><tr><td colspan="8" class="empty">Aucun dossier.</td></tr><% } %>
     <% reports.forEach(function (r) { %>
@@ -50,8 +54,8 @@
         <td><% if (r.discipline) { %><span class="disc <%= disciplineClass(r.discipline) %>"><%= r.discipline %></span><% } %></td>
         <td><%= r.event_date ? new Date(r.event_date).toLocaleDateString('fr-FR') : '' %></td>
         <td><%= r.organizer_name %></td>
-        <td><% if (r.status === 'complete') { %><span class="badge ok">Complet</span><% } else if (r.overdue) { %><span class="badge late">En retard</span><% } else { %><span class="badge wait">Attente médical</span><% } %></td>
-        <td><span class="badge track-<%= r.processing_status %>"><%= processing[r.processing_status] %></span><% if (r.assignee_name) { %><span class="muted small block"><%= r.assignee_name %></span><% } %></td>
+        <td><% if (r.status === 'complete') { %><span class="badge ok">Complet</span><% } else if (r.status === 'no_medical') { %><span class="badge">Sans rapport médical</span><% } else if (r.overdue) { %><span class="badge late">En retard</span><% } else { %><span class="badge wait">Attente médical</span><% } %></td>
+        <td><span class="badge track-<%= r.processing_status %>"><%= processing[r.processing_status] %></span></td>
         <td><%= new Date(r.created_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }) %></td>
       </tr>
     <% }) %>

@@ -13,10 +13,13 @@ Directeur de course ──(1) rapport d'accident──▶ Application ──(2) 
                                                   └──(e-mails)──▶ Service médical FFSA ──▶ Back office
 ```
 
-1. Le **directeur de course** (compte licencié FFSA ou inscription validée par la FFSA) remplit le rapport d'accident
-   (jusqu'à 3 pilotes/copilotes, 4 autres personnes et 4 témoins), dont les coordonnées du médecin de l'épreuve.
-2. Le **médecin** reçoit un e-mail contenant un lien personnel (valable 14 jours, relance automatique
-   après 48 h). À l'ouverture, un code à usage unique lui est envoyé par e-mail ; il n'a pas besoin de compte.
+1. Le **directeur de course** (compte créé par inscription, actif dès la confirmation de son e-mail) remplit le
+   rapport d'accident (jusqu'à 3 pilotes/copilotes, 4 autres personnes et 4 témoins). Il indique si le médecin de
+   l'épreuve a examiné les personnes accidentées : si oui, avec ses coordonnées ; si non, aucun rapport médical
+   n'est demandé (dossier « sans rapport médical »).
+2. Le **médecin** reçoit un e-mail et un SMS contenant un lien personnel, **valable 48 heures**. Passé ce délai,
+   le formulaire est bloqué : seul le service médical peut envoyer un nouveau lien (au même médecin ou à un autre).
+   À l'ouverture, un code à usage unique lui est envoyé par e-mail ; il n'a pas besoin de compte.
 3. Le médecin remplit **un rapport médical par patient consulté** (pré-rempli avec l'épreuve et son nom,
    avec rappel de la déclaration d'accident), puis **clôture** le dossier.
 4. Le **service médical FFSA** est notifié au dépôt du rapport d'accident, puis lorsque le dossier est
@@ -27,39 +30,38 @@ référence de dossier et un lien.
 
 ### Fonctionnement détaillé
 
-- **Brouillons automatiques** : la saisie de l'organisateur et du médecin est enregistrée (chiffrée) toutes
+- **Brouillons automatiques** : la saisie du directeur de course et du médecin est enregistrée (chiffrée) toutes
   les quelques secondes. On peut fermer la page et reprendre plus tard ; brouillons purgés après 30 jours.
   Les pièces jointes ne sont pas conservées dans le brouillon.
-- **Reprise des données de l'organisateur** : le médecin choisit le patient parmi les personnes déclarées
-  (pilotes, copilotes, autres personnes) ; identité, licence, n° de concurrent, catégorie et qualité sont
+- **Reprise des données du directeur de course** : le médecin choisit le patient parmi les personnes déclarées
+  (pilotes, copilotes, autres personnes) ; identité, licence, n° de concurrent, catégorie, fonction et coordonnées sont
   pré-remplis, ainsi que l'épreuve, la date et l'heure. Chaque rapport médical est relié à la personne déclarée.
 - **Médecin joignable** : lien et code envoyés par e-mail **et par SMS** (portable obligatoire dans le
-  formulaire accident). Le médecin peut **transmettre la demande à un confrère** ; son lien est alors désactivé.
-- **Suivi des dossiers** (back office) : statut de traitement (à analyser / en cours / clos), médecin fédéral
-  référent, notes internes chiffrées, alerte « en retard » quand le rapport médical n'est pas arrivé sous 48 h,
-  filtres correspondants et tableau de bord.
+  formulaire accident).
+- **Suivi des dossiers** (back office) : statut de traitement (à analyser / en cours / clos), notes internes
+  chiffrées, alerte « en retard » quand le lien du médecin a expiré sans rapport, filtres, tableau triable par
+  colonne et tableau de bord.
 
-## Accès des organisateurs (autonomes)
+## Accès des directeurs de course (autonomes)
 
-Les organisateurs créent leur accès eux-mêmes :
-- **compte licencié FFSA** (SSO OpenID Connect) : compte créé automatiquement à la première connexion ;
-- **inscription** pour ceux qui n'ont pas de compte licencié : confirmation de l'e-mail puis validation
-  par la FFSA dans le back office (menu « Demandes »).
+Les directeurs de course créent leur compte eux-mêmes (« Créer un compte ») : le compte est actif dès que
+l'adresse e-mail est confirmée, sans validation par la FFSA.
 
-Configuration et informations à demander à la DSI : [`docs/SSO.md`](docs/SSO.md).
+La connexion avec le compte licencié FFSA (OpenID Connect) reste disponible dans le code, désactivée tant que
+`OIDC_ISSUER` n'est pas configuré : voir [`docs/SSO.md`](docs/SSO.md).
 
 ## Rôles
 
 | Rôle | Accès |
 |---|---|
-| Directeur de course | Compte licencié (SSO) ou inscription validée par la FFSA ; déclarer un accident, suivre ses déclarations (sans accès au rapport médical) |
+| Directeur de course | Inscription (compte actif après confirmation de l'e-mail) ; déclarer un accident, suivre ses déclarations (sans accès au rapport médical) |
 | Médecin | Lien sécurisé + code e-mail, uniquement pour le dossier concerné, une seule soumission |
-| Service médical | Back office : dossiers, suivi, PDF, export CSV, relance du médecin, validation des demandes d'accès |
-| Administrateur | Gestion des comptes, demandes d'accès et journal d'audit, **sans accès aux données de santé** |
+| Service médical | Back office : dossiers, suivi, PDF, export CSV, envoi d'un nouveau lien au médecin |
+| Administrateur | Gestion des comptes et journal d'audit, **sans accès aux données de santé** |
 
 La double authentification est **obligatoire pour tous** : application d'authentification (TOTP) pour le
-back office ; code par e-mail ou application pour les organisateurs. L'administrateur n'a **aucun accès
-aux données de santé** (comptes, demandes d'accès et journal uniquement).
+back office ; code par e-mail ou application pour les directeurs de course. L'administrateur n'a **aucun accès
+aux données de santé** (comptes et journal uniquement).
 
 ## Formulaires
 
@@ -154,7 +156,7 @@ Voir [`docs/SECURITE-RGPD.md`](docs/SECURITE-RGPD.md) pour les mesures de sécur
 src/
   forms/        définitions des formulaires + moteur de validation
   routes/       auth, organisateur, médecin, back office
-  services/     logique métier (dossiers, liens médecin, relances, notifications)
+  services/     logique métier (dossiers, liens médecin, notifications)
   lib/          chiffrement, mots de passe, TOTP, e-mails, audit
   db/           schéma SQL et migration
   views/        gabarits EJS

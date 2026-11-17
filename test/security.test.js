@@ -125,7 +125,7 @@ test("l'administrateur n'a aucun accès aux données de santé", async () => {
   for (const path of [`/back-office/dossiers/${accident.id}`, `/back-office/dossiers/${accident.id}/pdf/complet`, '/back-office/export.csv', '/back-office/export-pseudonymise.csv']) {
     assert.strictEqual((await admin.get(path)).status, 403, path);
   }
-  for (const path of ['/back-office/utilisateurs', '/back-office/audit', '/back-office/demandes']) {
+  for (const path of ['/back-office/utilisateurs', '/back-office/audit']) {
     assert.strictEqual((await admin.get(path)).status, 200, path);
   }
   const page = await admin.get('/back-office/utilisateurs');
@@ -199,7 +199,7 @@ test('antivirus : fichier infecté bloqué, antivirus injoignable = refus', asyn
     await c.post('/connexion/2fa', { code: lastCode() });
     await c.get('/organisateur/rapports/nouveau');
     const fd = new FormData();
-    for (const [k, v] of Object.entries({ doctor_first_name: 'A', doctor_last_name: 'B', doctor_email: 'a@b.test', doctor_phone: '0601020304', accident_date: '2026-10-01', event_name: 'Test', event_date: '2026-10-01', author_first_name: 'J', author_last_name: 'M', author_license: '123456' })) fd.set(k, v);
+    for (const [k, v] of Object.entries({ doctor_examined: 'Oui', doctor_first_name: 'A', doctor_last_name: 'B', doctor_email: 'a@b.test', doctor_phone: '0601020304', accident_date: '2026-10-01', event_name: 'Test', author_first_name: 'J', author_last_name: 'M', author_license: '123456' })) fd.set(k, v);
     fd.append('diagram', file, 'photo.png');
     return c.request('/organisateur/rapports', { method: 'POST', body: fd });
   }

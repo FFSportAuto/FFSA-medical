@@ -32,6 +32,7 @@ function createApp() {
   app.locals.sectionHasValues = require('./forms/engine').sectionHasValues;
   app.locals.disciplineClass = disciplineClass;
   app.locals.demoMode = config.demoMode;
+  app.locals.maxUploadMb = config.maxUploadMb;
 
   app.use(
     helmet({
@@ -75,14 +76,6 @@ function createApp() {
     next();
   });
   app.use(loadUser);
-  // Compteur des demandes d'accès à valider (menu du back office)
-  app.use(async (req, res, next) => {
-    res.locals.pendingRequests = 0;
-    if (req.user && ['medical', 'admin'].includes(req.user.role) && req.method === 'GET') {
-      res.locals.pendingRequests = await require('./services/accounts').pendingCount();
-    }
-    next();
-  });
   app.use(csrfToken);
   app.use(verifyCsrf);
 
@@ -93,13 +86,6 @@ function createApp() {
   app.use(require('./routes/backoffice'));
   if (config.demoMode) {
     app.use(require('./demo').router);
-    // Portail licencié simulé tant qu'aucun vrai fournisseur OpenID Connect n'est configuré
-    if (!config.oidc.issuer) {
-      const { createDemoIdp } = require('./sso-demo-idp');
-      const internal = () => `http://127.0.0.1:${config.port}/demo/sso`;
-      Object.assign(config.oidc, { issuer: internal(), clientId: 'ffsa-medical-demo', clientSecret: 'demo-secret', label: 'Se connecter avec mon compte licencié FFSA (simulation)' });
-      app.use('/demo/sso', createDemoIdp({ publicBase: () => `${config.baseUrl}/demo/sso`, internalIssuer: internal, clientId: 'ffsa-medical-demo', clientSecret: 'demo-secret' }));
-    }
   }
 
   app.use((req, res) => res.status(404).render('errors/error', { title: 'Page introuvable', message: "Cette page n'existe pas." }));

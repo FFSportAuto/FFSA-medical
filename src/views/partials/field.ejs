@@ -86,6 +86,7 @@
       </div>
     <% } else if (field.type === 'file') { %>
       <input id="<%= id %>" name="<%= field.name %>" type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" <%= field.multiple ? 'multiple' : '' %>>
+      <p class="help">Formats acceptés : photos JPEG, PNG, WebP ou HEIC, et documents PDF. <%= typeof maxUploadMb !== 'undefined' ? maxUploadMb : 10 %> Mo maximum par fichier, 10 fichiers maximum.</p>
       <% if (Object.keys(errors).length) { %><p class="help">Les fichiers doivent être sélectionnés à nouveau après une erreur.</p><% } %>
     <% } else if (field.type === 'signature') { %>
       <div class="signature" data-signature>

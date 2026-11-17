@@ -3,13 +3,14 @@
 <div class="page-head">
   <h1>Dossier <span class="mono"><%= accident.reference %></span></h1>
   <div class="head-actions">
-    <% if (accident.status === 'complete') { %><span class="badge ok">Complet</span><% } else { %><span class="badge wait">En attente du rapport médical</span><% } %>
+    <span class="badge <%= accident.status === 'complete' ? 'ok' : accident.status === 'no_medical' ? '' : 'wait' %>"><%= statusLabels[accident.status] %></span>
     <button type="button" class="btn ghost" data-print>Imprimer</button>
   </div>
 </div>
 <% if (flash) { %><div class="alert success"><%= flash %></div><% } %>
 
-<% if (overdue) { %><div class="alert error">Rapport médical en retard : demandé il y a plus de 48 heures. Relancez le médecin ci-dessous ou transmettez le lien à un autre médecin.</div><% } %>
+<% if (overdue) { %><div class="alert error">Rapport médical en retard : le lien du médecin a expiré (48 heures). Envoyez un nouveau lien ci-dessous, au même médecin ou à un autre.</div><% } %>
+<% if (accident.status === 'no_medical') { %><div class="alert info">Le médecin de l'épreuve n'a pas examiné les personnes accidentées : aucun rapport médical n'a été demandé.</div><% } %>
 
 <section class="card case no-print" id="suivi">
   <div class="case-grid">
@@ -20,11 +21,6 @@
         <div class="field"><label class="label" for="processing_status">Statut de traitement</label>
           <select id="processing_status" name="processing_status">
             <% Object.entries(processing).forEach(function ([k, l]) { %><option value="<%= k %>" <%= accident.processing_status === k ? 'selected' : '' %>><%= l %></option><% }) %>
-          </select></div>
-        <div class="field"><label class="label" for="assigned_to">Médecin fédéral référent</label>
-          <select id="assigned_to" name="assigned_to">
-            <option value="">— Non attribué —</option>
-            <% staff.forEach(function (u) { %><option value="<%= u.id %>" <%= accident.assigned_to === u.id ? 'selected' : '' %>><%= u.full_name %></option><% }) %>
           </select></div>
       </div>
       <button class="btn small" type="submit">Enregistrer</button>
@@ -77,7 +73,9 @@
         <%- include('../partials/display', { sections: m.sections }) %>
       </div>
     <% }) %>
-    <% if (accident.status !== 'complete') { %>
+    <% if (accident.status === 'no_medical') { %>
+      <p class="muted">Aucun rapport médical demandé.</p>
+    <% } else if (accident.status !== 'complete') { %>
       <p class="muted"><%= medicalReports.length ? 'Le médecin n\u2019a pas encore clôturé le dossier.' : 'Le médecin n\u2019a pas encore transmis de rapport.' %></p>
       <h3>Invitations envoyées</h3>
       <ul class="plain">
@@ -89,13 +87,13 @@
       </ul>
       <form method="post" action="/back-office/dossiers/<%= accident.id %>/relance" class="resend no-print">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <label class="label" for="doctor_email">Renvoyer un lien au médecin</label>
+        <label class="label" for="doctor_email">Envoyer un nouveau lien (même médecin ou autre médecin)</label>
         <div class="row">
           <input id="doctor_email" name="doctor_email" type="email" value="<%= requests[0] ? requests[0].doctorEmail : '' %>" required aria-label="E-mail du médecin">
           <input id="doctor_phone" name="doctor_phone" type="tel" value="<%= requests[0] && requests[0].doctorPhone ? requests[0].doctorPhone : '' %>" placeholder="Portable (SMS)" aria-label="Portable du médecin">
           <button class="btn primary" type="submit">Envoyer</button>
         </div>
-        <p class="help">Les liens précédents seront désactivés.</p>
+        <p class="help">Le nouveau lien est valable 48 heures. Les liens précédents sont désactivés.</p>
       </form>
     <% } %>
   </section>

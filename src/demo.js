@@ -1,6 +1,8 @@
 'use strict';
 
 // Mode démonstration : jamais activé sur l'instance de production HDS.
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const db = require('./db');
 const config = require('./config');
@@ -17,6 +19,29 @@ const ACCOUNTS = [
   { email: 'admin@demo.ffsa.fr', full_name: 'Administrateur Démo', role: 'admin', label: 'Administrateur (sans accès aux données de santé)', totp: true },
 ];
 
+// Pièces jointes d'exemple : une photo et une main courante en PDF (contenus fictifs)
+function demoPdf(eventName) {
+  const PDFDocument = require('pdfkit');
+  return new Promise((resolve) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 56 });
+    const chunks = [];
+    doc.on('data', (c) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.fontSize(16).text(`Main courante – ${eventName} (exemple fictif)`).moveDown();
+    ['11:20  Accident signalé par le poste 4', '11:21  Drapeau rouge', '11:23  Arrivée du véhicule d’intervention et du médecin',
+      '11:31  Extraction du pilote', '11:48  Départ de l’ambulance', '12:15  Reprise de l’épreuve'].forEach((l) => doc.fontSize(11).text(l));
+    doc.end();
+  });
+}
+async function demoFiles(eventName) {
+  const photo = fs.readFileSync(path.join(__dirname, '..', 'assets', 'demo', 'photo-sortie-de-route.jpg'));
+  const pdf = await demoPdf(eventName);
+  return {
+    diagram: [{ originalname: 'photo-sortie-de-route.jpg', mimetype: 'image/jpeg', size: photo.length, buffer: photo }],
+    logbook: [{ originalname: 'main-courante.pdf', mimetype: 'application/pdf', size: pdf.length, buffer: pdf }],
+  };
+}
+
 async function seed() {
   const hash = await hashPassword(PASSWORD);
   for (const a of ACCOUNTS) {
@@ -30,27 +55,27 @@ async function seed() {
   const { rows } = await db.query('SELECT count(*)::int AS n FROM accident_reports');
   if (rows[0].n > 0) return;
 
-  // Deux dossiers d'exemple : un complet, un en attente du médecin
+  // Deux dossiers d'exemple avec pièces jointes : un complet, un en attente du médecin
   const orga = await db.one('SELECT * FROM users WHERE email = $1', [ACCOUNTS[0].email]);
   const base = {
-    doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78',
+    doctor_examined: 'Oui', doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78',
     author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_license: '178842',
   };
   const done = await reports.createAccidentReport(orga, {
     ...base,
     event_name: 'Rallye des Vosges (exemple)', event_location: 'Gérardmer', discipline: 'Rallye', event_level: 'Épreuve nationale',
-    event_date: '2026-09-20', accident_date: '2026-09-20', accident_time: '14:35',
-    summary_victim_last_name: 'Exemple', summary_victim_first_name: 'Paul', circumstances: 'Sortie de route en ES3, tonneau. Pilote extrait par l’équipe d’intervention.',
+    accident_date: '2026-09-20', accident_time: '14:35',
+    circumstances: 'Sortie de route en ES3, tonneau. Pilote extrait par l’équipe d’intervention.',
     casualties: { Pilotes: { 'Nombre de blessés': 1 } },
     vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Paul', vehicle1_number: '27', vehicle1_license: '254781', vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
-    weather: ['Nuageux'], surface: ['Asphalte'], track_condition: ['Mouillé'],
-  }, {});
+    weather: 'Nuageux', surface: 'Asphalte', track_condition: 'Mouillé',
+  }, await demoFiles('Rallye des Vosges'));
   await reports.createAccidentReport(orga, {
     ...base,
     event_name: 'Course de côte du Mont-Dore (exemple)', event_location: 'Le Mont-Dore', discipline: 'Course de côte',
-    event_date: '2026-09-27', accident_date: '2026-09-27', accident_time: '10:05',
-    summary_victim_last_name: 'Exemple', summary_victim_first_name: 'Léa', vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Léa', vehicle1_number: '112', vehicle1_license: '287654', circumstances: 'Choc latéral contre le rail au virage 7.',
-  }, {});
+    accident_date: '2026-09-27', accident_time: '10:05',
+    vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Léa', vehicle1_number: '112', vehicle1_license: '287654', circumstances: 'Choc latéral contre le rail au virage 7.',
+  }, await demoFiles('Course de côte du Mont-Dore'));
   const request = await db.one(
     `SELECT mr.*, ar.reference, ar.event_name FROM medical_requests mr JOIN accident_reports ar ON ar.id = mr.accident_id
       WHERE ar.id = $1 AND mr.revoked_at IS NULL`,
