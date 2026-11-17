@@ -227,7 +227,7 @@ router.get('/connexion/sso/retour', loginLimiter, async (req, res, next) => {
 
 const signupView = (res, locals = {}, status = 200) =>
   res.status(status).render('auth/signup', {
-    title: 'Créer un compte directeur de course', values: {}, errors: {}, formError: null, jobTitles: accounts.JOB_TITLES,
+    title: 'Créer un compte directeur de course', values: {}, errors: {}, formError: null,
     ssoLabel: sso.isEnabled() ? config.oidc.label : null, ...locals,
   });
 

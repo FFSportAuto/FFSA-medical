@@ -23,14 +23,6 @@
       <% f('first_name', 'Prénom', 'text', { width: 'half', autocomplete: 'given-name' }) %>
       <% f('email', 'E-mail', 'email', { width: 'half', autocomplete: 'email' }) %>
       <% f('phone', 'Téléphone', 'tel', { width: 'half', autocomplete: 'tel' }) %>
-      <div class="field half <%= errors.job_title ? 'has-error' : '' %>">
-        <label class="label" for="s_job_title">Fonction <abbr title="obligatoire">*</abbr></label>
-        <select id="s_job_title" name="job_title">
-          <option value="">— Choisir —</option>
-          <% jobTitles.forEach(function (j) { %><option <%= values.job_title === j ? 'selected' : '' %>><%= j %></option><% }) %>
-        </select>
-        <% if (errors.job_title) { %><p class="error-msg"><%= errors.job_title %></p><% } %>
-      </div>
       <% f('license_number', 'N° de licence FFSA', 'text', { width: 'half', optional: true }) %>
       <% f('password', 'Mot de passe', 'password', { width: 'half', autocomplete: 'new-password', help: '12 caractères minimum, avec au moins 3 types : minuscules, majuscules, chiffres, caractères spéciaux.' }) %>
       <% f('confirm', 'Confirmation du mot de passe', 'password', { width: 'half', autocomplete: 'new-password', optional: true }) %>

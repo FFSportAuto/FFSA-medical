@@ -250,7 +250,7 @@
       privacy: { controller: 'Fédération Française du Sport Automobile (FFSA) [adresse du siège à compléter]', dpoContact: '[adresse de contact du délégué à la protection des données à compléter]', legalBasis: '', validated: false } });
     // Inscription libre
     if (path === '/inscription') {
-      var signupLocals = function (extra) { return Object.assign({ title: 'Créer un compte directeur de course', values: {}, errors: {}, formError: null, jobTitles: signupRules.JOB_TITLES, ssoLabel: SSO_LABEL }, extra); };
+      var signupLocals = function (extra) { return Object.assign({ title: 'Créer un compte directeur de course', values: {}, errors: {}, formError: null, ssoLabel: SSO_LABEL }, extra); };
       if (method === 'GET') return u ? redirect(homeFor(u)) : view('auth/signup', signupLocals());
       if (body.website) return view('auth/signup-done', { title: 'Vérifiez votre boîte mail' });
       var sv = signupRules.validateSignup(body);
@@ -263,7 +263,7 @@
         mail('signupExisting', sv.v.email, { link: '/mot-de-passe-oublie' });
       } else {
         var nu2 = { id: uuid(), email: sv.v.email, full_name: sv.v.first_name + ' ' + sv.v.last_name, role: 'organizer', password: pw, totp_enabled: false, active: true, activated: true,
-          auth_source: 'local', approval_status: 'pending', email_verified_at: null, phone: sv.v.phone, job_title: sv.v.job_title,
+          auth_source: 'local', approval_status: 'pending', email_verified_at: null, phone: sv.v.phone,
           license_number: sv.v.license_number || null, created_at: now(), verifyToken: rnd(24) };
         state.users.push(nu2);
         mail('signupVerify', nu2.email, { name: nu2.full_name, link: '/inscription/confirmer/' + nu2.verifyToken });

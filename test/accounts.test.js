@@ -145,11 +145,11 @@ test("un compte du back office n'est jamais rattaché par SSO", async () => {
 test('inscription libre : compte actif dès la confirmation de l\'adresse e-mail', async () => {
   const form = {
     last_name: 'Martin', first_name: 'Lucie', email: 'lucie.martin@club.test', phone: '06 12 34 56 78',
-    job_title: 'Directeur de course', license_number: '', password: PASSWORD, confirm: PASSWORD,
+    license_number: '', password: PASSWORD, confirm: PASSWORD,
   };
   const c = client();
   const page = await c.get('/inscription');
-  assert.doesNotMatch(page.text, /structure organisatrice|Message pour la FFSA|J'atteste/, 'champs retirés');
+  assert.doesNotMatch(page.text, /structure organisatrice|Message pour la FFSA|J'atteste|name="job_title"/, 'champs retirés');
   assert.match(page.text, /N° de licence FFSA</);
   const invalid = await c.post('/inscription', { ...form, email: 'x' });
   assert.strictEqual(invalid.status, 400);

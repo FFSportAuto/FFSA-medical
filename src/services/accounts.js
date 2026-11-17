@@ -7,7 +7,7 @@ const mailer = require('../lib/mailer');
 const { hashPassword } = require('../lib/password');
 const { randomToken, hashToken } = require('../lib/crypto');
 
-const { JOB_TITLES, validateSignup } = require('./signup-rules');
+const { validateSignup } = require('./signup-rules');
 
 async function createToken(userId, purpose, hours) {
   const token = randomToken();
@@ -27,9 +27,9 @@ async function signup(v, password) {
     return null;
   }
   const user = await db.one(
-    `INSERT INTO users (email, full_name, role, password_hash, auth_source, phone, job_title, license_number, approval_status)
-     VALUES ($1, $2, 'organizer', $3, 'local', $4, $5, $6, 'pending') RETURNING id, email, full_name`,
-    [v.email, `${v.first_name} ${v.last_name}`, await hashPassword(password), v.phone, v.job_title, v.license_number || null],
+    `INSERT INTO users (email, full_name, role, password_hash, auth_source, phone, license_number, approval_status)
+     VALUES ($1, $2, 'organizer', $3, 'local', $4, $5, 'pending') RETURNING id, email, full_name`,
+    [v.email, `${v.first_name} ${v.last_name}`, await hashPassword(password), v.phone, v.license_number || null],
   );
   const token = await createToken(user.id, 'verify', 48);
   await mailer.send('signupVerify', user.email, { name: user.full_name, link: `${config.baseUrl}/inscription/confirmer/${token}` });
@@ -87,4 +87,4 @@ async function findOrCreateSsoUser(identity) {
   return { user, created: true };
 }
 
-module.exports = { JOB_TITLES, validateSignup, signup, verifyEmail, findOrCreateSsoUser, createToken };
+module.exports = { validateSignup, signup, verifyEmail, findOrCreateSsoUser, createToken };
