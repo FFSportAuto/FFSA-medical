@@ -141,8 +141,7 @@ router.get('/medecin/:token/patient', loadRequest, requireVerified, async (req, 
 
 router.post('/medecin/:token/brouillon', loadRequest, requireVerified, express.json({ limit: '1mb' }), async (req, res) => {
   const { accident, ref } = await resolvePatient(req);
-  const { raw } = engine.validate(medicalForm, req.body || {});
-  await reports.saveDraft(draftKeyFor(accident.id, ref), raw);
+  await reports.saveDraft(draftKeyFor(accident.id, ref), engine.draftValues(medicalForm, req.body));
   res.json({ savedAt: new Date().toISOString() });
 });
 

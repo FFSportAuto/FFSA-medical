@@ -377,10 +377,10 @@
       var stop = requireRole(['organizer']); if (stop) return stop;
       if (path === '/organisateur') {
         var mine = state.accidents.filter(function (a) { return a.organizer_id === u.id; });
-        return view('organizer/index', { title: 'Mes déclarations', reports: mine, created: query.cree || null });
+        return view('organizer/index', { title: 'Mes déclarations', reports: mine, draft: engine.draftSummary(accidentForm, state.drafts['accident:' + u.id]), created: query.cree || null });
       }
       var okey = 'accident:' + u.id;
-      if (path === '/organisateur/brouillon/supprimer' && method === 'POST') { delete state.drafts[okey]; return redirect('/organisateur/rapports/nouveau'); }
+      if (path === '/organisateur/brouillon/supprimer' && method === 'POST') { delete state.drafts[okey]; return redirect(body.retour === 'liste' ? '/organisateur' : '/organisateur/rapports/nouveau'); }
       if (path === '/organisateur/rapports/nouveau') {
         var od = state.drafts[okey];
         return view('organizer/new', Object.assign({ title: accidentForm.title, form: accidentForm, values: od ? od.values : { asa: u.organization || '' }, errors: {}, formError: null }, draftLocals('/organisateur/brouillon', '/organisateur/brouillon/supprimer', okey)));
@@ -804,7 +804,7 @@
       return realFetch ? realFetch(url, opts) : Promise.reject(new Error('fetch'));
     }
     var data = JSON.parse((opts && opts.body) || '{}');
-    state.drafts[key] = { values: engine.validate(form, data).raw, updatedAt: now() };
+    state.drafts[key] = { values: engine.draftValues(form, data), updatedAt: now() };
     save();
     return Promise.resolve(new Response(JSON.stringify({ savedAt: now() }), { status: 200, headers: { 'content-type': 'application/json' } }));
   };

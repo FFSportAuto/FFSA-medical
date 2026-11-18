@@ -112,7 +112,7 @@ test('connexion avec le compte licencié : compte créé automatiquement puis r�
   const home = await c.get('/organisateur');
   assert.strictEqual(home.status, 200);
   assert.match(home.text, /class="who-name">Camille Laurent</, 'nom dans le menu');
-  assert.match(home.text, /class="who-org">ASA Démo Ouest</, 'ASA dans le menu');
+  assert.match(home.text, /class="who-org">Directeur de Course</, "rôle dans le menu");
   assert.match((await c.get('/organisateur/rapports/nouveau')).text, /id="f_asa" name="asa" type="text" value="ASA Démo Ouest"/, 'ASA pré-remplie');
 
   await ssoLogin(client(), 'lic-201501');

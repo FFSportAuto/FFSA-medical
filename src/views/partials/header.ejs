@@ -18,7 +18,7 @@
     <div class="topbar-right">
     <div class="who" title="Connecté(e) en tant que <%= user.full_name %>">
       <span class="who-name"><%= user.full_name %></span>
-      <span class="who-org"><%= user.role === 'organizer' ? (user.organization || 'Directeur de course') : (user.role === 'admin' ? 'Administrateur' : 'Service médical FFSA') %></span>
+      <span class="who-org"><%= user.role === 'organizer' ? 'Directeur de Course' : (user.role === 'admin' ? 'Administrateur' : 'Service médical FFSA') %></span>
     </div>
     <nav class="nav">
       <% if (user.role === 'organizer') { %>

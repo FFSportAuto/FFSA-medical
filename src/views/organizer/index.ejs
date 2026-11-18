@@ -1,14 +1,31 @@
 <%- include('../partials/header') %>
 <div class="page-head">
   <h1>Mes déclarations</h1>
-  <a class="btn primary" href="/organisateur/rapports/nouveau">+ Déclarer un accident</a>
+  <% if (!draft) { %><a class="btn primary" href="/organisateur/rapports/nouveau">+ Déclarer un accident</a><% } %>
 </div>
 <% if (created) { %>
   <div class="alert success">Rapport <strong><%= created %></strong> enregistré. Le médecin désigné a été invité par e-mail à compléter le rapport médical.</div>
 <% } %>
-<% if (!reports.length) { %>
+<% if (draft) { %>
+  <div class="card draft-card">
+    <div>
+      <span class="badge wait">Brouillon non envoyé</span>
+      <h2><%= draft.eventName || 'Déclaration sans nom d’épreuve' %><% if (draft.accidentDate) { %> <span class="muted">· accident du <%= new Date(draft.accidentDate).toLocaleDateString('fr-FR') %></span><% } %></h2>
+      <p class="muted small"><%= draft.stepLabel %> · enregistré le <%= new Date(draft.updatedAt).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }) %></p>
+    </div>
+    <div class="draft-card-actions">
+      <a class="btn primary" href="/organisateur/rapports/nouveau">Reprendre</a>
+      <form method="post" action="/organisateur/brouillon/supprimer" class="inline" data-confirm="Supprimer ce brouillon ? La saisie sera perdue.">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="retour" value="liste">
+        <button type="submit" class="btn ghost">Supprimer</button>
+      </form>
+    </div>
+  </div>
+<% } %>
+<% if (!reports.length && !draft) { %>
   <div class="card empty">Aucune déclaration pour le moment.</div>
-<% } else { %>
+<% } else if (reports.length) { %>
   <div class="card table-wrap">
     <table>
       <thead><tr><th>Référence</th><th>Épreuve</th><th>Date de l’accident</th><th>Rapport médical</th><th></th></tr></thead>

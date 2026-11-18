@@ -532,7 +532,10 @@
       });
       if (cur === lastIdx) { fillAutoNow(form); buildRecap(); }
       updateStatus();
-      if (scroll !== false) head.scrollIntoView({ block: 'start' });
+      if (scroll !== false && scroll !== 'init') head.scrollIntoView({ block: 'start' });
+      var changed = form.getAttribute('data-current-step') !== String(cur);
+      form.setAttribute('data-current-step', String(cur));
+      if (changed && scroll !== 'init') form.dispatchEvent(new CustomEvent('stepchange'));
     }
     function focusField(f) {
       show(stepOf(f), false);
@@ -563,8 +566,11 @@
     form.addEventListener('change', function () { clearTimeout(statusTimer); statusTimer = setTimeout(updateStatus, 50); });
 
     // Après un renvoi du serveur avec erreurs : ouvrir l'étape de la première erreur
+    // Sinon, reprise d'un brouillon : revenir à l'étape où la saisie s'était arrêtée
     var firstErr = form.querySelector('.has-error');
-    show(firstErr ? stepOf(firstErr) : 0, Boolean(firstErr));
+    var start = parseInt(form.getAttribute('data-start-step'), 10) || 0;
+    if (firstErr) show(stepOf(firstErr), true);
+    else show(start, 'init');
     return { focusField: focusField };
   }
 
@@ -692,6 +698,7 @@
         if (k === '_csrf' || (typeof File !== 'undefined' && v instanceof File)) return;
         if (k in data) data[k] = [].concat(data[k], v); else data[k] = v;
       });
+      if (form.hasAttribute('data-current-step')) data._step = form.getAttribute('data-current-step');
       return data;
     }
     function save() {
@@ -708,6 +715,7 @@
     function schedule() { clearTimeout(timer); timer = setTimeout(save, 1500); }
     form.addEventListener('input', schedule);
     form.addEventListener('change', schedule);
+    form.addEventListener('stepchange', schedule);
     form.addEventListener('submit', function (e) { if (e.defaultPrevented) return; submitting = true; clearTimeout(timer); });
   });
 

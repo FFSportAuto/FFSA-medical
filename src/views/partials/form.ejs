@@ -13,7 +13,7 @@
     <% } %>
   </div>
 <% } %>
-<form method="post" action="<%= action %>" enctype="multipart/form-data" class="dyn-form" novalidate<% if (form.sections.some(function (s) { return s.step; })) { %> data-stepper<% } %><% if (hasDraft) { %> data-draft-url="<%= draftUrl %>"<% } %>>
+<form method="post" action="<%= action %>" enctype="multipart/form-data" class="dyn-form" novalidate<% if (form.sections.some(function (s) { return s.step; })) { %> data-stepper<% } %><% if (hasDraft) { %> data-draft-url="<%= draftUrl %>"<% } %><% if (hasDraft && draftSavedAt && values && values._step) { %> data-start-step="<%= values._step %>"<% } %>>
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <% form.sections.forEach(function (section, i) { %>
     <% const showIf = section.showIf ? JSON.stringify(section.showIf) : ''; %>

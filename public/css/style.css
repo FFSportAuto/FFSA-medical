@@ -348,6 +348,11 @@ ul.plain li { margin-bottom: 6px; }
 .downloads { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; padding-block: 14px; }
 .downloads .row-actions { margin-top: 0; }
 .draft-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; padding-block: 12px; font-size: 13.5px; color: var(--muted); }
+.draft-card { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; border-left: 4px solid var(--warn, #c98a00); margin-bottom: 20px; }
+.draft-card h2 { margin: 8px 0 4px; font-size: 18px; }
+.draft-card h2 .muted { font-weight: 400; font-size: 15px; }
+.draft-card p { margin: 0; }
+.draft-card-actions { display: flex; gap: 10px; align-items: center; }
 .draft-status::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--success); margin-right: 8px; vertical-align: middle; }
 .draft-status.pending::before { background: var(--amber); }
 .draft-status.failed::before { background: var(--red); }

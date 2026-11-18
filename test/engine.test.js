@@ -220,3 +220,14 @@ test('personnes déclarées reprises dans le rapport médical (sans doublon)', (
   assert.strictEqual(list[1].prefill.license, '301122');
   assert.deepStrictEqual([list[2].detail, list[2].prefill.phone, list[2].prefill.address], ['Non licencié(e)', '06 55 44 33 22', '12 rue des Lilas']);
 });
+
+test('brouillon : étape conservée et résumé pour « Mes déclarations »', () => {
+  const raw = engine.draftValues(accidentForm, { event_name: 'Rallye du Mont', accident_date: '2026-11-10', _step: '2', inconnu: 'x' });
+  assert.strictEqual(raw._step, 2);
+  assert.strictEqual(raw.inconnu, undefined);
+  assert.strictEqual(engine.draftValues(accidentForm, { _step: 'abc' })._step, undefined);
+  const s = engine.draftSummary(accidentForm, { values: raw, updatedAt: new Date() });
+  assert.strictEqual(s.eventName, 'Rallye du Mont');
+  assert.strictEqual(s.stepLabel, 'Étape 3 sur 6 : Conditions et équipement');
+  assert.strictEqual(engine.draftSummary(accidentForm, null), null);
+});

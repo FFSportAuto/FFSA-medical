@@ -22,7 +22,8 @@ router.get('/organisateur', async (req, res) => {
        FROM accident_reports WHERE organizer_id = $1 ORDER BY created_at DESC LIMIT 200`,
     [req.user.id],
   );
-  res.render('organizer/index', { title: 'Mes déclarations', reports: rows, created: req.query.cree || null });
+  const draft = await reports.getDraft(draftKey(req.user));
+  res.render('organizer/index', { title: 'Mes déclarations', reports: rows, draft: engine.draftSummary(accidentForm, draft), created: req.query.cree || null });
 });
 
 router.get('/organisateur/rapports/nouveau', async (req, res) => {
@@ -39,14 +40,13 @@ router.get('/organisateur/rapports/nouveau', async (req, res) => {
 
 // Enregistrement automatique du brouillon (appelé par le navigateur pendant la saisie)
 router.post(DRAFT_URL, express.json({ limit: '1mb' }), async (req, res) => {
-  const { raw } = engine.validate(accidentForm, req.body || {});
-  await reports.saveDraft(draftKey(req.user), raw);
+  await reports.saveDraft(draftKey(req.user), engine.draftValues(accidentForm, req.body));
   res.json({ savedAt: new Date().toISOString() });
 });
 
 router.post(`${DRAFT_URL}/supprimer`, async (req, res) => {
   await reports.deleteDraft(draftKey(req.user));
-  res.redirect('/organisateur/rapports/nouveau');
+  res.redirect(req.body && req.body.retour === 'liste' ? '/organisateur' : '/organisateur/rapports/nouveau');
 });
 
 router.post('/organisateur/rapports', ...uploadFields(accidentForm), async (req, res) => {

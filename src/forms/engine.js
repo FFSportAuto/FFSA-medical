@@ -267,4 +267,26 @@ const sectionHasValues = (section, values) =>
     return true;
   });
 
-module.exports = { labelOf, cellOf, pseudonymizedColumns, ageAt, validate, toDisplay, formatValue, exportColumns, allFields, isVisible, cellName, prefill, sectionHasValues };
+// Brouillon : saisie brute + étape du formulaire où la personne s'est arrêtée
+function draftValues(form, body) {
+  const { raw } = validate(form, body || {});
+  const step = parseInt(body && body._step, 10);
+  if (step > 0 && step < 50) raw._step = step;
+  return raw;
+}
+
+// Résumé d'un brouillon de déclaration, pour la liste « Mes déclarations »
+function draftSummary(form, draft) {
+  if (!draft) return null;
+  const v = draft.values || {};
+  const steps = form.sections.reduce((acc, s) => (s.step && acc[acc.length - 1] !== s.step ? acc.concat(s.step) : acc), []);
+  const step = Math.min(Number(v._step) || 0, Math.max(steps.length - 1, 0));
+  return {
+    eventName: v.event_name || '',
+    accidentDate: v.accident_date || '',
+    updatedAt: draft.updatedAt,
+    stepLabel: steps.length ? `Étape ${step + 1} sur ${steps.length} : ${steps[step]}` : '',
+  };
+}
+
+module.exports = { draftValues, draftSummary, labelOf, cellOf, pseudonymizedColumns, ageAt, validate, toDisplay, formatValue, exportColumns, allFields, isVisible, cellName, prefill, sectionHasValues };
