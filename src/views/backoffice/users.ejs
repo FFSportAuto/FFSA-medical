@@ -1,6 +1,7 @@
 <%- include('../partials/header') %>
 <div class="page-head"><h1>Utilisateurs</h1></div>
 <% if (flash) { %><div class="alert success"><%= flash %></div><% } %>
+<% if (testMode && typeof testLink !== 'undefined' && testLink) { %><%- include('../partials/test-access', { link: testLink, linkLabel: 'Ouvrir le lien d’invitation' }) %><% } %>
 <% if (error) { %><div class="alert error"><%= error %></div><% } %>
 <form method="post" action="/back-office/utilisateurs" class="card filters">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">

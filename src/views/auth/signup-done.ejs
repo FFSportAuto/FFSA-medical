@@ -4,5 +4,6 @@
   <p>Un e-mail de confirmation vient d'être envoyé<% if (typeof email !== 'undefined' && email) { %> à <strong><%= email %></strong><% } %>. Cliquez sur le lien qu'il contient pour confirmer votre adresse.</p>
   <p class="muted">Votre compte sera actif dès que votre adresse est confirmée. Le lien est valable 48 heures.</p>
   <% if (demoMode) { %><p><a class="btn" href="/demo/emails">Ouvrir la boîte mail de démonstration</a></p><% } %>
+  <% if (testMode && typeof testLink !== 'undefined' && testLink) { %><%- include('../partials/test-access', { link: testLink, linkLabel: 'Confirmer l’adresse e-mail' }) %><% } %>
 </div>
 <%- include('../partials/footer') %>

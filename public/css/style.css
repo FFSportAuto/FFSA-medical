@@ -386,6 +386,11 @@ a.stat:hover { border-color: var(--slate); }
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 .signup-form .grid { margin-top: 4px; }
 button.demo-account.licensee { width: 100%; border: 0; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+/* Version de test : accès directs (codes et liens normalement reçus par e-mail, SMS ou application) */
+.test-access { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 14px 0; padding: 10px 14px; border: 1.5px dashed var(--slate); border-radius: 10px; font-size: 13.5px; }
+.test-label { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--slate); }
+.test-accounts .demo-account span span { display: block; color: var(--muted); }
+.test-accounts .demo-account .btn, .test-accounts .demo-account button { white-space: nowrap; flex-shrink: 0; }
 button.demo-account.licensee:hover { background: var(--blue-tint); }
 .sso-pick { display: grid; gap: 8px; margin-top: 12px; }
 .nav .count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: var(--red); color: #fff; font-size: 11px; font-weight: 700; }

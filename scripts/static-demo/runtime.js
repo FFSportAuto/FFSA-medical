@@ -24,8 +24,13 @@
   var PROCESSING = { a_analyser: 'À analyser', en_cours: 'En cours', clos: 'Clos' };
 
   // ---------- Stockage local ----------
-  var KEY = 'ffsa-demo-v1';
-  var PASSWORD = 'Demo-FFSA-2026!';
+  // Version de test (« recette ») : écrans identiques à l'application, sans explication ni bandeau de démo,
+  // avec des accès directs (codes, liens) et de vrais fichiers (exports CSV, pièces jointes)
+  var RECETTE = window.DEMO_FLAVOR === 'recette';
+  var KEY = RECETTE ? 'ffsa-test-v1' : 'ffsa-demo-v1';
+  var PASSWORD = RECETTE ? 'Test-FFSA-2026!' : 'Demo-FFSA-2026!';
+  // Clé TOTP commune de la version de test : les codes sont de vrais codes RFC 6238 (application d'authentification possible)
+  var TEST_SECRET = window.DEMO_TOTP_SECRET || 'KRSXG5CTMVRXEZLUKRSXG5CT';
   var state;
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* stockage indisponible */ } }
   function load() {
@@ -89,21 +94,24 @@
     mail('serviceComplete', 'service.medical@ffsa.fr', { reference: a.reference, eventName: a.event_name, link: '/back-office/dossiers/' + a.id });
   }
 
-  // Pièces jointes d'exemple (noms seulement : le téléchargement n'est pas simulé)
+  // Pièces jointes d'exemple (contenu fourni par window.DEMO_SAMPLES dans la version de test)
   function sampleFiles(a) {
-    [['diagram', 'photo-sortie-de-route.jpg', 'image/jpeg', 34628], ['logbook', 'main-courante.pdf', 'application/pdf', 2140]].forEach(function (f) {
-      state.attachments.push({ id: uuid(), accident_id: a.id, source: 'accident', field: f[0], filename: f[1], mime_type: f[2], size_bytes: f[3], created_at: now() });
+    [['diagram', 'photo-sortie-de-route.jpg', 'image/jpeg', 34628, 'photo'], ['logbook', 'main-courante.pdf', 'application/pdf', 2140, 'pdf']].forEach(function (f) {
+      state.attachments.push({ id: uuid(), accident_id: a.id, source: 'accident', field: f[0], filename: f[1], mime_type: f[2], size_bytes: f[3], sample: f[4], created_at: now() });
     });
   }
+  var ex = function (label) { return RECETTE ? label.replace(' (exemple)', '') : label; };
   function seed() {
     state = { seq: 0, users: [], accidents: [], requests: [], medical: [], attachments: [], mails: [], audit: [], notes: [], drafts: {}, session: {} };
-    [['directeur@demo.ffsa.fr', 'Directeur de course Démo', 'organizer', false], ['medical@demo.ffsa.fr', 'Service médical Démo', 'medical', true], ['admin@demo.ffsa.fr', 'Administrateur Démo', 'admin', true]]
-      .forEach(function (u) { state.users.push({ id: uuid(), email: u[0], full_name: u[1], role: u[2], password: PASSWORD, totp_enabled: u[3], active: true, activated: true, auth_source: 'local', approval_status: 'approved', email_verified_at: now(), last_login_at: null, created_at: now(), organization: u[2] === 'organizer' ? 'ASA Démo (exemple)' : null }); });
+    (RECETTE
+      ? [['directeur.test@ffsa.org', 'Jean Martin', 'organizer', false], ['medical.test@ffsa.org', 'Dr Sophie Bernard', 'medical', true], ['admin.test@ffsa.org', 'Administrateur FFSA', 'admin', true]]
+      : [['directeur@demo.ffsa.fr', 'Directeur de course Démo', 'organizer', false], ['medical@demo.ffsa.fr', 'Service médical Démo', 'medical', true], ['admin@demo.ffsa.fr', 'Administrateur Démo', 'admin', true]])
+      .forEach(function (u) { state.users.push({ id: uuid(), email: u[0], full_name: u[1], role: u[2], password: PASSWORD, totp_enabled: u[3], active: true, activated: true, auth_source: 'local', approval_status: 'approved', email_verified_at: now(), last_login_at: null, created_at: now(), organization: u[2] === 'organizer' ? (RECETTE ? 'ASA des Vosges' : 'ASA Démo (exemple)') : null }); });
     var orga = state.users[0];
     var base = { doctor_examined: 'Oui', doctor_first_name: 'Claire', doctor_last_name: 'Moreau', doctor_email: 'dr.moreau@demo.ffsa.fr', doctor_phone: '06 12 34 56 78', author_first_name: 'Jean', author_last_name: 'Martin', author_role: 'Directeur de course', author_license: '178842',
     monday_contact_last_name: 'Martin', monday_contact_first_name: 'Jean', monday_contact_email: 'jean.martin@asa-demo.fr', monday_contact_phone: '06 21 43 65 87' };
     var a1 = createAccident(orga, Object.assign({}, base, {
-      event_name: 'Rallye des Vosges (exemple)', event_location: 'Gérardmer', discipline: 'Rallye', event_level: 'Épreuve nationale',
+      event_name: ex('Rallye des Vosges (exemple)'), event_location: 'Gérardmer', discipline: 'Rallye', event_level: 'Épreuve nationale',
       accident_date: '2026-09-20', accident_time: '14:35',
       circumstances: 'Sortie de route en ES3, tonneau. Pilote extrait par l’équipe d’intervention.',
       casualties: { Pilotes: { 'Nombre de blessés': 1 } }, vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Paul', vehicle1_number: '27', vehicle1_license: '254781', vehicle1_vehicle_type: 'Voiture de tourisme (y compris SUV et 4x4)',
@@ -111,21 +119,24 @@
     }));
     sampleFiles(a1);
     var a2 = createAccident(orga, Object.assign({}, base, {
-      event_name: 'Course de côte du Mont-Dore (exemple)', event_location: 'Le Mont-Dore', discipline: 'Course de côte',
+      event_name: ex('Course de côte du Mont-Dore (exemple)'), event_location: 'Le Mont-Dore', discipline: 'Course de côte',
       accident_date: '2026-09-27', accident_time: '10:05', vehicle1_driver_last_name: 'Exemple', vehicle1_driver_first_name: 'Léa', vehicle1_number: '112', vehicle1_license: '287654',
       circumstances: 'Choc latéral contre le rail au virage 7.',
     }));
     sampleFiles(a2);
     state.medical.push({ id: uuid(), accident_id: a1.id, patient_ref: 'vehicle1', created_at: now(), data: {
-      date: '2026-09-20', time: '14:35', place: 'Gérardmer', event: 'Rallye des Vosges (exemple)',
+      date: '2026-09-20', time: '14:35', place: 'Gérardmer', event: ex('Rallye des Vosges (exemple)'),
       patient_last_name: 'Exemple', patient_first_name: 'Paul', patient_type: ['Pilote'], bp: '130/80', pulse: '92', glasgow: '15',
       upper_limbs: { Clavicule: { Droite: 'Fracture' } }, spine: ['Cervical'], decision: ['Évacuation non urgente', 'Imagerie'],
       hospital: 'CHU de Nancy', diagnosis: 'Fracture de la clavicule droite suspectée.', classification: "2 : transfert à l'hôpital",
       fit: 'Oui (pas de suspension de licence)', current_event: 'Inapte à reprendre', doctor_name: 'Claire Moreau' } });
     finish(a1);
-    // Le second dossier date de 3 jours et son lien a expiré : il apparaît « en retard » dans le back office
-    state.accidents.forEach(function (a) { if (a.status === 'awaiting_medical') a.created_at = new Date(Date.now() - 3 * 864e5).toISOString(); });
-    state.requests.forEach(function (r) { if (r.accident_id === a2.id) r.expires_at = new Date(Date.now() - 864e5).toISOString(); });
+    // Démo : le second dossier date de 3 jours et son lien a expiré (« en retard » dans le back office).
+    // Version de test : son lien reste valable, pour accéder tout de suite au formulaire médical.
+    if (!RECETTE) {
+      state.accidents.forEach(function (a) { if (a.status === 'awaiting_medical') a.created_at = new Date(Date.now() - 3 * 864e5).toISOString(); });
+      state.requests.forEach(function (r) { if (r.accident_id === a2.id) r.expires_at = new Date(Date.now() - 864e5).toISOString(); });
+    }
     state.mails = [];
     state.audit = [];
     save();
@@ -151,8 +162,59 @@
     return view('auth/totp', { title: 'Double authentification', error: error || null, resent: Boolean(resent), method: state.session.mfaMethod,
       maskedEmail: email ? maskMail(mu.email) : null, demoCode: email ? state.session.mfaCode : demoCode() }, status);
   }
-  // Code de double authentification simulé : change chaque minute, affiché à l'écran
-  var demoCode = function (offset) { var t = Math.floor(Date.now() / 60000) - (offset || 0); return String((t * 104729) % 900000 + 100000); };
+  // Code de double authentification : simulé dans la démo (change chaque minute) ; vrai code TOTP dans la version de test
+  var demoCode = function (offset) {
+    if (RECETTE) return totp(TEST_SECRET, offset || 0);
+    var t = Math.floor(Date.now() / 60000) - (offset || 0); return String((t * 104729) % 900000 + 100000);
+  };
+  // TOTP (RFC 6238, HMAC-SHA1, 30 s, 6 chiffres), calcul synchrone
+  function sha1(bytes) {
+    var h0 = 0x67452301, h1 = 0xefcdab89, h2 = 0x98badcfe, h3 = 0x10325476, h4 = 0xc3d2e1f0;
+    var ml = bytes.length, withPad = ((ml + 9 + 63) >> 6) << 6, m = new Uint8Array(withPad);
+    m.set(bytes); m[ml] = 0x80;
+    var bits = ml * 8; for (var i = 0; i < 4; i++) m[withPad - 1 - i] = (bits >>> (8 * i)) & 0xff;
+    var w = new Int32Array(80);
+    for (var off = 0; off < withPad; off += 64) {
+      for (var j = 0; j < 16; j++) w[j] = (m[off + 4 * j] << 24) | (m[off + 4 * j + 1] << 16) | (m[off + 4 * j + 2] << 8) | m[off + 4 * j + 3];
+      for (j = 16; j < 80; j++) { var x = w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16]; w[j] = (x << 1) | (x >>> 31); }
+      var a = h0, b = h1, c = h2, d = h3, e = h4;
+      for (j = 0; j < 80; j++) {
+        var f, k;
+        if (j < 20) { f = (b & c) | (~b & d); k = 0x5a827999; } else if (j < 40) { f = b ^ c ^ d; k = 0x6ed9eba1; }
+        else if (j < 60) { f = (b & c) | (b & d) | (c & d); k = 0x8f1bbcdc; } else { f = b ^ c ^ d; k = 0xca62c1d6; }
+        var t = (((a << 5) | (a >>> 27)) + f + e + k + w[j]) | 0;
+        e = d; d = c; c = (b << 30) | (b >>> 2); b = a; a = t;
+      }
+      h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0; h4 = (h4 + e) | 0;
+    }
+    var out = new Uint8Array(20);
+    [h0, h1, h2, h3, h4].forEach(function (h, i) { for (var q = 0; q < 4; q++) out[4 * i + q] = (h >>> (24 - 8 * q)) & 0xff; });
+    return out;
+  }
+  function hmacSha1(key, msg) {
+    if (key.length > 64) key = sha1(key);
+    var k = new Uint8Array(64); k.set(key);
+    var ipad = new Uint8Array(64 + msg.length), opad = new Uint8Array(84);
+    for (var i = 0; i < 64; i++) { ipad[i] = k[i] ^ 0x36; opad[i] = k[i] ^ 0x5c; }
+    ipad.set(msg, 64); opad.set(sha1(ipad), 64);
+    return sha1(opad);
+  }
+  function base32(str) {
+    var alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', bits = 0, value = 0, out = [];
+    String(str).replace(/=+$/, '').toUpperCase().split('').forEach(function (ch) {
+      value = (value << 5) | alpha.indexOf(ch); bits += 5;
+      if (bits >= 8) { out.push((value >>> (bits - 8)) & 0xff); bits -= 8; }
+    });
+    return new Uint8Array(out);
+  }
+  function totp(secret, stepsBack) {
+    var counter = Math.floor(Date.now() / 30000) - (stepsBack || 0);
+    var msg = new Uint8Array(8);
+    for (var i = 7; i >= 0; i--) { msg[i] = counter & 0xff; counter = Math.floor(counter / 256); }
+    var h = hmacSha1(base32(secret), msg), o = h[19] & 0xf;
+    var bin = ((h[o] & 0x7f) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3];
+    return String(bin % 1000000).padStart(6, '0');
+  }
   var view = function (name, locals, status) { return { view: name, locals: locals || {}, status: status || 200 }; };
   var redirect = function (to) { return { redirect: to }; };
   var info = function (title, message, link, linkLabel) { return view('errors/info', { title: title, message: message, link: link || null, linkLabel: linkLabel || '' }); };
@@ -183,7 +245,7 @@
   }
 
   function verifyLocals(ctx, codeSent, error) {
-    return { title: 'Vérification', reference: ctx.a.reference, maskedEmail: maskEmail(ctx.r.doctorEmail), maskedPhone: ctx.r.doctorPhone ? maskPhone(ctx.r.doctorPhone) : null, codeSent: codeSent, error: error || null, token: ctx.r.token };
+    return { title: 'Vérification', reference: ctx.a.reference, maskedEmail: maskEmail(ctx.r.doctorEmail), maskedPhone: ctx.r.doctorPhone ? maskPhone(ctx.r.doctorPhone) : null, codeSent: codeSent, error: error || null, token: ctx.r.token, testCode: RECETTE && codeSent ? ctx.r.otp : null };
   }
 
   // En retard : rapport médical attendu mais plus aucun lien valable (lien du médecin valable 48 h)
@@ -210,12 +272,12 @@
     // Authentification
     if (path === '/connexion' && method === 'GET') {
       if (u) return redirect(homeFor(u));
-      return view('auth/login', { title: 'Connexion', error: null, email: '', demoAccounts: demoAccounts(), ssoLabel: SSO_LABEL });
+      return view('auth/login', { title: 'Connexion', error: null, email: '', demoAccounts: demoAccounts(), testDoctors: testDoctors(), ssoLabel: SSO_LABEL });
     }
     if (path === '/connexion' && method === 'POST') {
       var email = String(body.email || '').trim().toLowerCase();
       var found = state.users.find(function (x) { return x.email === email && x.active; });
-      var loginErr = function (msg) { return view('auth/login', { title: 'Connexion', error: msg, email: email, demoAccounts: demoAccounts(), ssoLabel: SSO_LABEL }, 401); };
+      var loginErr = function (msg) { return view('auth/login', { title: 'Connexion', error: msg, email: email, demoAccounts: demoAccounts(), testDoctors: testDoctors(), ssoLabel: SSO_LABEL }, 401); };
       if (!found || !found.password || found.password !== body.password) return loginErr('Identifiants incorrects.');
       if (found.approval_status === 'rejected') return loginErr("Votre demande de compte n'a pas été acceptée. Contactez le service médical de la FFSA.");
       if (found.approval_status === 'pending' && !found.email_verified_at) {
@@ -268,7 +330,8 @@
         state.users.push(nu2);
         mail('signupVerify', nu2.email, { name: nu2.full_name, link: '/inscription/confirmer/' + nu2.verifyToken });
       }
-      return view('auth/signup-done', { title: 'Vérifiez votre boîte mail', email: sv.v.email });
+      var created = state.users.find(function (x) { return x.email === sv.v.email && x.verifyToken; });
+      return view('auth/signup-done', { title: 'Vérifiez votre boîte mail', email: sv.v.email, testLink: created ? '/inscription/confirmer/' + created.verifyToken : null });
     }
     if ((m = path.match(/^\/inscription\/confirmer\/(\w+)$/))) {
       var vu = state.users.find(function (x) { return x.verifyToken && x.verifyToken === m[1]; });
@@ -277,7 +340,11 @@
       return info('Compte activé', 'Merci, votre adresse est confirmée et votre compte est actif. Vous pouvez vous connecter.', '/connexion', 'Se connecter');
     }
     if (path === '/deconnexion' && method === 'POST') { audit('logout'); state.session = {}; return redirect('/connexion'); }
-    if (path === '/mot-de-passe-oublie') return view('auth/forgot', { title: 'Mot de passe oublié', sent: method === 'POST' });
+    if (path === '/mot-de-passe-oublie') {
+      var fu = method === 'POST' ? state.users.find(function (x) { return x.email === String(body.email || '').trim().toLowerCase() && x.active; }) : null;
+      if (fu) { fu.inviteToken = rnd(24); mail('passwordReset', fu.email, { link: '/mot-de-passe/' + fu.inviteToken }); }
+      return view('auth/forgot', { title: 'Mot de passe oublié', sent: method === 'POST', testLink: fu ? '/mot-de-passe/' + fu.inviteToken : null });
+    }
     if ((m = path.match(/^\/mot-de-passe\/(\w+)$/))) {
       var invited = state.users.find(function (x) { return x.inviteToken === m[1]; });
       if (!invited) return view('errors/error', { title: 'Lien invalide', message: 'Ce lien est invalide ou a expiré.' }, 410);
@@ -294,7 +361,15 @@
     if (path === '/compte/2fa') {
       if (!u) return redirect('/connexion');
       if (u.totp_enabled) return view('account/totp-enabled', { title: 'Double authentification' });
-      return info('Double authentification', "Dans l'application, l'utilisateur scanne ici un QR code avec son téléphone. Cette étape n'est pas simulée dans la démo en ligne.");
+      if (!RECETTE) return info('Double authentification', "Dans l'application, l'utilisateur scanne ici un QR code avec son téléphone. Cette étape n'est pas simulée dans la démo en ligne.");
+      var setup = function (error, status) { return view('account/totp-setup', { title: 'Activer la double authentification', qr: window.DEMO_QR || '', secret: TEST_SECRET, error: error, testCode: demoCode() }, status); };
+      if (method === 'POST') {
+        var c2 = String(body.code || '').replace(/\s/g, '');
+        if (c2 !== demoCode() && c2 !== demoCode(1)) return setup('Code incorrect. Réessayez avec le code affiché par l’application.', 400);
+        u.totp_enabled = true; audit('totp_enabled', 'user', u.id);
+        return redirect(homeFor(u));
+      }
+      return setup(null);
     }
 
     // Organisateur
@@ -397,7 +472,10 @@
       if (u.role === 'admin' && (path === '/back-office' || path.indexOf('/back-office/dossiers') === 0 || path.indexOf('/back-office/export') === 0)) {
         return path === '/back-office' ? redirect('/back-office/utilisateurs') : denied();
       }
-      if (path === '/back-office/export-pseudonymise.csv') return info('Export statistique pseudonymisé', "Dans l'application, ce bouton télécharge un tableur pour les statistiques : sans nom, coordonnées, texte libre ni signature, dates réduites au mois, âge calculé et identifiant de dossier non réversible. Le téléchargement de fichiers n'est pas possible dans cette démo en ligne.", '/back-office', 'Retour aux dossiers');
+      if (path === '/back-office/export-pseudonymise.csv') {
+        if (RECETTE) { downloadCsv('pseudo', filtered(query)); audit('export_pseudonymized'); return { stay: true }; }
+        return info('Export statistique pseudonymisé', "Dans l'application, ce bouton télécharge un tableur pour les statistiques : sans nom, coordonnées, texte libre ni signature, dates réduites au mois, âge calculé et identifiant de dossier non réversible. Le téléchargement de fichiers n'est pas possible dans cette démo en ligne.", '/back-office', 'Retour aux dossiers');
+      }
       if (path === '/back-office') {
         var list = filtered(query);
         var page = Math.max(1, Number(query.page) || 1);
@@ -423,6 +501,9 @@
         return view('backoffice/index', { title: 'Dossiers', reports: rows, stats: stats, query: query, sort: sort, statusLabels: STATUS_LABELS, page: page, pages: Math.max(1, Math.ceil(list.length / 50)), total: list.length,
           disciplines: engine.allFields(accidentForm).find(function (f) { return f.name === 'discipline'; }).options, processing: PROCESSING, exportQuery: eq });
       }
+      if (path === '/back-office/export.csv' && RECETTE) { downloadCsv('complet', filtered(query)); audit('export_csv'); return { stay: true }; }
+      if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/pdf\/\w+$/)) && RECETTE) { audit('pdf_downloaded', 'accident', m[1]); setTimeout(function () { window.print(); }, 50); return { stay: true }; }
+      if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/pieces\/([\w-]+)$/)) && RECETTE) { downloadAttachment(m[2]); audit('attachment_downloaded', 'attachment', m[2]); return { stay: true }; }
       if (path === '/back-office/export.csv') return info('Export tableur', "L'export CSV (une ligne par patient, ouvrable dans Excel) fonctionne dans l'application. Le téléchargement de fichiers n'est pas possible dans cette démo en ligne.", '/back-office', 'Retour aux dossiers');
       if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/pdf\/\w+$/))) return info('Téléchargement PDF', "Dans l'application, ce bouton télécharge le dossier en PDF au format du rapport FFSA (en-tête et pied de page FFSA, rubriques du formulaire, certifications). Le téléchargement de fichiers n'est pas possible dans cette démo en ligne.", '/back-office/dossiers/' + m[1], 'Retour au dossier');
       if ((m = path.match(/^\/back-office\/dossiers\/([\w-]+)\/pieces\/[\w-]+$/))) return info('Pièce jointe', "Le téléchargement des pièces jointes fonctionne dans l'application. Les fichiers ne sont pas conservés dans cette démo en ligne.", '/back-office/dossiers/' + m[1], 'Retour au dossier');
@@ -473,6 +554,7 @@
         state.users.push(nu);
         mail('userInvitation', ne, { name: nn, role: ROLE_LABELS[nu.role], link: '/mot-de-passe/' + nu.inviteToken });
         audit('user_created', 'user', nu.id);
+        state.session.testLink = '/mot-de-passe/' + nu.inviteToken;
         return redirect('/back-office/utilisateurs?ok=' + encodeURIComponent('Invitation envoyée à ' + ne));
       }
       if ((m = path.match(/^\/back-office\/utilisateurs\/([\w-]+)\/([a-z0-9-]+)$/)) && method === 'POST') {
@@ -502,17 +584,114 @@
     return redirect(homeFor(user));
   }
   function demoAccounts() {
-    return [['directeur@demo.ffsa.fr', 'Directeur de course'], ['medical@demo.ffsa.fr', 'Service médical'], ['admin@demo.ffsa.fr', 'Administrateur (sans accès aux données de santé)']]
+    return (RECETTE
+      ? [['directeur.test@ffsa.org', 'Directeur de course'], ['medical.test@ffsa.org', 'Service médical'], ['admin.test@ffsa.org', 'Administrateur']]
+      : [['directeur@demo.ffsa.fr', 'Directeur de course'], ['medical@demo.ffsa.fr', 'Service médical'], ['admin@demo.ffsa.fr', 'Administrateur (sans accès aux données de santé)']])
       .map(function (a) { return { email: a[0], label: a[1], password: PASSWORD }; });
   }
+  // Version de test : accès direct au formulaire médical de chaque dossier dont le lien est encore valable
+  function testDoctors() {
+    if (!RECETTE) return [];
+    return state.requests.filter(function (r) { return !r.revoked_at && !r.used_at && new Date(r.expires_at) > new Date(); }).map(function (r) {
+      var a = accidentById(r.accident_id);
+      return a && a.status === 'awaiting_medical' ? { reference: a.reference, eventName: a.event_name, href: '/medecin/' + r.token } : null;
+    }).filter(Boolean).reverse();
+  }
   function usersView(flash, error, status) {
-    return view('backoffice/users', { title: 'Utilisateurs', roleLabels: ROLE_LABELS, flash: flash, error: error,
+    var testLink = state.session.testLink || null;
+    delete state.session.testLink;
+    return view('backoffice/users', { title: 'Utilisateurs', roleLabels: ROLE_LABELS, flash: flash, error: error, testLink: testLink,
       users: state.users.slice().sort(function (a, b) { return a.role.localeCompare(b.role) || a.full_name.localeCompare(b.full_name); }) }, status);
   }
   function addFiles(accidentId, source, files) {
     Object.keys(files).forEach(function (field) {
-      files[field].forEach(function (f) { state.attachments.push({ id: uuid(), accident_id: accidentId, source: source, field: field, filename: f.originalname, mime_type: f.mimetype, size_bytes: f.size, created_at: now() }); });
+      files[field].forEach(function (f) {
+        var att = { id: uuid(), accident_id: accidentId, source: source, field: field, filename: f.originalname, mime_type: f.mimetype, size_bytes: f.size, created_at: now() };
+        state.attachments.push(att);
+        if (RECETTE && f.blob) fileStore('put', att.id, f.blob);
+      });
     });
+  }
+
+  // ---------- Version de test : fichiers réels ----------
+  // Pièces jointes conservées dans le navigateur (IndexedDB), exports CSV identiques à ceux du serveur
+  function fileStore(op, id, blob) {
+    return new Promise(function (resolve) {
+      try {
+        var req = indexedDB.open(KEY + '-fichiers', 1);
+        req.onupgradeneeded = function () { req.result.createObjectStore('f'); };
+        req.onerror = function () { resolve(null); };
+        req.onsuccess = function () {
+          var tx = req.result.transaction('f', op === 'put' ? 'readwrite' : 'readonly');
+          var st = tx.objectStore('f');
+          var r = op === 'put' ? st.put(blob, id) : op === 'clear' ? null : st.get(id);
+          if (op === 'clear') { req.result.close(); return resolve(null); }
+          r.onsuccess = function () { resolve(r.result || null); };
+          r.onerror = function () { resolve(null); };
+        };
+      } catch (e) { resolve(null); }
+    });
+  }
+  function saveFile(name, blob) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  }
+  function downloadAttachment(id) {
+    var att = state.attachments.find(function (x) { return x.id === id; });
+    if (!att) return;
+    var samples = window.DEMO_SAMPLES || {};
+    if (att.sample && samples[att.sample]) {
+      fetch(samples[att.sample]).then(function (r) { return r.blob(); }).then(function (b) { saveFile(att.filename, b); });
+      return;
+    }
+    fileStore('get', id).then(function (b) {
+      if (b) saveFile(att.filename, b);
+      else alertBox('Ce fichier n’est plus disponible dans ce navigateur.');
+    });
+  }
+  function alertBox(msg) {
+    var main = root.querySelector('main') || root;
+    var d = document.createElement('div'); d.className = 'alert error'; d.setAttribute('role', 'alert'); d.textContent = msg;
+    main.insertBefore(d, main.firstChild); window.scrollTo(0, 0);
+  }
+  var csvCell = function (v) {
+    var x = v === undefined || v === null ? '' : String(v);
+    if (/^[=+\-@\t\r]/.test(x)) x = "'" + x; // neutralise l'injection de formules dans les tableurs
+    return '"' + x.replace(/"/g, '""') + '"';
+  };
+  // Identifiant non réversible du dossier (export statistique)
+  function pseudoId(id) {
+    var h = sha1(new TextEncoder().encode('ffsa-test:dossier:' + id));
+    return Array.prototype.map.call(h, function (b) { return b.toString(16).padStart(2, '0'); }).join('').slice(0, 12);
+  }
+  function downloadCsv(kind, accidents) {
+    var rows = [];
+    accidents.slice().sort(function (x, y) { return x.created_at < y.created_at ? (kind === 'pseudo' ? -1 : 1) : (kind === 'pseudo' ? 1 : -1); }).forEach(function (a) {
+      var meds = state.medical.filter(function (x) { return x.accident_id === a.id; });
+      (meds.length ? meds : [null]).forEach(function (m) { rows.push({ a: a, m: m ? m.data : {} }); });
+    });
+    var lines;
+    if (kind === 'pseudo') {
+      var pa = engine.pseudonymizedColumns(accidentForm), pm = engine.pseudonymizedColumns(medicalForm);
+      lines = [['Pseudonyme dossier', 'Statut', 'Âge du patient'].concat(pa.map(function (c) { return 'Accident – ' + c.label; }), pm.map(function (c) { return 'Médical – ' + c.label; })).map(csvCell).join(';')];
+      rows.forEach(function (r) {
+        lines.push([pseudoId(r.a.id), STATUS_LABELS[r.a.status] || r.a.status, engine.ageAt(r.m.birthdate, r.m.date || r.a.data.accident_date)]
+          .concat(pa.map(function (c) { return c.value(r.a.data); }), pm.map(function (c) { return c.value(r.m); })).map(csvCell).join(';'));
+      });
+    } else {
+      var ca = engine.exportColumns(accidentForm), cm = engine.exportColumns(medicalForm);
+      lines = [['Référence', 'Statut', 'Suivi', 'Déclaré le', 'Complété le'].concat(ca.map(function (c) { return 'Accident – ' + c.label; }), cm.map(function (c) { return 'Médical – ' + c.label; })).map(csvCell).join(';')];
+      rows.forEach(function (r) {
+        lines.push([r.a.reference, STATUS_LABELS[r.a.status] || r.a.status, PROCESSING[r.a.processing_status] || '', r.a.created_at, r.a.completed_at || '']
+          .concat(ca.map(function (c) { return c.value(r.a.data); }), cm.map(function (c) { return c.value(r.m); })).map(csvCell).join(';'));
+      });
+    }
+    var day = new Date().toISOString().slice(0, 10);
+    saveFile(kind === 'pseudo' ? 'ffsa-statistiques-pseudonymisees-' + day + '.csv' : 'ffsa-dossiers-' + day + '.csv',
+      new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
   }
 
   // ---------- Rendu ----------
@@ -529,7 +708,7 @@
   function render(name, locals) {
     var u = currentUser();
     var data = Object.assign({
-      user: u, csrfToken: 'demo', path: currentPath, demoMode: true, appName: 'FFSA',
+      user: u, csrfToken: 'demo', path: currentPath, demoMode: !RECETTE, testMode: RECETTE, appName: 'FFSA',
       maxUploadMb: 10,
       sectionHasValues: engine.sectionHasValues, disciplineClass: disciplineClass,
     }, locals);
@@ -540,7 +719,7 @@
     var doc = new DOMParser().parseFromString(html, 'text/html');
     doc.querySelectorAll('script').forEach(function (s) { s.remove(); });
     root.innerHTML = doc.body.innerHTML;
-    document.title = (locals.title || 'FFSA') + ' – Démo FFSA';
+    document.title = (locals.title || 'FFSA') + (RECETTE ? ' – FFSA' : ' – Démo FFSA');
     runAppScript();
   }
   function runAppScript() { try { new Function(APP_JS)(); } catch (e) { console.error(e); } }
@@ -548,10 +727,12 @@
   function go(method, url, body, files) {
     var u = new URL(url, 'https://demo.local');
     var query = Object.fromEntries(u.searchParams.entries());
-    var res;
+    var res, previousPath = currentPath;
     for (var hops = 0; hops < 5; hops++) {
       currentPath = u.pathname;
       res = handle(method, u.pathname, query, body || {}, files || {});
+      // Téléchargement ou impression : la page affichée ne change pas
+      if (res.stay) { currentPath = previousPath; save(); return; }
       if (!res.redirect) break;
       u = new URL(res.redirect, 'https://demo.local');
       query = Object.fromEntries(u.searchParams.entries());
@@ -599,7 +780,7 @@
     }
     var body = {}, files = {};
     fd.forEach(function (v, k) {
-      if (v instanceof File) { if (v.name && v.size) (files[k] = files[k] || []).push({ originalname: v.name, size: v.size, mimetype: v.type }); return; }
+      if (v instanceof File) { if (v.name && v.size) (files[k] = files[k] || []).push({ originalname: v.name, size: v.size, mimetype: v.type, blob: RECETTE ? v : null }); return; }
       if (k in body) body[k] = [].concat(body[k], v); else body[k] = v;
     });
     go('POST', action, body, files);
@@ -631,19 +812,30 @@
   // Les fenêtres de confirmation natives sont bloquées dans la démo : on confirme d'office
   window.confirm = function () { return true; };
 
+  // Guide « Comment tester » : démo uniquement (absent de la version de test)
   var guide = document.getElementById('demo-guide');
   var help = document.getElementById('demo-help');
   function toggleGuide(open) {
+    if (!guide || !help) return;
     guide.hidden = !open;
     help.setAttribute('aria-expanded', String(open));
     try { localStorage.setItem(KEY + '-guide', open ? '1' : '0'); } catch (e) { /* ignore */ }
   }
-  help.addEventListener('click', function () { toggleGuide(guide.hidden); });
+  if (help) help.addEventListener('click', function () { toggleGuide(guide.hidden); });
   var guidePref = null;
   try { guidePref = localStorage.getItem(KEY + '-guide'); } catch (e) { /* ignore */ }
   toggleGuide(guidePref !== '0'); // ouvert à la première visite
 
-  document.getElementById('demo-reset').addEventListener('click', function () {
+  // Remise à zéro des données (dossiers, comptes, fichiers) ; dans la version de test : deux clics
+  var resetBtn = document.getElementById('demo-reset'), resetTimer;
+  resetBtn.addEventListener('click', function () {
+    if (RECETTE && !resetBtn.classList.contains('dn-confirm')) {
+      resetBtn.classList.add('dn-confirm'); resetBtn.textContent = 'Confirmer la remise à zéro';
+      resetTimer = setTimeout(function () { resetBtn.classList.remove('dn-confirm'); resetBtn.textContent = 'Réinitialiser les données'; }, 4000);
+      return;
+    }
+    clearTimeout(resetTimer);
+    if (RECETTE) { resetBtn.classList.remove('dn-confirm'); resetBtn.textContent = 'Réinitialiser les données'; try { indexedDB.deleteDatabase(KEY + '-fichiers'); } catch (e) { /* ignore */ } }
     seed();
     state.session = {};
     go('GET', '/connexion');
@@ -671,7 +863,7 @@
     var h = root.querySelector('h1');
     var u = currentUser();
     return {
-      screen: (h ? h.textContent : document.title.replace(/ – Démo FFSA$/, '')).replace(/\s+/g, ' ').trim(),
+      screen: (h ? h.textContent : document.title.replace(/ – (Démo )?FFSA$/, '')).replace(/\s+/g, ' ').trim(),
       path: state.lastUrl || currentPath,
       role: /^\/medecin\//.test(currentPath) ? 'Médecin' : u ? ROLES[u.role] || u.role : 'Non connecté',
     };
@@ -698,7 +890,7 @@
   }
   notesBtn.addEventListener('click', function () { toggleNotes(notesPanel.hidden); });
   document.getElementById('demo-notes-close').addEventListener('click', function () { toggleNotes(false); });
-  help.addEventListener('click', function () { if (!guide.hidden) toggleNotes(false); });
+  if (help) help.addEventListener('click', function () { if (!guide.hidden) toggleNotes(false); });
   function addNote() {
     var text = noteText.value.trim();
     if (!text) { noteText.focus(); return; }
@@ -755,7 +947,7 @@
   // Export : texte lisible, à coller dans un e-mail ou à transmettre pour les modifications
   function exportText() {
     var d = new Date();
-    var lines = ['Notes sur la démo FFSA Médical', 'Exportées le ' + d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' · ' + notes.length + ' note(s)', ''];
+    var lines = [RECETTE ? 'Notes de test FFSA Médical' : 'Notes sur la démo FFSA Médical', 'Exportées le ' + d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' · ' + notes.length + ' note(s)', ''];
     notes.forEach(function (n, i) {
       lines.push((i + 1) + '. ' + n.screen + ' (' + n.role + ')');
       lines.push('   Écran : ' + n.path);

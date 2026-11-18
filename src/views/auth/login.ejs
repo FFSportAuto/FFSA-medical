@@ -19,7 +19,24 @@
     <a class="btn small" href="/inscription">Créer un compte</a>
   </div>
   <p class="muted small center">Médecins : utilisez le lien sécurisé reçu par e-mail, aucun compte n'est nécessaire.</p>
-  <% if (demoAccounts.length) { %>
+  <% if (demoAccounts.length && testMode) { %>
+    <div class="demo-accounts test-accounts">
+      <span class="test-label">Accès de test</span>
+      <% demoAccounts.forEach(function (a) { %>
+        <div class="demo-account">
+          <span><b><%= a.label %></b><span class="mono"><%= a.email %></span></span>
+          <button type="button" class="btn small ghost" data-fill-login="<%= a.email %>" data-fill-password="<%= a.password %>">Se connecter</button>
+        </div>
+      <% }) %>
+      <% (typeof testDoctors !== 'undefined' ? testDoctors : []).forEach(function (d) { %>
+        <div class="demo-account">
+          <span><b>Médecin · <%= d.reference %></b><span><%= d.eventName %></span></span>
+          <a class="btn small ghost" href="<%= d.href %>">Ouvrir</a>
+        </div>
+      <% }) %>
+      <p class="help">Mot de passe : <span class="mono"><%= demoAccounts[0].password %></span></p>
+    </div>
+  <% } else if (demoAccounts.length) { %>
     <div class="demo-accounts">
       <span class="eyebrow">Comptes de démonstration</span>
       <% demoAccounts.forEach(function (a) { %>

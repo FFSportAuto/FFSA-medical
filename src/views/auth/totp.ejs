@@ -6,7 +6,7 @@
   <% } else { %>
     <p class="muted">Saisissez le code à 6 chiffres affiché dans votre application d'authentification.</p>
   <% } %>
-  <% if (demoCode) { %><div class="alert info">Démonstration : le code est <strong class="mono"><%= demoCode %></strong> (<%= method === 'email' ? 'normalement lu dans vos e-mails' : 'normalement lu sur votre téléphone' %>).</div><% } %>
+  <% if (demoCode && testMode) { %><%- include('../partials/test-access', { code: demoCode }) %><% } else if (demoCode) { %><div class="alert info">Démonstration : le code est <strong class="mono"><%= demoCode %></strong> (<%= method === 'email' ? 'normalement lu dans vos e-mails' : 'normalement lu sur votre téléphone' %>).</div><% } %>
   <% if (resent) { %><div class="alert success">Un nouveau code vient d'être envoyé.</div><% } %>
   <% if (error) { %><div class="alert error" role="alert"><%= error %></div><% } %>
   <form method="post" action="/connexion/2fa">

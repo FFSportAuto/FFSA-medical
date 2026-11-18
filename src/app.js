@@ -32,6 +32,7 @@ function createApp() {
   app.locals.sectionHasValues = require('./forms/engine').sectionHasValues;
   app.locals.disciplineClass = disciplineClass;
   app.locals.demoMode = config.demoMode;
+  app.locals.testMode = false; // vrai seulement dans la version de test autonome (scripts/build-static-demo.js)
   app.locals.maxUploadMb = config.maxUploadMb;
 
   app.use(

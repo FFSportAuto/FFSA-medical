@@ -12,6 +12,7 @@
       <span class="muted small">ou saisissez la clé : <code><%= secret %></code></span></li>
     <li>Entrez le code à 6 chiffres affiché par l'application.</li>
   </ol>
+  <% if (testMode && typeof testCode !== 'undefined' && testCode) { %><%- include('../partials/test-access', { code: testCode }) %><% } %>
   <% if (error) { %><div class="alert error" role="alert"><%= error %></div><% } %>
   <form method="post" action="/compte/2fa">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">

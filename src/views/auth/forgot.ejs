@@ -3,6 +3,7 @@
   <h1>Mot de passe oublié</h1>
   <% if (sent) { %>
     <div class="alert success">Si un compte correspond à cette adresse, un e-mail de réinitialisation vient d'être envoyé.</div>
+    <% if (testMode && typeof testLink !== 'undefined' && testLink) { %><%- include('../partials/test-access', { link: testLink, linkLabel: 'Choisir un nouveau mot de passe' }) %><% } %>
     <p class="center"><a href="/connexion">Retour à la connexion</a></p>
   <% } else { %>
     <form method="post" action="/mot-de-passe-oublie">

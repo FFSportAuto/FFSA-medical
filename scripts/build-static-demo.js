@@ -157,21 +157,53 @@ const assets = {
   'img/favicon.png': dataUri(path.join(ROOT, 'public/img/favicon.png'), 'image/png'),
 };
 const ejsLib = fs.readFileSync(path.join(ROOT, 'node_modules/ejs/ejs.min.js'), 'utf8').replace(/<\/script/gi, '<\\/script');
-const standalone = `<!doctype html>
+function standaloneOf(page, extraScript = '') {
+  const out = `<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" href="${assets['img/favicon.png']}">
-${html
+${page
   .replace(css, () => standaloneCss)
-  .replace('<script src="https://cdn.jsdelivr.net/npm/ejs@6.0.1/ejs.min.js"></script>', () => `<script>/* EJS 6.0.1 – Apache-2.0 – https://ejs.co */\n${ejsLib}</script>\n<script>var DEMO_ASSETS = ${JSON.stringify(assets)};</script>`)
+  .replace('<script src="https://cdn.jsdelivr.net/npm/ejs@6.0.1/ejs.min.js"></script>', () => `<script>/* EJS 6.0.1 – Apache-2.0 – https://ejs.co */\n${ejsLib}</script>\n<script>var DEMO_ASSETS = ${JSON.stringify(assets)};${extraScript}</script>`)
   .replace('<div id="app"></div>', () => '</head>\n<body>\n<div id="app"></div>')}
 </body>
 </html>
 `;
-if (standalone.includes('cdn.jsdelivr') || standalone.includes('url(static/')) throw new Error('Ressource externe restante dans la version autonome');
+  if (out.includes('cdn.jsdelivr') || out.includes('url(static/')) throw new Error('Ressource externe restante dans la version autonome');
+  return out;
+}
+const standalone = standaloneOf(html);
 const STANDALONE = path.join(OUT, 'FFSA-demo-interactive.html');
 fs.writeFileSync(STANDALONE, standalone);
 console.log(`Version autonome : ${path.relative(ROOT, STANDALONE)} (${Math.round(standalone.length / 1024)} Ko)`);
+
+// ---- Version de test : écrans identiques à l'application, sans explication ni bandeau ----
+// Accès directs (comptes, formulaire médical, codes et liens normalement reçus par e-mail), vrais codes de
+// double authentification, exports CSV et pièces jointes téléchargeables. Seul ajout visible : le bouton « Notes ».
+const TOTP_SECRET = 'KRSXG5CTMVRXEZLUKRSXG5CT';
+const qrSvg = (text) => {
+  const m = require('qrcode').create(text, { errorCorrectionLevel: 'M' }).modules;
+  let rects = '';
+  for (let r = 0; r < m.size; r++) for (let c = 0; c < m.size; c++) if (m.get(r, c)) rects += `M${c + 4} ${r + 4}h1v1h-1z`;
+  const n = m.size + 8;
+  return `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="${rects}" fill="#070e47"/></svg>`).toString('base64')}`;
+};
+const testPage = html
+  .replace('<title>FFSA Médical – démo</title>', '<title>FFSA Médical</title>')
+  .replace(/<aside id="demo-guide"[\s\S]*?<\/aside>\n/, '')
+  .replace(/<div id="demo-bar">[\s\S]*?<\/div>\n/, '<div id="demo-bar" class="test-bar"><button type="button" class="ghost-btn notes-btn" id="demo-notes-btn" aria-expanded="false" aria-controls="demo-notes">Notes<b id="demo-notes-count" hidden></b></button></div>\n')
+  .replace('<h2 id="demo-notes-title">Notes de réunion</h2>', '<h2 id="demo-notes-title">Notes de test</h2>')
+  .replace('même après « Réinitialiser ».', 'même après « Réinitialiser les données ».')
+  .replace('<button type="button" id="demo-notes-clear">Tout effacer</button></div>', '<button type="button" id="demo-notes-clear">Tout effacer</button><button type="button" id="demo-reset">Réinitialiser les données</button></div>')
+  .replace('</style>', '#demo-bar.test-bar { padding: 5px; }\n</style>');
+if (testPage.includes('<aside id="demo-guide"') || testPage.includes('>Comment tester<')) throw new Error('Explication restante dans la version de test');
+const testScript = `var DEMO_FLAVOR = 'recette'; var DEMO_TOTP_SECRET = '${TOTP_SECRET}';` +
+  ` var DEMO_QR = '${qrSvg(`otpauth://totp/FFSA%20M%C3%A9dical%20(test)?secret=${TOTP_SECRET}&issuer=FFSA%20M%C3%A9dical`)}';` +
+  ` var DEMO_SAMPLES = ${JSON.stringify({ photo: dataUri(path.join(ROOT, 'assets/demo/photo-sortie-de-route.jpg'), 'image/jpeg'), pdf: dataUri(path.join(ROOT, 'assets/demo/main-courante.pdf'), 'application/pdf') })};`;
+const testFile = standaloneOf(testPage, testScript);
+const TEST = path.join(OUT, 'FFSA-medical-test.html');
+fs.writeFileSync(TEST, testFile);
+console.log(`Version de test : ${path.relative(ROOT, TEST)} (${Math.round(testFile.length / 1024)} Ko)`);

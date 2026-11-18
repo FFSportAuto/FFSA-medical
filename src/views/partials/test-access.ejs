@@ -1,0 +1,6 @@
+<%# Accès de test (version de test uniquement) : code ou lien normalement reçu par e-mail, SMS ou application %>
+<div class="test-access">
+  <span class="test-label">Accès de test</span>
+  <% if (typeof code !== 'undefined' && code) { %><span>Code : <strong class="mono"><%= code %></strong></span><% } %>
+  <% if (typeof link !== 'undefined' && link) { %><a href="<%= link %>"><%= linkLabel %></a><% } %>
+</div>
