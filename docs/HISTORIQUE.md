@@ -70,6 +70,7 @@ Dix retours sur la démo appliqués (le fichier de notes de cette réunion n'a p
 - Version de test `dist-demo/FFSA-medical-test.html` : identique au futur site, sans explications, avec accès de
   test simplifiés, accès direct au formulaire médical, exports CSV réels.
 - Favicon : V tricolore FFSA (`public/img/favicon.png`).
+- Branche de développement fusionnée dans `main` le 19/11/2026.
 
 ## Notes du 18/11/2026 (`docs/notes-reunion/2026-11-18.txt`)
 
@@ -80,5 +81,4 @@ Dix retours sur la démo appliqués (le fichier de notes de cette réunion n'a p
 ## Points ouverts
 
 - RTS (voir ci-dessus).
-- Fusion de la branche de développement dans `main` avant la mise en production.
 - Validation du texte « Données personnelles » par le DPO (`PRIVACY_VALIDATED=true`).
