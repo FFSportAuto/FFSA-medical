@@ -1,0 +1,204 @@
+﻿Notes sur la démo FFSA Médical
+Exportées le 17/11/2026 à 14:50 · 32 note(s)
+
+1. Créer un compte (Non connecté)
+   Écran : /inscription
+   Élément : ASA / structure organisatrice *
+   Le 17/11/2026 11:29
+   Retirer
+
+2. Créer un compte (Non connecté)
+   Écran : /inscription
+   Élément : Fonction *
+   Le 17/11/2026 11:29
+   à voir
+
+3. Créer un compte (Non connecté)
+   Écran : /inscription
+   Élément : N° de licence FFSA (si vous en avez un)
+   Le 17/11/2026 11:30
+   Retirer la parenthèse
+
+4. Créer un compte (Non connecté)
+   Écran : /inscription
+   Élément : J'atteste exercer une fonction d'organisation ou de direction de course et je m'engage …
+   Le 17/11/2026 11:30
+   REtirer
+
+5. Connexion (Non connecté)
+   Écran : /connexion
+   Élément : Se connecter avec mon compte licencié FFSA (simulation)
+   Le 17/11/2026 11:30
+   Suppriler
+
+6. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Date de l'épreuve *
+   Le 17/11/2026 11:35
+   Date de l'accident
+
+7. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Le 17/11/2026 11:38
+   Ajouter heure de l'accident à côté de date de l'accident
+
+8. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Le 17/11/2026 11:38
+   Supprimer l'étape "L'accident"
+
+9. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Habitacle
+   Le 17/11/2026 11:41
+   Retirer inconnu de la liste
+
+10. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Position du poste de conduite
+   Le 17/11/2026 11:41
+   Centrale
+   Gauche 
+   Droite
+
+11. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Données récupérées / disponibles ?
+   Le 17/11/2026 11:43
+   Données récupérées
+
+12. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Le 17/11/2026 11:46
+   Autre personne : Licencié ? OUI / NON
+   Si OUI : demander le numéro de licence
+   Si OUI : Liste déroulante (Fonction)
+   - Directeur de Course
+   - Commissaire Sportif
+   - Commissaire de Route / de Piste
+   - Volontaire
+   - Autre
+
+13. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Licence n°
+   Le 17/11/2026 11:46
+   Uniquement si licencié = OUI
+
+14. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Le 17/11/2026 11:47
+   Rajouter les coordonnées si non licencié 
+   - Email
+   - Numéro de téléphone
+   - Adresse postale
+
+15. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Bonne
+   Le 17/11/2026 11:48
+   Choix unique
+
+16. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Temps clair
+   Le 17/11/2026 11:48
+   Choix unique
+
+17. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Section 12Type de revêtement
+   Le 17/11/2026 11:49
+   Choix unique
+
+18. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Concurrent 1 PrésentMarque, modèle, n° d'homologation Combinaison du pilote / copilote …
+   Le 17/11/2026 11:49
+   Préciser numéro du concurrent
+
+19. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Schéma et photos
+   Le 17/11/2026 11:50
+   Préciser les formats
+
+20. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Le 17/11/2026 11:51
+   Ajouter une champ Circonstance de l'accident = champ texte libre
+
+21. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Main courante
+   Le 17/11/2026 11:52
+   Préciser le format
+
+22. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Le 17/11/2026 11:54
+   Ajouter RTS (encart spécifique et facultatif)
+
+23. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Section 17Témoin de l'accident
+   Le 17/11/2026 11:56
+   Ajouter contact du témoin (facultatif)
+   Email
+   Numéro de téléphone
+
+24. Rapport médical ACC-2026-00003 (Médecin)
+   Écran : /medecin/vu4NAW4MD7AphUWnZWmC4kQZ?ajoute=1
+   Élément : Vous n'avez pas vu ce patient ? Transmettre à un confrère Le confrère recevra un nouvea…
+   Le 17/11/2026 12:03
+   à Supprimer
+
+25. Dossier ACC-2026-00003 (Service médical)
+   Écran : /back-office/dossiers/33b89712-4fb9-4e8a-98b5-1369cd7b3b1a
+   Élément : Médecin fédéral référent
+   Le 17/11/2026 12:06
+   Supprimer
+
+26. Demandes d'accès (Service médical)
+   Écran : /back-office/demandes
+   Élément : Demandes1
+   Le 17/11/2026 12:09
+   Supprimer cette fonctionnalité
+
+27. Dossiers (Service médical)
+   Écran : /back-office
+   Élément : RéférenceÉpreuveDisciplineDateDirecteur de courseStatutSuiviDéposé le ACC-2026-00002 Co…
+   Le 17/11/2026 12:10
+   Permettre le tri du tableau
+
+28. Créer un compte (Non connecté)
+   Écran : /inscription
+   Élément : Message pour la FFSA (facultatif)
+   Le 17/11/2026 12:11
+   Supprimer
+
+29. Dossier ACC-2026-00002 (Service médical)
+   Écran : /back-office/dossiers/2511300a-4498-4054-834f-ce181b3f169d
+   Élément : Suivi du dossier Statut de traitement À analyserEn coursClos Médecin fédéral référent —…
+   Le 17/11/2026 12:23
+   Sous-titres rouges : modifier la police (plus grasse, plus grande) sous toute l'application
+
+30. Dossier ACC-2026-00002 (Service médical)
+   Écran : /back-office/dossiers/2511300a-4498-4054-834f-ce181b3f169d
+   Élément : Rapport médical en retard : demandé il y a plus de 48 heures. Relancez le médecin ci-de…
+   Le 17/11/2026 12:26
+   Bloquer l'accès au formulaire médical après 48h.
+   Renvoyer un nouveau lien manuellement uniquement via le service médical (médecin d'origine ou autre médecin)
+
+31. Dossier ACC-2026-00002 (Service médical)
+   Écran : /back-office/dossiers/2511300a-4498-4054-834f-ce181b3f169d
+   Élément : Rapport d'accident L'épreuve Nom de l'épreuve Course de côte du Mont-Dore (exemple) Lie…
+   Le 17/11/2026 12:28
+   Pièces jointes ? Faire un test avec des pièces jointes
+
+32. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Section 2Médecin de l'épreuve
+   Le 17/11/2026 12:33
+   Le médecin de l'épreuve a-t-il examiné les personnes accidentées ? OUI / NON
+   Si non, pas d'envoi du rapport médical.

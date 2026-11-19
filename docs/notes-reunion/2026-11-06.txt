@@ -1,0 +1,60 @@
+﻿Notes sur la démo FFSA Médical
+Exportées le 06/11/2026 à 10:58 · 5 note(s)
+
+1. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Le 06/11/2026 10:39
+   Ajouter un champ : Données récupérées / disponibles ? 
+   Avec une liste déroulante : OUI / NON
+
+2. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Le 06/11/2026 10:40
+   Après Véhiculé équipé d'un ADR...
+   Ajouté un champ N° de série /référence ADR (réponse libre)
+
+3. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Le 06/11/2026 10:43
+   Passer Prénom, nom, licence à côté de concurrent N° puis faire une sous partie "véhicule" avec les autres champs
+
+4. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Position du poste de conduite
+   Le 06/11/2026 10:50
+   Remplacer N/A par NSP
+
+5. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Observations par véhicule concurrent Concurrent 1 (n° 654644)Concurrent 2Concurrent 3 N…
+   Le 06/11/2026 10:56
+   Un tableau par concurrent accidenté.
+   Trois colonnes par tableau (Article - Présent - Marque, modèle, n° d'homologation)
+   
+   Colonne Article : 
+   Combinaison du pilote/ copilote
+   Gants
+   Chaussures
+   Sous-vêtements
+   Casque
+   Visière
+   Hans/ Simpson
+   Rembourrage de l'arceau
+   Matériau de l'appuie-tête
+   Réservoir d'essence / vessie
+   Câbles de retenue des roues
+   Matériau absorbeur d'énergie – porte
+   Siège
+   Harnais de sécurité 
+   Armature de sécurité
+   Extincteur embarqué
+   Extincteur manuel
+   Filet de protection (racing nets)
+   Filet de vitre 
+   
+   Colonne Présent 
+   Liste déroulante (OUI / NON / NSP)
+   
+   Colonne Marque, modèle, n° d'homologation
+   
+   Champ libre si OUI est coché dans le colonne Présent

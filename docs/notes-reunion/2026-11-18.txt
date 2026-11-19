@@ -1,0 +1,15 @@
+﻿Notes de test FFSA Médical
+Exportées le 18/11/2026 à 11:45 · 2 note(s)
+
+1. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : ASA des Vosges
+   Le 18/11/2026 11:43
+   Supprimer 
+   Mettre le rôle : Directeur de Course
+
+2. Rapport d'accident (Directeur de course)
+   Écran : /organisateur/rapports/nouveau
+   Élément : Brouillon repris (enregistré le 18/11/2026 11:41). Recommencer à zéro
+   Le 18/11/2026 11:44
+   Retrouver mes déclaration débutée dans "mes déclarations" et permettre de reprendre où on en était
